@@ -1,0 +1,65 @@
+/* ==========================================================================
+   AUTH MODAL - Ventana de autenticación superpuesta sobre el catálogo
+   El catálogo (página de productos) permanece visible detrás del modal,
+   manteniendo header y footer visibles mientras se autentica.
+   ========================================================================== */
+
+.auth-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  overflow-y: auto;
+  padding: 70px 24px;
+  animation: auth-modal-fade 0.25s ease;
+}
+
+.auth-modal-content {
+  position: relative;
+  margin: auto;
+  z-index: 1;
+}
+
+/* Botón X para cerrar el modal */
+.auth-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid #ffd700;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffd700;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+  transition: 0.25s;
+}
+
+.auth-modal-close:hover {
+  background: #ffd700;
+  color: #000;
+}
+
+@keyframes auth-modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .auth-modal-overlay {
+    padding: 70px 10px;
+  }
+}

@@ -1,0 +1,190 @@
+/* Calificación obligatoria — overlay que bloquea la navegación */
+
+.calif-obl-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.calif-obl-modal {
+  background: #181512;
+  border: 1px solid rgba(212, 165, 75, 0.35);
+  border-radius: 20px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.calif-obl-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 201, 77, 0.12);
+  color: #ffc94d;
+  font-size: 1.6rem;
+  margin-bottom: 16px;
+}
+
+.calif-obl-title {
+  margin: 0 0 8px;
+  color: #f4e9d5;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.calif-obl-subtitle {
+  margin: 0 0 20px;
+  color: #c9b78f;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.calif-obl-cita-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 165, 75, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+
+.calif-obl-servicio {
+  color: #caa24d;
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.calif-obl-detalle {
+  color: #a89a7e;
+  font-size: 0.85rem;
+}
+
+.calif-obl-tecnico {
+  color: #c9b78f;
+  font-size: 0.85rem;
+}
+
+.calif-obl-stars {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.calif-obl-star {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #4a4236;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.calif-obl-star:hover {
+  transform: scale(1.2);
+}
+
+.calif-obl-star.active {
+  color: #ffc94d;
+}
+
+.calif-obl-star-label {
+  margin: 0 0 16px;
+  color: #caa24d;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.calif-obl-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 165, 75, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #f4e9d5;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 70px;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+
+.calif-obl-textarea::placeholder {
+  color: #7a6e5c;
+}
+
+.calif-obl-textarea:focus {
+  outline: none;
+  border-color: rgba(212, 165, 75, 0.5);
+}
+
+.calif-obl-alert {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.calif-obl-alert.error {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.calif-obl-btn {
+  width: 100%;
+  padding: 13px 0;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #caa24d, #b8923f);
+  color: #181512;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.calif-obl-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.calif-obl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Éxito */
+.calif-obl-exito {
+  padding: 30px 0;
+}
+
+.calif-obl-exito-icon {
+  font-size: 3rem;
+  color: #2ecc71;
+  margin-bottom: 16px;
+}
+
+.calif-obl-exito h2 {
+  margin: 0 0 8px;
+  color: #f4e9d5;
+}
+
+.calif-obl-exito p {
+  margin: 0;
+  color: #c9b78f;
+}

@@ -1,0 +1,68 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background-color: #000;
+  color: #fff;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Clases utilitarias */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+}
+
+.loading {
+  color: #c9a24c;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+/* Toasts */
+.cart-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #c9a24c;
+  padding: 10px 20px;
+  border-radius: 40px;
+  border: 1px solid #c9a24c;
+  z-index: 1000;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}

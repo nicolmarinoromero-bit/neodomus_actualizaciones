@@ -1,0 +1,359 @@
+/* ==================================================
+   VERIFY EMAIL - NEODOMUS
+================================================== */
+
+.verify-container {
+  position: relative;
+  min-height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  overflow: hidden;
+}
+
+.verify-container::before {
+  content: "";
+
+  position: absolute;
+  inset: 0px;
+
+background-image: inherit;
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+
+  filter: blur(18px);
+
+  z-index: 0;
+}
+
+.verify-form {
+  position: relative;
+  z-index: 1;
+
+  width: 100%;
+  max-width: 420px;
+
+  background: rgba(0, 0, 0, 0.94);
+
+  border: 1px solid #ffd700;
+  border-radius: 24px;
+
+  padding: 20px;
+
+  text-align: center;
+
+  color: white;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 15px 50px rgba(0,0,0,.7);
+}
+
+/* ==========================
+   ICONO SUPERIOR
+========================== */
+
+.verify-icon-container {
+  display: flex;
+  justify-content: center;
+
+  margin-bottom: 20px;
+}
+
+.outer-circle {
+  width: 92px;
+  height: 92px;
+
+  border: 1px solid rgba(255,215,0,.4);
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.inner-circle {
+  width: 72px;
+  height: 72px;
+
+  border: 2px solid #ffd700;
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  position: relative;
+}
+
+.mail-svg {
+  width: 34px;
+  height: 34px;
+}
+
+.check-badge {
+  position: absolute;
+
+  bottom: -3px;
+  right: -3px;
+
+  width: 22px;
+  height: 22px;
+
+  background: #ffd700;
+
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.check-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ==========================
+   TITULO
+========================== */
+
+.verify-form h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+
+  margin-bottom: 12px;
+}
+
+.glow-line {
+  width: 80px;
+  height: 2px;
+
+  background: #ffd700;
+
+  margin: 0 auto 25px auto;
+
+  box-shadow: 0 0 10px #ffd700;
+}
+
+.instruction-text {
+  color: #bfbfbf;
+  line-height: 1.6;
+
+  margin-bottom: 25px;
+}
+
+.user-email {
+  color: #ffd700;
+}
+
+/* ==========================
+   MENSAJES
+========================== */
+
+.success-msg {
+  color: #4caf50;
+  margin-bottom: 15px;
+}
+
+.error-msg {
+  color: #ff6666;
+  margin-bottom: 15px;
+}
+
+/* ==========================
+   OTP
+========================== */
+
+.otp-grid {
+  display: flex;
+  justify-content: center;
+
+  gap: 12px;
+
+  margin-bottom: 25px;
+}
+
+.otp-grid input {
+  width: 54px;
+  height: 54px;
+
+  background: #111;
+
+  border: 1px solid #333;
+  border-radius: 10px;
+
+  text-align: center;
+
+  color: white;
+
+  font-size: 22px;
+  font-weight: bold;
+
+  transition: .3s;
+}
+
+.otp-grid input:focus {
+  outline: none;
+
+  border-color: #ffd700;
+
+  box-shadow: 0 0 12px rgba(255,215,0,.4);
+}
+
+/* ==========================
+   EXPIRACION
+========================== */
+
+.expiration-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 8px;
+
+  color: #9c9c9c;
+
+  margin-bottom: 25px;
+}
+
+.shield-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ==========================
+   BOTON
+========================== */
+
+.btn-verify-submit {
+  width: 100%;
+  height: 56px;
+
+  background: linear-gradient(
+    180deg,
+    #ffd940,
+    #d8b11c
+  );
+
+  border: none;
+  border-radius: 12px;
+
+  color: white;
+
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 10px;
+
+  transition: .3s;
+}
+
+.btn-verify-submit:hover {
+  transform: translateY(-2px);
+}
+
+.btn-shield {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================
+   DIVIDER
+========================== */
+
+.divider-section {
+  position: relative;
+
+  margin: 30px 0 20px;
+}
+
+.divider-section::before {
+  content: "";
+
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+
+  height: 1px;
+
+  background: rgba(255,215,0,.15);
+}
+
+.divider-text {
+  position: relative;
+
+  background: rgba(0,0,0,.94);
+
+  padding: 0 12px;
+
+  color: #888;
+}
+
+/* ==========================
+   REENVIAR
+========================== */
+
+.resend-action-link {
+  color: #ffd700;
+
+  text-decoration: none;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 8px;
+
+  font-weight: 600;
+}
+
+.retry-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.resend-action-link.disabled {
+  opacity: .5;
+}
+
+/* ==========================
+   LOGIN
+========================== */
+
+.back-to-login {
+  margin-top: 30px;
+
+  border-top: 1px solid rgba(255,255,255,.08);
+
+  padding-top: 20px;
+}
+
+.back-link {
+  text-decoration: none;
+
+  color: #8e8e8e;
+}
+
+.back-link:hover {
+  color: white;
+}
+/* Reset para enlace convertido a botón */
+button.back-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}

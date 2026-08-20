@@ -1,0 +1,419 @@
+﻿/* ==========================================================================
+   src/styles/info_pages.css - CONFIGURACIÓN CON ANIMACIONES DE SCROLL
+   ========================================================================== */
+
+/* --- 0. DEFINICIÓN DE ANIMACIONES NATIVAS --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* --- CONTENEDOR MAESTRO DE TODAS LAS SECCIONES INFORMATIVAS --- */
+.landing-sections-wrapper {
+  display: block  ;
+  width: 100%  ;
+  max-width: 100%  ;
+  position: relative  ;
+  box-sizing: border-box  ;
+  height: auto  ;
+  clear: both  ;
+  padding: 0  ;
+  overflow-x: hidden  ;
+}
+
+/* --- BLOQUE BASE PARA CADA PÁGINA INDEPENDIENTE --- */
+.info-section {
+  display: block  ;
+  width: 100%  ;
+  min-height: auto  ;
+  padding: 7rem 8% 4rem 8%  ;
+  color: #ffffff  ;
+  background-size: cover  ;
+  background-position: center  ;
+  background-repeat: no-repeat  ;
+  background-attachment: fixed  ; /* Fondo estático (no se mueve al hacer scroll) */
+  position: relative  ;
+  box-sizing: border-box  ;
+  z-index: 2  ;
+  overflow-x: hidden  ;
+}
+
+/* Separador sutil o filtro oscuro opcional para que los fondos resalten */
+.info-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4); /* Capa suave para mejorar contraste del texto */
+  z-index: -1;
+}
+
+/* ==========================================================================
+   1. SECCIÓN: SOBRE NOSOTROS
+   ========================================================================== */
+.about-layout {
+  display: flex  ;
+  align-items: center  ;
+justify-content: center;
+  gap: 5rem  ;
+  width: 100%  ;
+  overflow-x: hidden  ;
+  padding-top: 40px;
+}
+
+.about-image-container {
+  flex: 1 1 300px  ;
+  max-width: 420px  ;
+  min-width: 0  ;
+  display: block  ;
+
+  
+  /* 🔥 Animación por Scroll: Entra desde la izquierda */
+  animation: fadeInLeft linear both;
+  animation-timeline: view();
+  animation-range: entry 10% cover 40%;
+}
+
+.about-image-container img {
+  width: 100%  ;
+  height: auto  ;
+  border-radius: 12px  ;
+  display: block  ;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    display: inline-block  ;
+  position: relative  ;
+  margin: 0  ;
+}
+
+.about-text-block {
+  flex: 1 1 300px  ;
+  max-width: 650px  ;
+  min-width: 0  ;
+  background: rgba(0, 0, 0, 0.75)  ;
+  border: 1px solid #222  ;
+  padding: 3rem  ;
+  border-radius: 24px  ;
+  box-sizing: border-box  ;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  overflow-wrap: break-word  ;
+  word-wrap: break-word  ;
+  overflow: hidden  ;
+  margin-left: -30px;
+  
+  /* 🔥 Animación por Scroll: Entra desde la derecha */
+  animation: fadeInRight linear both;
+  animation-timeline: view();
+  animation-range: entry 10% cover 40%;
+}
+
+.about-text-block h1 {
+  font-family: system-ui, -apple-system, sans-serif  ;
+  font-size: 3rem  ;
+  font-weight: bold  ;
+  color: #ffffff  ;
+  margin: 0 0 2rem 0  ;
+  display: inline-block  ;
+  position: relative  ;
+  z-index: 1  ;
+  text-transform: none  ;
+}
+
+.about-text-block h1::after {
+  content: ''  ;
+  position: absolute  ;
+  bottom: 2px  ;
+  left: 0  ;
+  width: 100%  ;
+  height: 14px  ;
+  background-color: #caa24d  ;
+  z-index: -1  ;
+}
+
+.about-text-block p {
+  font-family: system-ui, -apple-system, sans-serif  ;
+  font-size: 1.15rem  ;
+  line-height: 1.8  ;
+  color: #ffffff  ;
+  margin: 0 0 1.5rem 0  ;
+  font-weight: 400  ;
+}
+
+.about-text-block p:last-child {
+  margin-bottom: 0  ;
+}
+
+/* ==========================================================================
+   2. SECCIÓN: POR QUÉ CONTRATAR
+   ========================================================================== */
+.why-title-container {
+  margin-bottom: 5rem  ;
+  display: block  ;
+  
+  /* 🔥 Animación por Scroll: El título aparece hacia arriba */
+  animation: fadeInUp linear both;
+  animation-timeline: view();
+  animation-range: entry 5% cover 30%;
+}
+
+.why-title-container h1 {
+  font-family: system-ui, -apple-system, sans-serif  ;
+  font-size: 3rem  ;
+  font-weight: bold  ;
+  color: #ffffff  ;
+  display: inline-block  ;
+  position: relative  ;
+  margin: 0  ;
+  z-index: 2  ;
+}
+
+.why-title-container h1::after {
+  content: ''  ;
+  position: absolute  ;
+  bottom: 4px  ;
+  left: 0  ;
+  width: 60%  ;
+  height: 16px  ;
+  background-color: #caa24d  ;
+  z-index: -1  ;
+}
+
+.why-custom-grid {
+  display: grid  ;
+  grid-template-columns: repeat(3, 1fr)  ;
+  gap: 3rem  ;
+  margin-top: 3rem  ;
+  width: 100%  ;
+}
+
+/* 🔥 Las tarjetas emergen en bloque al hacer scroll */
+.why-custom-grid .card-gold-base {
+  animation: fadeInUp linear both;
+  animation-timeline: view();
+  animation-range: entry 10% cover 35%;
+}
+
+/* Sutil retraso visual simulado por CSS dinámico según posición */
+.why-custom-grid .card-gold-base:nth-child(1) { animation-range: entry 5% cover 30%; }
+.why-custom-grid .card-gold-base:nth-child(2) { animation-range: entry 12% cover 37%; }
+.why-custom-grid .card-gold-base:nth-child(3) { animation-range: entry 18% cover 44%; }
+
+.card-gold-base {
+  padding: 3rem 2rem  ;
+  border-radius: 24px  ;
+  font-family: system-ui, -apple-system, sans-serif  ;
+  font-size: 1.1rem  ;
+  line-height: 1.7  ;
+  font-weight: 500  ;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.5)  ;
+  display: flex  ;
+  align-items: center  ;
+  justify-content: center  ;
+  text-align: left  ;
+  box-sizing: border-box  ;
+  min-height: 180px  ;
+  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Efecto hover adicional */
+}
+
+.card-gold-base:hover {
+  transform: translateY(-5px)  ;
+  box-shadow: 0 15px 30px rgba(202, 162, 77, 0.2)  ;
+}
+
+.card-gold-style {
+  background-color: #caa24d  ;
+  color: #ffffff  ;
+}
+
+.card-dark-style {
+  background-color: rgba(0, 0, 0, 0.85)  ;
+  color: #ffffff  ;
+  border: 1px solid #caa24d  ;
+}
+
+/* ==========================================================================
+   3. SECCIÓN: BLOG
+   ========================================================================== */
+.blog-title-container {
+  margin-bottom: 5rem  ;
+  display: block  ;
+  
+  /* 🔥 Animación por Scroll: Título del blog */
+  animation: fadeInUp linear both;
+  animation-timeline: view();
+  animation-range: entry 5% cover 30%;
+}
+
+.blog-title-container h1 {
+  font-family: system-ui, -apple-system, sans-serif  ;
+  font-size: 3rem  ;
+  font-weight: bold  ;
+  color: #ffffff  ;
+  position: relative  ;
+  display: inline-block  ;
+  margin: 0  ;
+  z-index: 2  ;
+}
+
+.blog-title-container h1::after {
+  content: ''  ;
+  position: absolute  ;
+  bottom: 4px  ;
+  left: 0  ;
+  width: 100%  ;
+  height: 16px  ;
+  background-color: #caa24d  ;
+  z-index: -1  ;
+}
+
+.blog-custom-grid {
+  display: grid  ;
+  grid-template-columns: repeat(3, 1fr)  ;
+  gap: 3.5rem  ;
+  width: 100%  ;
+}
+
+/* 🔥 Las columnas del blog aparecen elegantemente de abajo a arriba */
+.blog-item-box {
+  display: flex  ;
+  flex-direction: column  ;
+  gap: 1.5rem  ;
+  
+  animation: fadeInUp linear both;
+  animation-timeline: view();
+  animation-range: entry 10% cover 40%;
+}
+
+.blog-item-box:nth-child(1) { animation-range: entry 5% cover 35%; }
+.blog-item-box:nth-child(2) { animation-range: entry 12% cover 42%; }
+.blog-item-box:nth-child(3) { animation-range: entry 19% cover 49%; }
+
+.blog-img-wrapper {
+  background-color: rgba(0, 0, 0, 0.9)  ;
+  border-radius: 20px  ;
+  padding: 1.5rem  ;
+  display: flex  ;
+  justify-content: center  ;
+  align-items: center  ;
+  height: 240px  ;
+  border: 1px solid #222  ;
+  box-sizing: border-box  ;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease;
+}
+
+.blog-item-box:hover .blog-img-wrapper {
+  transform: scale(1.02);
+}
+
+.blog-img-wrapper img {
+  max-width: 100%  ;
+  max-height: 100%  ;
+  object-fit: contain  ;
+  display: block;
+}
+
+.blog-text-wrapper {
+  background: rgba(0, 0, 0, 0.75)  ;
+  border-radius: 20px  ;
+  padding: 1.8rem  ;
+  min-height: 140px  ;
+  border: 1px solid #222  ;
+  display: flex  ;
+  align-items: center  ;
+  box-sizing: border-box  ;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+.blog-text-wrapper p {
+  font-family: system-ui, -apple-system, sans-serif  ;
+  color: #ffffff  ;
+  font-size: 1rem  ;
+  line-height: 1.6  ;
+  margin: 0  ;
+  text-align: left  ;
+}
+
+/* ==========================================================================
+   4. OPTIMIZACIÓN RESPONSIVA ADAPTATIVA
+   ========================================================================== */
+@media (max-width: 1100px) {
+  .why-custom-grid, 
+  .blog-custom-grid {
+    gap: 1.5rem  ;
+  }
+  
+  .about-layout {
+    gap: 1 rem  ;
+  }
+}
+
+@media (max-width: 992px) {
+  .info-section {
+    padding: 5rem 5% 3rem 5%  ;
+    background-attachment: scroll  ; /* Desactiva fixed en móviles para evitar tirones */
+  }
+
+  /* En pantallas móviles se unifican rangos para evitar desfases al hacer scroll rápido */
+  .about-image-container, .about-text-block, 
+  .why-custom-grid .card-gold-base, .blog-item-box {
+    animation-range: entry 5% cover 25%  ;
+  }
+
+
+
+  .about-image-container {
+    max-width: 70%  ;
+    margin: 0 auto  ;
+  }
+
+  .about-text-block h1::after {
+    left: 50%  ;
+    transform: translateX(-50%)  ;
+  }
+
+  .why-custom-grid, 
+  .blog-custom-grid {
+    grid-template-columns: 1fr  ;
+    max-width: 500px  ;
+    margin: 2rem auto 0 auto  ;
+  }
+
+  .card-gold-base {
+    min-height: auto  ;
+    padding: 2.5rem 1.5rem  ;
+  }
+
+  .blog-title-container h1::after {
+    width: 100%  ;
+  }
+}

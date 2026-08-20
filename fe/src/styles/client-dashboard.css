@@ -1,0 +1,250 @@
+.productos-page {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #000000;
+}
+.fondo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+.productos {
+  padding: 12px 24px 30px;
+}
+.barra-superior {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.buscador {
+  width: 190px;
+  height: 34px;
+  border: 2px solid white;
+  border-radius: 20px;
+  background: #d3ac4d;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: white;
+}
+.buscador input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: white;
+  font-size: 13px;
+  margin: 0 8px;
+}
+.buscador input::placeholder {
+  color: white;
+}
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.select-paginas,
+.select-categoria {
+  height: 34px;
+  padding: 0 36px 0 12px;
+  border-radius: 20px;
+  border: 2px solid white;
+  background: #d3ac4d url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%231b1b1b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M3 6l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center / 12px auto;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+.productos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.card-producto {
+  border: 3px solid #dcdcdc;
+  border-radius: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  padding-bottom: 10px;
+}
+.img-contenedor {
+  background: white;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-producto {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.info-producto {
+  padding: 10px 12px 0;
+}
+.info-producto h3 {
+  font-size: 12px;
+  line-height: 1.2;
+  min-height: 30px;
+  margin-bottom: 6px;
+}
+.precio {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.acciones-producto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.btn-comprar {
+  width: auto;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 16px;
+  background: #d3ac4d;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 12px;
+}
+.lado-derecho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-mas,
+.btn-menos {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: black;
+  color: white;
+  font-weight: bold;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+.cantidad {
+  font-size: 12px;
+  font-weight: bold;
+}
+.icono-carrito {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.paginacion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.paginacion button {
+  background: transparent;
+  border: 1px solid #dcdcdc;
+  color: white;
+  font-size: 0.9rem;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.2s;
+  min-width: 35px;
+}
+.paginacion button:hover:not(:disabled) {
+  background: #d3ac4d;
+  border-color: #d3ac4d;
+  color: black;
+}
+.paginacion button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.paginacion button.active {
+  background: #d3ac4d;
+  border-color: #d3ac4d;
+  color: black;
+  font-weight: bold;
+}
+.cliente-actions {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.btn-action {
+  background: #d3ac4d;
+  color: black;
+  padding: 0.5rem 1rem;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: 0.2s;
+}
+.btn-action:hover {
+  background: white;
+  color: black;
+}
+@media (max-width: 1024px) {
+  .productos-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .productos-grid {
+    grid-template-columns: 1fr;
+  }
+  .barra-superior {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .buscador {
+    width: 100%;
+  }
+  .controls-right {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+.icono-buscar {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+.facturas-lista {
+  list-style: none;
+  padding: 0;
+}
+.factura-item {
+  background: rgba(255,255,255,0.1);
+  margin-bottom: 0.5rem;
+  padding: 0.8rem;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-descargar {
+  background: #d3ac4d;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: bold;
+}

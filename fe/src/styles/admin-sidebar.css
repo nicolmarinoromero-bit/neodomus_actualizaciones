@@ -1,0 +1,130 @@
+/* ===== Sidebar Administrador · Neodomus ===== */
+
+.admin-sidebar {
+  width: 268px;
+  min-width: 268px;
+  background: rgba(10, 10, 10, 0.72);
+  backdrop-filter: blur(8px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 22px 14px 18px;
+  overflow-y: auto;
+  transition: transform 0.28s ease;
+}
+
+/* ===== Secciones ===== */
+
+.sidebar-section-title {
+  display: block;
+  margin: 12px 12px 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8f8f8f;
+}
+
+/* ===== NAV ===== */
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ===== LINKS ===== */
+
+.sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 14px;
+  color: #cfcfcf;
+  text-decoration: none;
+  border-radius: 12px;
+  transition: background 0.18s ease, color 0.18s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.sidebar-link:hover {
+  background: rgba(212, 165, 75, 0.07);
+  color: #ffffff;
+}
+
+.sidebar-link.active {
+  background: linear-gradient(90deg, rgba(212, 165, 75, 0.18), rgba(212, 165, 75, 0.05));
+  color: #ffd98a;
+  border-color: rgba(212, 165, 75, 0.3);
+}
+
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: #ffd700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+/* ===== ICONOS ===== */
+
+.sidebar-icon {
+  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.sidebar-icon svg {
+  font-size: 1.1rem;
+}
+
+.sidebar-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #d4a54b;
+  color: #000;
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(212, 165, 75, 0.5);
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 1100px) {
+  .admin-sidebar {
+    position: fixed;
+    left: 0;
+    top: 72px;
+    bottom: 0;
+    z-index: 85;
+    transform: translateX(-105%);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    border-right: 1px solid rgba(212, 165, 75, 0.2);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+}
