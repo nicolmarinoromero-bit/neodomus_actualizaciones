@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaBars, FaChevronDown, FaRightFromBracket } from 'react-icons/fa6';
+import { FaBars, FaChevronDown, FaRightFromBracket, FaUserShield } from 'react-icons/fa6';
 import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { getAdminAvatar, getIniciales } from '@utils/profileStorage';
@@ -118,10 +118,10 @@ const AdminNavbar = ({ onMenuToggle, notificaciones, cargandoNotificaciones = fa
             </button>
 
             <div className={`anr-dropdown ${open ? 'open' : ''}`}>
-              <div className="anr-dd-head">
-                <div className="anr-dd-name">{userData.nombre}</div>
-                <div className="anr-dd-mail">{userData.correo}</div>
-              </div>
+              <Link to="/perfil/admin" className="anr-dd-item" onClick={() => setOpen(false)}>
+                <FaUserShield /> {t('adm.sidebar.miPerfil')}
+              </Link>
+              <div className="anr-dd-sep" />
               <button type="button" className="anr-dd-item danger" onClick={handleLogout}>
                 <FaRightFromBracket /> {t('adm.navbar.cerrarSesion')}
               </button>

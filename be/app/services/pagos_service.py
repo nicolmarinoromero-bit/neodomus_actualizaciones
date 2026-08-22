@@ -302,5 +302,23 @@ def confirmar_pago_pendiente(pago) -> dict:
     }
 
 
+def procesar_reembolso(monto: float, referencia_original: str | None = None) -> dict:
+    """Procesa un reembolso con el simulador académico (siempre aprobado).
+
+    Cuando se conecte una pasarela real, esta función debe llamar al
+    proveedor configurado en PAYMENT_PROVIDER y puede devolver
+    ``aprobado: False`` si la pasarela rechaza la operación.
+    """
+    numero = f"REB-{datetime.now().strftime('%Y%m%d%H%M%S')}-{int(monto * 100) % 1000000:06d}"
+    return {
+        "aprobado": True,
+        "estado": "reembolsado",
+        "monto": round(float(monto or 0), 2),
+        "numero_transaccion": numero,
+        "referencia_original": referencia_original,
+        "proveedor": proveedor_activo(),
+    }
+
+
 def metodo_pago_legible(metodo: str) -> str:
     return METODOS_PAGO.get(metodo, metodo)

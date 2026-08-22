@@ -10,6 +10,7 @@ import {
   FaLock,
   FaGlobe,
   FaCheck,
+  FaPlus,
   FaXmark,
   FaTrashCan,
 } from 'react-icons/fa6';
@@ -31,7 +32,7 @@ interface PerfilTecnico {
   telefono_usuario?: number | null;
   documento_usuario?: number | null;
   certificacion_t?: string | null;
-  cargo_t?: string | null;
+  especializaciones?: { id_especializacion: number; nombre: string; descripcion?: string | null }[];
   created_at?: string;
 }
 
@@ -49,7 +50,14 @@ const TechnicalPerfil = () => {
   const [telefono, setTelefono] = useState('');
   const [documento, setDocumento] = useState('');
   const [certificacion, setCertificacion] = useState('');
-  const [cargo, setCargo] = useState('');
+  const [especializaciones, setEspecializaciones] = useState<
+    { id_especializacion: number; nombre: string; descripcion?: string | null }[]
+  >([]);
+  const [catalogo, setCatalogo] = useState<
+    { id_especializacion: number; nombre: string; descripcion?: string | null }[]
+  >([]);
+  const [nuevaEsp, setNuevaEsp] = useState('');
+  const [gestionandoEsp, setGestionandoEsp] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState<{ msg: string; tipo: 'success' | 'error' | 'info' } | null>(null);
 
@@ -65,7 +73,7 @@ const TechnicalPerfil = () => {
         setTelefono(res.data.telefono_usuario ? String(res.data.telefono_usuario) : '');
         setDocumento(res.data.documento_usuario ? String(res.data.documento_usuario) : '');
         setCertificacion(res.data.certificacion_t || '');
-        setCargo(res.data.cargo_t || '');
+        setEspecializaciones(res.data.especializaciones || []);
       } catch (err) {
         console.error('Error cargando perfil del técnico:', err);
         const partes = (user?.nombre || t('tec.tecnico')).trim().split(' ');
@@ -79,6 +87,52 @@ const TechnicalPerfil = () => {
     };
     cargarPerfil();
   }, [user]);
+
+  useEffect(() => {
+    const cargarCatalogo = async () => {
+      try {
+        const res = await api.get<
+          { id_especializacion: number; nombre: string; descripcion?: string | null }[]
+        >('/especializaciones');
+        setCatalogo(res.data || []);
+      } catch (err) {
+        console.error('Error cargando catálogo de especializaciones:', err);
+      }
+    };
+    cargarCatalogo();
+  }, []);
+
+  const agregarEspecializacion = async () => {
+    if (!nuevaEsp) return;
+    setGestionandoEsp(true);
+    try {
+      const res = await api.post<{ mensaje: string; especializaciones: typeof especializaciones }>(
+        `/tecnicos/mis-especializaciones/${nuevaEsp}`,
+      );
+      setEspecializaciones(res.data.especializaciones || []);
+      setNuevaEsp('');
+      notify(res.data.mensaje, 'success');
+    } catch (err: any) {
+      notify(err.response?.data?.detail || t('tec.errorGuardar'), 'error');
+    } finally {
+      setGestionandoEsp(false);
+    }
+  };
+
+  const quitarEspecializacion = async (id: number) => {
+    setGestionandoEsp(true);
+    try {
+      const res = await api.delete<{ mensaje: string; especializaciones: typeof especializaciones }>(
+        `/tecnicos/mis-especializaciones/${id}`,
+      );
+      setEspecializaciones(res.data.especializaciones || []);
+      notify(res.data.mensaje, 'info');
+    } catch (err: any) {
+      notify(err.response?.data?.detail || t('tec.errorGuardar'), 'error');
+    } finally {
+      setGestionandoEsp(false);
+    }
+  };
 
   useEffect(() => {
     const sync = () => {
@@ -131,7 +185,6 @@ const TechnicalPerfil = () => {
       setTelefono(tel);
       setDocumento(doc);
       setCertificacion(String(body.certificacion_t ?? '').trim());
-      setCargo(String(body.cargo_t ?? '').trim());
       await refreshUserProfile();
       window.dispatchEvent(new CustomEvent('technical-profile-updated'));
       notify(t('tec.cambiosGuardados'), 'success');
@@ -201,7 +254,65 @@ const TechnicalPerfil = () => {
           <p className="ap-state-text">{t('tec.cargandoDatos')}</p>
         </div>
       ) : (
-        <PerfilCuenta
+        <>
+          <div className="pf-content-card" style={{ marginBottom: 16 }}>
+            <h2 className="pf-section-title" style={{ marginTop: 0 }}>{t('tec.misEspecializaciones')}</h2>
+            {especializaciones.length === 0 ? (
+              <p style={{ color: '#9a8f78', margin: 0 }}>{t('tec.sinEspecializaciones')}</p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {especializaciones.map((e) => (
+                  <span key={e.id_especializacion} className="ap-badge ok" title={e.descripcion || e.nombre}>
+                    {e.nombre}
+                    <button
+                      type="button"
+                      className="ap-esp-quitar"
+                      aria-label={`${t('tec.quitarEspecializacion')}: ${e.nombre}`}
+                      title={t('tec.quitarEspecializacion')}
+                      disabled={gestionandoEsp}
+                      onClick={() => quitarEspecializacion(e.id_especializacion)}
+                    >
+                      <FaXmark />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="pf-esp-agregar">
+              <select
+                value={nuevaEsp}
+                onChange={(e) => setNuevaEsp(e.target.value)}
+                disabled={gestionandoEsp}
+                aria-label={t('tec.agregarEspecializacion')}
+              >
+                <option value="">{t('tec.seleccionaEspecializacion')}</option>
+                {catalogo
+                  .filter((c) => !especializaciones.some((e) => e.id_especializacion === c.id_especializacion))
+                  .map((c) => (
+                    <option key={c.id_especializacion} value={c.id_especializacion}>
+                      {c.nombre}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="pf-btn pf-btn-primary"
+                disabled={!nuevaEsp || gestionandoEsp}
+                onClick={agregarEspecializacion}
+              >
+                <FaPlus /> {t('tec.agregarEspecializacion')}
+              </button>
+            </div>
+            {catalogo.length > 0 &&
+              catalogo.filter((c) => !especializaciones.some((e) => e.id_especializacion === c.id_especializacion)).length === 0 && (
+                <p className="ap-form-hint" style={{ margin: '8px 0 0' }}>
+                  {t('tec.sinEspecializacionesDisponibles')}
+                </p>
+              )}
+            <p className="ap-form-hint" style={{ marginTop: 8 }}>{t('tec.especializacionesHint')}</p>
+          </div>
+          <PerfilCuenta
           campos={[
             {
               clave: 'first_name',
@@ -243,12 +354,6 @@ const TechnicalPerfil = () => {
               valor: certificacion,
               placeholder: t('tec.placeholderEspecialidad'),
             },
-            {
-              clave: 'cargo_t',
-              label: t('tec.cargo'),
-              valor: cargo,
-              placeholder: t('tec.placeholderCargo'),
-            },
           ]}
           email={email}
           emailOriginal={emailOriginal}
@@ -269,6 +374,7 @@ const TechnicalPerfil = () => {
             return guardarCampo(payload);
           }}
         />
+        </>
       )}
     </div>
   );
@@ -301,7 +407,6 @@ const TechnicalPerfil = () => {
             </span>
             <strong className="pf-usuario-nombre">{nombreCompleto}</strong>
             <span className="pf-usuario-correo">{correoUsuario}</span>
-            <span className="pf-rol-badge">{t('tec.tecnico')}</span>
           </div>
 
           <nav className="pf-nav" aria-label={t('perfil.seccionesLabel')}>

@@ -4,9 +4,9 @@ import {
   FaHouse,
   FaCalendarCheck,
   FaClockRotateLeft,
+  FaTruckFast,
   FaUsers,
-  FaMessage,
-  FaUserGear,
+  FaStar,
 } from "react-icons/fa6";
 import "@styles/admin-sidebar.css";
 
@@ -34,6 +34,7 @@ const TechnicianSidebar = ({ open, onNavigate }: TechnicianSidebarProps) => {
       titulo: t('tec.servicios'),
       links: [
         { to: "/tecnico/citas", icon: <FaCalendarCheck />, label: t('tec.misCitas') },
+        { to: "/tecnico/entregas", icon: <FaTruckFast />, label: t('nav.entregas') },
         { to: "/tecnico/historial", icon: <FaClockRotateLeft />, label: t('tec.historial') },
       ],
     },
@@ -41,13 +42,12 @@ const TechnicianSidebar = ({ open, onNavigate }: TechnicianSidebarProps) => {
       titulo: t('tec.clientes'),
       links: [
         { to: "/tecnico/clientes", icon: <FaUsers />, label: t('tec.clientes') },
-        { to: "/tecnico/mensajes", icon: <FaMessage />, label: t('tec.mensajes') },
       ],
     },
     {
-      titulo: t('tec.miCuenta'),
+      titulo: t('tec.calificaciones'),
       links: [
-        { to: "/perfil/tecnico", icon: <FaUserGear />, label: t('tec.miPerfil') },
+        { to: "/tecnico/calificaciones", icon: <FaStar />, label: t('tec.misCalificaciones') },
       ],
     },
   ];

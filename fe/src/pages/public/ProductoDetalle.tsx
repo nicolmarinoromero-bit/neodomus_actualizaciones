@@ -29,6 +29,11 @@ interface Producto {
     id: number;
     nombre: string;
     hex?: string | null;
+    tamaño?: string | null;
+    ancho_cm?: number | null;
+    alto_cm?: number | null;
+    etiqueta_medida?: string | null;
+    precio?: number | null;
     imagen_url?: string | null;
     stock: number;
   }[];
@@ -148,6 +153,7 @@ const ProductoDetalle = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [color, setColor] = useState('');
+  const [tamano, setTamano] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [metros, setMetros] = useState(10);
   const [toast, setToast] = useState('');
@@ -158,12 +164,30 @@ const ProductoDetalle = () => {
   };
 
   const variantes = producto?.variantes || [];
-  const varianteActiva = variantes.find(v => v.nombre === color) || null;
+  // Etiqueta de medida de cada variante ("150 cm por 100 cm" o texto libre).
+  const medidaDe = (v: { etiqueta_medida?: string | null; tamaño?: string | null }) =>
+    (v.etiqueta_medida || v.tamaño || '').trim();
+  // El producto usa medidas si alguna variante las define.
+  const usaTamanos = variantes.some((v) => medidaDe(v));
+  const tamanosDisponibles = Array.from(
+    new Set(variantes.map((v) => medidaDe(v)).filter(Boolean)),
+  );
+  const varianteActiva =
+    variantes.find(
+      (v) =>
+        v.nombre === color &&
+        (!usaTamanos || medidaDe(v) === tamano),
+    ) ||
+    variantes.find((v) => v.nombre === color) ||
+    null;
   const stockDisponible =
     variantes.length > 0
       ? (varianteActiva?.stock ?? 0)
       : (producto?.stock_producto ?? 0);
-  const precioFinal = producto?.precio_final ?? producto?.precio_venta_producto ?? 0;
+  const precioBase = producto?.precio_final ?? producto?.precio_venta_producto ?? 0;
+  // Precio de la variante elegida; si no define uno propio, el del producto.
+  const precioUnitario = varianteActiva?.precio ?? precioBase;
+  const precioFinal = precioUnitario;
   const tieneDescuento = producto?.precio_final != null && Boolean(producto?.descuento_activo && producto.descuento_activo > 0);
   const imagen =
     varianteActiva?.imagen_url || producto?.imagen_url || `/productos/${producto?.id_producto}.jpg`;
@@ -205,6 +229,17 @@ const ProductoDetalle = () => {
       const paramColor = searchParams.get('color');
       const colorInicial = paramColor && paleta.includes(paramColor) ? paramColor : paleta[0];
       setColor(colorInicial);
+      // Selecciona la primera medida disponible si el producto las usa.
+      if (usaTamanos) {
+        const primeraVariante =
+          producto.variantes?.find(v => v.nombre === colorInicial) ||
+          producto.variantes?.[0];
+        setTamano(
+          (primeraVariante?.etiqueta_medida || primeraVariante?.tamaño || '').trim(),
+        );
+      } else {
+        setTamano('');
+      }
       const paramMetros = searchParams.get('metros');
       if (producto.venta_por_metros && paramMetros) {
         setMetros(METROS_OPCIONES.includes(Number(paramMetros)) ? Number(paramMetros) : 10);
@@ -251,7 +286,11 @@ const ProductoDetalle = () => {
 
   const handleAgregarAlCarrito = () => {
     if (stockDisponible <= 0) {
-      showToast('No hay stock disponible para este color');
+      showToast('No hay stock disponible para esta combinación de color/tamaño');
+      return;
+    }
+    if (usaTamanos && !tamano) {
+      showToast('Selecciona un tamaño disponible');
       return;
     }
     if (producto.venta_por_metros) {
@@ -284,9 +323,12 @@ const ProductoDetalle = () => {
       {
         id_producto: producto.id_producto,
         nombre_producto: producto.nombre_producto,
-        precio_venta_producto: precioFinal,
+        precio_venta_producto: precioUnitario,
         imagen,
         color,
+        tamaño: tamano,
+        medida: tamano,
+        id_variante: varianteActiva?.id,
         tecnicos_requeridos: producto.tecnicos_requeridos || 1,
       },
       cantidad
@@ -366,8 +408,8 @@ const ProductoDetalle = () => {
             <div className={`detalle-disponibilidad ${stockDisponible <= 0 ? 'agotado' : ''}`}>
               {stockDisponible > 0 ? <FaCheck /> : <FaRotateLeft />}
               {stockDisponible > 0
-                ? `Disponible · ${stockDisponible} u.${variantes.length ? ' en este color' : ''}`
-                : 'Sin stock de este producto'}
+                ? `Disponible · ${stockDisponible} u.${variantes.length ? ' en esta combinación' : ''}`
+                : 'Sin stock en esta combinación'}
             </div>
 
             <p className="detalle-descripcion">{descripcion}</p>
@@ -384,28 +426,88 @@ const ProductoDetalle = () => {
             </div>
 
             <div className="detalle-compra">
+              {usaTamanos && (
+                <div className="detalle-metros">
+                  <span className="detalle-metros-titulo">Elige la medida:</span>
+                  <div className="detalle-metros-opciones">
+                    {tamanosDisponibles.map(t => {
+                      const variantesTamano = variantes.filter(
+                        v => medidaDe(v) === t,
+                      );
+                      const stockTamano = variantesTamano.reduce(
+                        (acc, v) => acc + (v.stock || 0),
+                        0,
+                      );
+                      const precioTamano =
+                        variantesTamano.find(v => v.precio != null)?.precio ??
+                        precioBase;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`detalle-metro-chip ${tamano === t ? 'activo' : ''}`}
+                          onClick={() => {
+                            setTamano(t);
+                            // Si el color actual no existe en esa medida, cambia
+                            // al primer color disponible con esa medida.
+                            const compatible = variantes.find(
+                              v =>
+                                medidaDe(v) === t &&
+                                v.nombre === color &&
+                                (v.stock || 0) > 0,
+                            );
+                            if (!compatible) {
+                              const alt = variantes.find(
+                                v =>
+                                  medidaDe(v) === t &&
+                                  (v.stock || 0) > 0,
+                              );
+                              if (alt) setColor(alt.nombre);
+                            }
+                          }}
+                          disabled={stockTamano <= 0}
+                          aria-label={`Medida ${t}`}
+                        >
+                          {t}
+                          {stockTamano <= 0 && ' (agotado)'}
+                          {precioTamano !== precioBase && stockTamano > 0
+                            ? ` · $${Number(precioTamano).toLocaleString()}`
+                            : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="detalle-colores">
                 <span className="detalle-label">Color: <strong>{color}</strong></span>
                 <div className="detalle-colores-swatches">
                   {paleta.map(c => {
-                    const variante = variantes.length ? variantes.find(v => v.nombre === c) : null;
+                    const variante = usaTamanos
+                      ? variantes.find(v => v.nombre === c && medidaDe(v) === tamano)
+                      : variantes.find(v => v.nombre === c);
                     const fondo = (variante?.hex || COLOR_HEX[c] || '#ccc').trim();
                     const esDegradado = fondo.startsWith('linear');
+                    const agotado = !variantes.length
+                      ? false
+                      : (variante?.stock ?? 0) <= 0;
                     return (
                       <button
                         key={c}
                         type="button"
-                        className={`detalle-swatch ${color === c ? 'activo' : ''}`}
+                        className={`detalle-swatch ${color === c ? 'activo' : ''} ${agotado ? 'agotado' : ''}`}
                         onClick={() => setColor(c)}
-                        aria-label={`Color ${c}`}
-                        title={c}
+                        disabled={agotado}
+                        aria-label={`Color ${c}${agotado ? ' (sin stock)' : ''}`}
+                        title={agotado ? `${c} — sin stock` : c}
                       >
                         <span
                           className="detalle-swatch-circle"
                           style={
                             esDegradado
                               ? { background: fondo }
-                              : { background: fondo || '#ccc' }
+                              : { background: fondo || '#ccc', opacity: agotado ? 0.35 : 1 }
                           }
                         />
                       </button>
@@ -470,7 +572,7 @@ const ProductoDetalle = () => {
                 <strong>
                   $
                   {(
-                    producto.precio_venta_producto *
+                    precioUnitario *
                     (producto.venta_por_metros ? metros : cantidad)
                   ).toLocaleString()}{' '}
                   COP

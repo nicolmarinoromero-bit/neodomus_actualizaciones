@@ -155,38 +155,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const token = tabGet('access_token');
-    const storedUser = tabGet('user');
-    if (token && storedUser) {
+    // La sesión vive en cookies HttpOnly (no accesibles a JavaScript).
+    // Se valida contra el servidor ANTES de confiar en el usuario recordado:
+    // si la cookie pertenece a otra cuenta (se inició sesión con otro rol en
+    // otra pestaña) o expiró, se limpia y se queda como visitante.
+    const validarSesionInicial = async () => {
+      const storedUser = tabGet('user');
+      if (!storedUser) return;
+      let base: User | null = null;
       try {
-        const parsedUser = JSON.parse(storedUser) as User;
-        setUser(parsedUser);
-        setRol(parsedUser.rol);
-        setIsAuthenticated(true);
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        // Refrescar perfil para obtener nombre real
-        refreshUserProfile();
-      } catch (error) {
-        console.error('Error parsing user', error);
-        tabRemove('access_token');
+        base = JSON.parse(storedUser) as User;
+      } catch {
         tabRemove('user');
+        return;
       }
-    }
-    setLoading(false);
+      try {
+        // Validar que la cookie corresponda con la vista recordada
+        // (tipo de cuenta Y rol: admin vs técnico, p. ej.).
+        const ses = await api.get('/auth/session');
+        const rolRecordado = (base.rol || '').toLowerCase();
+        const esCliente = rolRecordado === 'cliente';
+        const esAdmin = rolRecordado === 'admin' || rolRecordado === 'administrador';
+        const sesTipo = ses.data?.user_type;
+        const sesRol = String(ses.data?.rol || '').toLowerCase();
+        const tipoCoincide = esCliente ? sesTipo === 'client' : sesTipo === 'employee';
+        const rolesEquivalentes =
+          esAdmin
+            ? sesRol === 'admin' || sesRol === 'administrador'
+            : rolRecordado === '' || sesRol === rolRecordado;
+        if (!tipoCoincide || (sesTipo !== 'client' && !rolesEquivalentes)) {
+          throw new Error('La sesión pertenece a otra cuenta');
+        }
+        setUser(base);
+        setRol(base.rol);
+        setIsAuthenticated(true);
+        refreshUserProfile();
+      } catch {
+        ['user', 'access_token', 'refresh_token', PASSWORD_RESET_KEY, PERFIL_INCOMPLETO_KEY].forEach(
+          (k) => tabRemove(k),
+        );
+        setUser(null);
+        setRol(null);
+        setIsAuthenticated(false);
+      }
+    };
+    validarSesionInicial().finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      rotateTabSessionId();
       const response = await api.post<LoginResponse>('/auth/login', { email, password });
       const data = response.data;
       const userRol = (data.rol || data.role || '').toLowerCase();
       if (!userRol || !ROLES_VALIDOS.includes(userRol)) {
         throw new Error('La cuenta no tiene un rol válido asignado. Contacta al administrador.');
       }
-      tabSet('access_token', data.access_token);
-      tabSet('refresh_token', data.refresh_token);
-      
+      // Rotar SOLO tras un login exitoso: si las credenciales eran inválidas,
+      // esta pestaña conserva cualquier sesión heredada de otra pestaña.
+      rotateTabSessionId();
+      // Los tokens llegan en cookies HttpOnly; NO se guardan en JavaScript.
+
       // Usar first_name y last_name del API si están disponibles, sino fallback a nombre o email
       const firstName = data.first_name || '';
       const lastName = data.last_name || '';
@@ -208,9 +236,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         tabRemove(PASSWORD_RESET_KEY);
       }
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
       setPerfilIncompleto(Boolean(data.perfil_incompleto));
-      
+
       // Obtener nombre real del perfil
       await refreshUserProfile();
     } catch (error) {
@@ -221,15 +248,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const googleLogin = async (credential: string) => {
     try {
-      rotateTabSessionId();
       const response = await api.post<LoginResponse>('/auth/google', { credential });
       const data = response.data;
       const userRol = (data.rol || data.role || 'cliente').toLowerCase();
       if (!userRol || !ROLES_VALIDOS.includes(userRol)) {
         throw new Error('La cuenta no tiene un rol válido asignado. Contacta al administrador.');
       }
-      tabSet('access_token', data.access_token);
-      tabSet('refresh_token', data.refresh_token);
+      rotateTabSessionId();
+      // Los tokens llegan en cookies HttpOnly; NO se guardan en JavaScript.
 
       const firstName = data.first_name || '';
       const lastName = data.last_name || '';
@@ -251,7 +277,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         tabRemove(PASSWORD_RESET_KEY);
       }
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
       setPerfilIncompleto(Boolean(data.perfil_incompleto));
       await refreshUserProfile();
     } catch (error) {
@@ -261,6 +286,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    // Cierra la sesión en el servidor (elimina las cookies HttpOnly).
+    api.post('/auth/logout').catch(() => {
+      /* noop: el cierre local procede igual */
+    });
     // Rotar el id de sesión PRIMERO: si esta pestaña heredó el id de otra
     // (abierta por ctrl+click), las claves que se limpian serán las del id
     // nuevo (vacío) y la sesión de la otra pestaña queda intacta.

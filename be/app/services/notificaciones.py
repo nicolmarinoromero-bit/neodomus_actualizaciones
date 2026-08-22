@@ -188,6 +188,82 @@ def notificar_admin_citas_reasignar(
         programar_correo(admin.email, subject="Citas por reasignar en Neodomus", body=body)
 
 
+def notificar_admin_resultado_desactivacion(
+    db,
+    tecnico_nombre: str,
+    reasignadas: int = 0,
+    canceladas: int = 0,
+    entregas_reasignadas: int = 0,
+    entregas_sin_tecnico: int = 0,
+) -> None:
+    """Alerta a los administradores el resultado del proceso automático al
+    desactivar un técnico: citas reasignadas, canceladas (con reembolso) y
+    entregas reasignadas o sin técnico disponible."""
+    from app.models.user import User
+
+    admins = db.query(User).filter(User.id_rol_u == 1, User.is_active == True).all()  # noqa: E712
+    if not admins:
+        return
+
+    total = reasignadas + canceladas + entregas_reasignadas + entregas_sin_tecnico
+    partes = []
+    if reasignadas:
+        partes.append(f"{reasignadas} cita(s) reasignada(s)")
+    if canceladas:
+        partes.append(f"{canceladas} cita(s) cancelada(s) con reembolso")
+    if entregas_reasignadas:
+        partes.append(f"{entregas_reasignadas} entrega(s) reasignada(s)")
+    if entregas_sin_tecnico:
+        partes.append(f"{entregas_sin_tecnico} entrega(s) sin técnico")
+    resumen = ", ".join(partes) if partes else "sin agenda pendiente"
+
+    for admin in admins:
+        crear_notificacion(
+            db,
+            id_usuario=admin.id_usuario,
+            id_cliente=None,
+            tipo="cita" if (reasignadas or canceladas) else "sistema",
+            titulo=f"Técnico {tecnico_nombre} desactivado",
+            mensaje=(
+                f"Proceso automático completado: {resumen}. "
+                + (
+                    "Revisa las citas canceladas y los reembolsos en el panel."
+                    if canceladas
+                    else ""
+                )
+            ).strip(),
+        )
+
+    nombre_admin = f"{admins[0].first_name} {admins[0].last_name}".strip() or "Administrador"
+    filas = [
+        ("Técnico desactivado", tecnico_nombre),
+        ("Citas reasignadas", str(reasignadas)),
+        ("Citas canceladas (con reembolso)", str(canceladas)),
+        ("Entregas reasignadas", str(entregas_reasignadas)),
+        ("Entregas sin técnico", str(entregas_sin_tecnico)),
+    ]
+    body = _plantilla(
+        "DESACTIVACIÓN DE TÉCNICO",
+        f"Hola {nombre_admin}, se desactivó al técnico {tecnico_nombre} y el sistema "
+        "procesó automáticamente su agenda:",
+        filas,
+        (
+            "Las citas canceladas fueron reembolsadas y los clientes notificados. "
+            "Revisa el historial de cada cita en el módulo de Citas."
+            if canceladas
+            else "Los clientes afectados ya fueron notificados con su nuevo técnico."
+        ),
+        color="#3d3d3d",
+        acento="#ffd98a",
+    )
+    for admin in admins:
+        programar_correo(
+            admin.email,
+            subject=f"Técnico {tecnico_nombre} desactivado — resumen de agenda",
+            body=body,
+        )
+
+
 def notificar_cita_asignada_tecnico(
     db, id_tecnico_usuario: int | None, correo: str, tecnico_nombre: str, datos: dict
 ) -> None:
@@ -312,6 +388,177 @@ def notificar_aviso_entrega_cliente(correo: str, cliente_nombre: str, datos: dic
         "Recuerda revisar los productos al recibirlos.",
         color="#1a2e1a",
         acento="#8fd98a",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_entrega_programada_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando su pedido ya
+    tiene técnico de entrega asignado. ``datos`` debe contener: pedido,
+    fecha, hora, tecnico."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="Entrega asignada a un técnico",
+            mensaje=(
+                f"Tu pedido #{datos['pedido']} será entregado el {datos['fecha']} "
+                f"a las {datos['hora']} por {datos['tecnico']}."
+            ),
+        )
+    subject = "Tu pedido Neodomus ya tiene fecha de entrega"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Fecha de entrega", datos["fecha"]),
+        ("Hora de entrega", datos["hora"]),
+        ("Técnico asignado", datos["tecnico"]),
+    ]
+    body = _plantilla(
+        "ENTREGA PROGRAMADA",
+        f"Hola {cliente_nombre}, tu pedido #{datos['pedido']} fue asignado al técnico "
+        f"{datos['tecnico']}. Te avisaremos cuando salga hacia tu dirección.",
+        filas,
+        "Puedes hacer seguimiento del estado de tu entrega desde Mis pedidos.",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_pedido_entregado_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando su pedido quedó
+    Entregado: invita a calificar los productos y explica la devolución.
+    ``datos`` debe contener: pedido, fecha, tecnico."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="¡Tu pedido fue entregado!",
+            mensaje=(
+                f"Tu pedido #{datos['pedido']} fue entregado correctamente. "
+                "Califica tus productos desde Mis pedidos; ahí mismo puedes solicitar una devolución."
+            ),
+        )
+    subject = "Tu pedido Neodomus fue entregado"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Fecha de entrega", datos["fecha"]),
+        ("Técnico", datos["tecnico"]),
+    ]
+    body = _plantilla(
+        "PEDIDO ENTREGADO",
+        f"Hola {cliente_nombre}, tu pedido #{datos['pedido']} fue entregado correctamente por "
+        f"{datos['tecnico']}. ¡Esperamos que lo disfrutes!",
+        filas,
+        "Desde Mis pedidos puedes calificar cada producto (1-5 estrellas) y, si algo no está bien, "
+        "solicitar una devolución con el botón que aparece junto a la calificación.",
+        color="#1a2e1a",
+        acento="#8fd98a",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_admin_devolucion_solicitada(
+    db, pedido_id: int, cliente_nombre: str, producto_nombre: str, motivo: str | None
+) -> None:
+    """Alerta a los administradores (plataforma) cuando un cliente solicita
+    la devolución de un producto entregado."""
+    from app.models.user import User
+
+    admins = db.query(User).filter(User.id_rol_u == 1, User.is_active == True).all()  # noqa: E712
+    for admin in admins:
+        crear_notificacion(
+            db,
+            id_usuario=admin.id_usuario,
+            id_cliente=None,
+            tipo="sistema",
+            titulo="Nueva solicitud de devolución",
+            mensaje=(
+                f"{cliente_nombre} solicitó la devolución de '{producto_nombre}' "
+                f"del pedido #{pedido_id}. Motivo: {motivo or 'sin especificar'}."
+            ),
+        )
+
+
+def notificar_admin_reembolso_pendiente_cita(
+    db,
+    id_cita: int,
+    cliente_nombre: str,
+    especializacion: str | None,
+    monto: float,
+    motivo: str | None,
+) -> None:
+    """Alerta a los administradores (plataforma) cuando una cita se canceló
+    por falta de técnico con la especialización requerida y queda un
+    reembolso pendiente SOLO del valor del servicio."""
+    from app.models.user import User
+
+    admins = db.query(User).filter(User.id_rol_u == 1, User.is_active == True).all()  # noqa: E712
+    monto_txt = f"${float(monto or 0):,.0f} COP"
+    for admin in admins:
+        crear_notificacion(
+            db,
+            id_usuario=admin.id_usuario,
+            id_cliente=None,
+            tipo="sistema",
+            titulo="Reembolso pendiente por cancelación de cita",
+            mensaje=(
+                f"Se canceló la cita #{id_cita} de {cliente_nombre} porque no existe un "
+                f"técnico disponible con la especialización requerida"
+                + (f" ({especializacion})" if especializacion else "")
+                + f". Se debe realizar el reembolso correspondiente al valor de la cita "
+                f"({monto_txt}). Motivo: {motivo or '—'}"
+            ),
+        )
+
+
+def notificar_reembolso_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict,
+    referencia: str = "Cita",
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando se registra o
+    procesa un reembolso. ``datos`` debe contener: cita (id o número de
+    referencia), monto, estado, transaccion, transaccion_original, motivo.
+    ``referencia`` rotula el origen del reembolso ('Cita' o 'Pedido')."""
+    ref_txt = referencia.lower()
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="reembolso",
+            titulo=f"Reembolso de tu {ref_txt}",
+            mensaje=(
+                f"Se registró un reembolso de {datos['monto']} por tu "
+                f"{ref_txt} #{datos['cita']}. Estado: {datos['estado']}. El dinero será "
+                "devuelto a la misma cuenta y método de pago con los que realizaste la compra."
+            ),
+        )
+    subject = "Reembolso registrado - Neodomus"
+    filas = [
+        (referencia, f"#{datos['cita']}"),
+        ("Monto", datos["monto"]),
+        ("Estado", datos["estado"]),
+        ("Transacción original", datos["transaccion_original"]),
+        ("N° de reembolso", datos["transaccion"]),
+        ("Motivo", datos["motivo"]),
+    ]
+    body = _plantilla(
+        "REEMBOLSO REGISTRADO",
+        f"Hola {cliente_nombre}, el administrador de Neodomus registró un reembolso "
+        f"asociado a tu {ref_txt} #{datos['cita']}. Estos son los detalles:",
+        filas,
+        "El monto se devuelve a la misma cuenta y método de pago con los que se realizó "
+        "la compra (transacción original indicada arriba); no necesitamos ningún dato "
+        "adicional de tu parte. Puedes ver el detalle desde tu perfil, en la pestaña Mis reembolsos.",
+        color="#2b2413",
+        acento="#ffd98a",
     )
     programar_correo(correo, subject, body)
 

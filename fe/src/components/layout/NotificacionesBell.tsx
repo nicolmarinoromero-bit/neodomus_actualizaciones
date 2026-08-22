@@ -7,6 +7,8 @@ import {
   FaBoxOpen,
   FaCalendarCheck,
   FaCircleInfo,
+  FaMoneyBillWave,
+  FaPercent,
   FaTruckFast,
   FaUserPlus,
   FaUserSlash,
@@ -22,6 +24,9 @@ export const ICONO_TIPO: Record<TipoNotificacion, React.ReactNode> = {
   stock: <FaBoxOpen />,
   sistema: <FaCircleInfo />,
   entrega: <FaTruckFast />,
+  reembolso: <FaMoneyBillWave />,
+  producto: <FaBoxOpen />,
+  promocion: <FaPercent />,
 };
 
 export const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
@@ -32,6 +37,9 @@ export const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
   stock: 'Stock agotado',
   sistema: 'Sistema',
   entrega: 'Entrega',
+  reembolso: 'Reembolso',
+  producto: 'Producto nuevo',
+  promocion: 'Promoción',
 };
 
 interface NotificacionesBellProps {

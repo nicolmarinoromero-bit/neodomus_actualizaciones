@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
+import json
 from pydantic import BaseModel
 
 from app.database import get_db
@@ -29,6 +30,15 @@ from app.services.especialidades import (
     slot_tomado,
     horas_laborales,
     _dia_es_laboral,
+    _hora_a_minutos,
+    _se_solapan,
+    _tecnicos_activos,
+    HORA_INICIO,
+    HORA_FIN,
+    duracion_estimada_cita,
+    duracion_base_tipo,
+    duracion_desde_items,
+    DURACION_MIN,
     ESTADOS_OCUPAN,
     ESTADOS_ENTREGA_OCUPAN,
 )
@@ -50,6 +60,8 @@ class AdminCitaUpdate(BaseModel):
     nombre_tecnico: Optional[str] = None
     id_tecnico_2: Optional[int] = None
     nombre_tecnico_2: Optional[str] = None
+    id_tecnico_3: Optional[int] = None
+    nombre_tecnico_3: Optional[str] = None
     id_comision_c: Optional[int] = None
     comision_porcentaje: Optional[float] = None
     comision_valor: Optional[float] = None
@@ -61,6 +73,8 @@ class AdminCitaResponse(CitaResponse):
     id_comision_c: Optional[int] = None
     comision_porcentaje: Optional[float] = None
     comision_valor: Optional[float] = None
+    especializacion_requerida: Optional[dict] = None
+    reembolso: Optional[dict] = None
 
 
 class ReasignarCitaRequest(BaseModel):
@@ -68,6 +82,8 @@ class ReasignarCitaRequest(BaseModel):
     fecha: Optional[date] = None
     hora: Optional[str] = None
     id_tecnico_2: Optional[int] = None
+    id_tecnico_3: Optional[int] = None
+    motivo: Optional[str] = None
 
 
 class ClienteCitaResponse(CitaResponse):
@@ -77,7 +93,6 @@ class ClienteCitaResponse(CitaResponse):
     tecnico_email: Optional[str] = None
     tecnico_foto_url: Optional[str] = None
     tecnico_certificacion: Optional[str] = None
-    tecnico_cargo: Optional[str] = None
     tecnico_2_nombre: Optional[str] = None
     tecnico_2_telefono: Optional[int] = None
     calificada: Optional[bool] = None
@@ -108,16 +123,53 @@ def _nombre_tecnico_real(db: Session, id_tecnico: int) -> str | None:
 
 def _datos_tecnico(
     db: Session, id_tecnico: int,
-) -> tuple[int | None, str | None, str | None, str | None, str | None, str | None]:
-    """Devuelve (teléfono, email, foto, nombre, certificación, cargo) del técnico."""
+) -> tuple[int | None, str | None, str | None, str | None, str | None]:
+    """Devuelve (teléfono, email, foto, nombre, certificación) del técnico."""
     if id_tecnico is None:
-        return None, None, None, None, None, None
+        return None, None, None, None, None
     tecnico = db.query(Tecnico).filter(Tecnico.id_tecnico == id_tecnico).first()
     if not tecnico or not tecnico.usuario:
-        return None, None, None, None, None, None
+        return None, None, None, None, None
     u = tecnico.usuario
     nombre = f"{u.first_name} {u.last_name}".strip()
-    return u.telefono_usuario, u.email, u.foto_url, nombre, tecnico.certificacion_t, tecnico.cargo_t
+    return u.telefono_usuario, u.email, u.foto_url, nombre, tecnico.certificacion_t
+
+
+def _notificar_tecnicos_cita(db: Session, cita: Cita, cliente: Optional[Cliente], solo_ids: Optional[set] = None) -> None:
+    """Envía el correo de cita asignada a TODOS los técnicos vinculados
+    (principal, segundo y tercero). Con ``solo_ids`` se limita a esos ids,
+    útil tras un cambio del admin para avisar solo a los nuevos asignados."""
+    from app.models.tecnico import Tecnico
+
+    nombre_cliente = (
+        f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+        if cliente
+        else "Cliente"
+    )
+    ids = [cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3]
+    for id_tecnico in ids:
+        if id_tecnico is None:
+            continue
+        if solo_ids is not None and id_tecnico not in solo_ids:
+            continue
+        tecnico_obj = db.query(Tecnico).filter(Tecnico.id_tecnico == id_tecnico).first()
+        if not tecnico_obj or not tecnico_obj.usuario or not tecnico_obj.usuario.email:
+            continue
+        notificar_cita_asignada_tecnico(
+            db,
+            tecnico_obj.usuario.id_usuario,
+            tecnico_obj.usuario.email,
+            tecnico_obj.usuario.first_name or "técnico",
+            {
+                "cliente": nombre_cliente,
+                "servicio": cita.tipo_servicio,
+                "fecha": cita.fecha.strftime("%d/%m/%Y"),
+                "hora": cita.hora,
+                "direccion": cita.direccion,
+                "telefono": cliente.telefono_cliente if cliente else None,
+                "descripcion": cita.descripcion,
+            },
+        )
 
 
 def _info_comision(db: Session, cita: Cita) -> tuple[Optional[int], Optional[float], Optional[float]]:
@@ -135,39 +187,16 @@ def _info_comision(db: Session, cita: Cita) -> tuple[Optional[int], Optional[flo
 
 
 def _verificar_recordatorio_cita(db: Session, cliente: Cliente, cita: Cita) -> None:
-    """Envía recordatorio al cliente si la cita está a <=12 horas y no se envió aún."""
-    if (
-        cita.estado not in ("Pendiente", "Confirmada")
-        or cita.recordatorio_enviado
-    ):
-        return
-    try:
-        hora_parts = cita.hora.split(":")
-        cita_dt = datetime.combine(cita.fecha, time(int(hora_parts[0]), int(hora_parts[1])))
-    except (ValueError, IndexError):
-        return
-    ahora = datetime.now()
-    horas_restantes = (cita_dt - ahora).total_seconds() / 3600
-    if 0 < horas_restantes <= 12:
-        notificar_recordatorio_cita(
-            db,
-            cliente_id=cliente.id_cliente,
-            correo=cliente.email,
-            cliente_nombre=f"{cliente.first_name} {cliente.last_name}",
-            datos={
-                "servicio": cita.tipo_servicio,
-                "fecha": cita.fecha.strftime("%d/%m/%Y"),
-                "hora": cita.hora,
-                "direccion": cita.direccion,
-            },
-        )
-        cita.recordatorio_enviado = True
-        db.commit()
+    """Envía recordatorio al cliente si la cita está a <=12 horas y no se envió.
+    La lógica vive en tareas_programadas para compartirla con el scheduler."""
+    from app.services.tareas_programadas import enviar_recordatorio_si_corresponde
+
+    enviar_recordatorio_si_corresponde(db, cliente, cita)
 
 
 def _serializar_cita_cliente(db: Session, cita: Cita) -> ClienteCitaResponse:
-    telefono, email, foto, nombre, certificacion, cargo = _datos_tecnico(db, cita.id_tecnico)
-    telefono_2, _, _, nombre_2, _, _ = _datos_tecnico(db, cita.id_tecnico_2)
+    telefono, email, foto, nombre, certificacion = _datos_tecnico(db, cita.id_tecnico)
+    telefono_2, _, _, nombre_2, _ = _datos_tecnico(db, cita.id_tecnico_2)
     calificada = (
         db.query(Calificacion)
         .filter(
@@ -189,7 +218,6 @@ def _serializar_cita_cliente(db: Session, cita: Cita) -> ClienteCitaResponse:
         tecnico_email=email,
         tecnico_foto_url=foto,
         tecnico_certificacion=certificacion,
-        tecnico_cargo=cargo,
         tecnico_2_nombre=nombre_2,
         tecnico_2_telefono=telefono_2,
         tipo_servicio=cita.tipo_servicio,
@@ -214,10 +242,12 @@ def _validar_tecnico_cita(
     fecha: date,
     hora: str,
     excluir_cita_id: Optional[int] = None,
+    duracion_horas: float = DURACION_MIN,
 ) -> None:
-    """Valida que el técnico exista y esté libre en la fecha y hora
-    indicadas. Lanza HTTPException si no. No se restringe por especialidad:
-    cualquier técnico puede atender cualquier servicio."""
+    """Valida que el técnico exista y esté libre durante el intervalo que
+    ocupa el servicio en la fecha y hora indicadas. Lanza HTTPException si
+    no. No se restringe por especialidad: cualquier técnico puede atender
+    cualquier servicio."""
     if id_tecnico is None:
         return
     tecnico = db.query(Tecnico).filter(Tecnico.id_tecnico == id_tecnico).first()
@@ -228,7 +258,7 @@ def _validar_tecnico_cita(
         or tecnico.usuario.id_rol_u != 2
     ):
         raise HTTPException(status_code=400, detail="El técnico seleccionado no existe o no está activo")
-    if tecnico_ocupado(db, id_tecnico, fecha, hora, excluir_cita_id):
+    if tecnico_ocupado(db, id_tecnico, fecha, hora, excluir_cita_id, duracion_horas=duracion_horas):
         raise HTTPException(
             status_code=400,
             detail="El técnico seleccionado no está disponible en esa fecha y hora",
@@ -278,18 +308,24 @@ def listar_citas_admin(
     return respuesta
 
 
-def _validar_franja_cita(fecha: date, hora: str, excluir_cita_id: Optional[int] = None) -> None:
-    """Valida que la cita sea en día laboral, hora en franjas de 1 hora
-    (08:00-18:00) y que la franja no esté reservada por otro cliente."""
+def _validar_franja_cita(
+    fecha: date,
+    hora: str,
+    excluir_cita_id: Optional[int] = None,
+    duracion_horas: float = DURACION_MIN,
+) -> None:
+    """Valida que la cita sea en día laboral, que la hora sea un inicio
+    válido (08:00-18:00, dejando terminar el servicio dentro de la jornada)
+    y que la franja no esté reservada por otro cliente."""
     if not _dia_es_laboral(fecha):
         raise HTTPException(
             status_code=400,
             detail="Las citas solo se pueden agendar de lunes a viernes.",
         )
-    if hora not in horas_laborales(fecha):
+    if hora not in horas_laborales(fecha, duracion_horas):
         raise HTTPException(
             status_code=400,
-            detail="La hora debe ser una franja de 1 hora entre 08:00 y 18:00 (por ejemplo 09:00).",
+            detail="La hora debe ser una franja entre 08:00 y 18:00 con tiempo suficiente para el servicio (por ejemplo 09:00).",
         )
 
 
@@ -349,9 +385,10 @@ def crear_cita(
     con el simulador académico local."""
     if data.fecha < datetime.now().date():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
-    _validar_franja_cita(data.fecha, data.hora)
+    duracion = duracion_base_tipo(data.tipo_servicio)
+    _validar_franja_cita(data.fecha, data.hora, duracion_horas=duracion)
     _bloqueo_por_calificacion(db, client.id_cliente)
-    if slot_tomado(db, data.fecha, data.hora):
+    if slot_tomado(db, data.fecha, data.hora, duracion_horas=duracion):
         raise HTTPException(
             status_code=400,
             detail="Esa fecha y hora ya fue reservada por otro cliente. Elige otra franja.",
@@ -378,6 +415,7 @@ def crear_cita(
             data.tipo_servicio,
             data.fecha,
             data.hora,
+            duracion_horas=duracion,
         )
         nombre_tecnico = _nombre_tecnico_real(db, data.id_tecnico)
     cita = Cita(
@@ -434,30 +472,9 @@ def crear_cita(
         ),
     )
 
-    # Notificar por correo al técnico que recibió la cita.
+    # Notificar por correo a TODOS los técnicos asignados (1, 2 y 3).
     if cita.id_tecnico is not None:
-        from app.models.tecnico import Tecnico
-
-        tecnico_obj = (
-            db.query(Tecnico).filter(Tecnico.id_tecnico == cita.id_tecnico).first()
-        )
-        if tecnico_obj and tecnico_obj.usuario and tecnico_obj.usuario.email:
-            nombre_cliente = f"{client.first_name} {client.last_name}".strip() or "Cliente"
-            notificar_cita_asignada_tecnico(
-                db,
-                tecnico_obj.usuario.id_usuario,
-                tecnico_obj.usuario.email,
-                cita.nombre_tecnico or "técnico",
-                {
-                    "cliente": nombre_cliente,
-                    "servicio": cita.tipo_servicio,
-                    "fecha": cita.fecha.strftime("%d/%m/%Y"),
-                    "hora": cita.hora,
-                    "direccion": cita.direccion,
-                    "telefono": client.telefono_cliente,
-                    "descripcion": cita.descripcion,
-                },
-            )
+        _notificar_tecnicos_cita(db, cita, client)
 
     # Generar factura PDF y enviarla por correo si el pago fue aprobado.
     if cita.estado_pago == "aprobado":
@@ -479,22 +496,48 @@ def horas_disponibles_cita(
     fecha: date,
     tecnico_id: Optional[int] = None,
     excluir_cita_id: Optional[int] = None,
+    tipo_servicio: Optional[str] = None,
+    items: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Franjas horarias de 1 hora libres para la fecha indicada: no reservadas
-    por otra cita y, si se indica `tecnico_id`, donde ese técnico está libre
-    (sin cita ni entrega a esa hora). `excluir_cita_id` omite una cita propia
-    (al editar). Vacío si la fecha es fin de semana."""
+    """Franjas horarias libres para la fecha indicada: no cruzadas por otra
+    cita y donde exista disponibilidad real de técnicos. Si se indica
+    `tecnico_id`, ese técnico debe estar libre durante todo el intervalo;
+    si no se indica, basta con que AL MENOS UN técnico activo esté libre.
+    `items` (JSON [{id_producto, cantidad}]) permite calcular la duración
+    real según los productos (máx. 2.5 h por desplazamiento); sin items se
+    usa la duración base del tipo de servicio. Vacío si la fecha es fin de
+    semana o pasada."""
     if not _dia_es_laboral(fecha) or fecha < date.today():
         return []
+    duracion = DURACION_MIN
+    if items:
+        try:
+            duracion = duracion_desde_items(db, json.loads(items)) or duracion_base_tipo(tipo_servicio)
+        except ValueError:
+            duracion = duracion_base_tipo(tipo_servicio)
+    else:
+        duracion = duracion_base_tipo(tipo_servicio)
+
+    tecnicos_activos = _tecnicos_activos(db)
+
+    def _hay_disponibilidad(hora: str) -> bool:
+        """True si el intervalo [hora, hora+duracion) es agendable."""
+        if tecnico_id is not None:
+            return not tecnico_ocupado(
+                db, tecnico_id, fecha, hora, excluir_cita_id, duracion_horas=duracion
+            )
+        # Sin técnico elegido aún: al menos uno debe estar libre.
+        return any(
+            not tecnico_ocupado(db, t.id_tecnico, fecha, hora, duracion_horas=duracion)
+            for t in tecnicos_activos
+        )
+
     return [
         h
-        for h in horas_laborales(fecha)
-        if not slot_tomado(db, fecha, h, excluir_cita_id)
-        and not (
-            tecnico_id is not None
-            and tecnico_ocupado(db, tecnico_id, fecha, h, excluir_cita_id)
-        )
+        for h in horas_laborales(fecha, duracion)
+        if not slot_tomado(db, fecha, h, excluir_cita_id, duracion_horas=duracion)
+        and _hay_disponibilidad(h)
     ]
 
 
@@ -505,9 +548,11 @@ def tecnico_ocupado_fecha(
     db: Session = Depends(get_db),
 ):
     """Horas puntuales donde el técnico ya tiene citas activas o entregas
-    asignadas en la fecha. Usado para ocultar solo esos horarios (el resto
-    del día queda disponible)."""
-    horas: list[str] = []
+    asignadas en la fecha. Cada cita bloquea su intervalo completo (según la
+    duración estimada del servicio), que se expande en franjas de 1 hora.
+    Usado para ocultar solo esos horarios (el resto del día queda
+    disponible)."""
+    horas: set[str] = set()
     citas = (
         db.query(Cita)
         .filter(
@@ -520,7 +565,15 @@ def tecnico_ocupado_fecha(
         )
         .all()
     )
-    horas.extend(c.hora for c in citas)
+    for c in citas:
+        ini = _hora_a_minutos(c.hora)
+        if ini is None:
+            horas.add(c.hora)
+            continue
+        fin = ini + round(duracion_estimada_cita(db, c) * 60)
+        for h in range(HORA_INICIO * 60, HORA_FIN * 60, 60):
+            if _se_solapan(h, h + 60, ini, fin):
+                horas.add(f"{h // 60:02d}:00")
     entregas = (
         db.query(Pedido)
         .filter(
@@ -530,8 +583,8 @@ def tecnico_ocupado_fecha(
         )
         .all()
     )
-    horas.extend(e.hora_entrega for e in entregas if e.hora_entrega)
-    return {"horas": sorted(set(horas))}
+    horas.update(e.hora_entrega for e in entregas if e.hora_entrega)
+    return {"horas": sorted(horas)}
 
 
 @router.put("/admin/{cita_id}", response_model=AdminCitaResponse)
@@ -545,6 +598,9 @@ def gestionar_cita_admin(
     cita = db.query(Cita).filter(Cita.id_cita == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
+    # Recordar los técnicos previos para avisar por correo SOLO a los nuevos.
+    tecnicos_previos = {cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3}
+    estado_previo = cita.estado
     if data.estado is not None:
         if data.estado not in ESTADOS_CITA:
             raise HTTPException(status_code=400, detail="Estado de cita no válido")
@@ -563,6 +619,7 @@ def gestionar_cita_admin(
                 cita.fecha,
                 cita.hora,
                 excluir_cita_id=cita.id_cita,
+                duracion_horas=duracion_estimada_cita(db, cita),
             )
             cita.id_tecnico = data.id_tecnico
             cita.nombre_tecnico = _nombre_tecnico_real(db, data.id_tecnico)
@@ -581,11 +638,31 @@ def gestionar_cita_admin(
                 cita.fecha,
                 cita.hora,
                 excluir_cita_id=cita.id_cita,
+                duracion_horas=duracion_estimada_cita(db, cita),
             )
             cita.id_tecnico_2 = data.id_tecnico_2
             cita.nombre_tecnico_2 = _nombre_tecnico_real(db, data.id_tecnico_2)
     elif data.nombre_tecnico_2 is not None:
         cita.nombre_tecnico_2 = data.nombre_tecnico_2
+    # Tercer técnico (instalaciones que requieren 3 técnicos).
+    if "id_tecnico_3" in data.model_fields_set:
+        if data.id_tecnico_3 is None:
+            cita.id_tecnico_3 = None
+            cita.nombre_tecnico_3 = None
+        else:
+            _validar_tecnico_cita(
+                db,
+                data.id_tecnico_3,
+                cita.tipo_servicio,
+                cita.fecha,
+                cita.hora,
+                excluir_cita_id=cita.id_cita,
+                duracion_horas=duracion_estimada_cita(db, cita),
+            )
+            cita.id_tecnico_3 = data.id_tecnico_3
+            cita.nombre_tecnico_3 = _nombre_tecnico_real(db, data.id_tecnico_3)
+    elif data.nombre_tecnico_3 is not None:
+        cita.nombre_tecnico_3 = data.nombre_tecnico_3
     # Comisión por el servicio: comision_porcentaje crea o actualiza una
     # comisión con ese % sobre el costo de la cita; comision_valor con un monto
     # fijo. Si la cita ya tiene comisión, se actualiza (no se crea otra).
@@ -638,9 +715,34 @@ def gestionar_cita_admin(
             cita.id_comision_c = data.id_comision_c
     db.commit()
     db.refresh(cita)
+
+    # Correo a los técnicos NUEVAMENTE asignados (si hubo cambio de personal).
+    tecnicos_actuales = {cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3}
+    nuevos = {t for t in tecnicos_actuales if t is not None} - {
+        t for t in tecnicos_previos if t is not None
+    }
+    if nuevos:
+        cliente = (
+            db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
+        )
+        _notificar_tecnicos_cita(db, cita, cliente, solo_ids=nuevos)
+
+    # Cancelación por el administrador: reembolso automático SOLO del servicio
+    # (el valor de los productos no se toca; esos los entrega el técnico).
+    reembolso_resumen = None
+    if data.estado == "Cancelada" and estado_previo not in (None, "Cancelada"):
+        from app.services.asignacion_service import cancelar_cita_con_reembolso
+
+        reembolso_resumen = cancelar_cita_con_reembolso(
+            db,
+            cita,
+            motivo="Cancelación realizada por el administrador",
+            administrador_id=current_admin.id_usuario,
+        )
+
     cliente = db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
     id_comision, com_porcentaje, com_valor = _info_comision(db, cita)
-    return AdminCitaResponse(
+    respuesta = AdminCitaResponse(
         id_cita=cita.id_cita,
         id_cliente=cita.id_cliente,
         id_tecnico=cita.id_tecnico,
@@ -663,13 +765,42 @@ def gestionar_cita_admin(
         id_comision_c=id_comision,
         comision_porcentaje=com_porcentaje,
         comision_valor=com_valor,
+        reembolso=reembolso_resumen,
     )
+
+    # Las citas canceladas se ELIMINAN del sistema: el reembolso y el historial
+    # se preservan (FK SET NULL / CASCADE), las evidencias y productos de la
+    # cita caen por CASCADE y las facturas quedan desvinculadas.
+    if data.estado == "Cancelada" and estado_previo not in (None, "Cancelada"):
+        db.execute(
+            text("DELETE FROM calificaciones WHERE id_cita_c = :id"),
+            {"id": cita.id_cita},
+        )
+        db.execute(
+            text("UPDATE facturas SET id_cita = NULL WHERE id_cita = :id"),
+            {"id": cita.id_cita},
+        )
+        db.execute(
+            text("UPDATE citas SET id_comision_c = NULL WHERE id_cita = :id"),
+            {"id": cita.id_cita},
+        )
+        db.commit()
+        db.execute(
+            text("DELETE FROM citas WHERE id_cita = :id"),
+            {"id": cita.id_cita},
+        )
+        db.commit()
+
+    return respuesta
 
 
 def _respuesta_admin_cita(db: Session, cita: Cita) -> AdminCitaResponse:
     """Serializa una cita para el panel de administración (cliente + comisión)."""
+    from app.services.asignacion_service import especializacion_requerida_cita
+
     cliente = db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
     id_comision, com_porcentaje, com_valor = _info_comision(db, cita)
+    esp = especializacion_requerida_cita(db, cita)
     return AdminCitaResponse(
         id_cita=cita.id_cita,
         id_cliente=cita.id_cliente,
@@ -693,6 +824,11 @@ def _respuesta_admin_cita(db: Session, cita: Cita) -> AdminCitaResponse:
         id_comision_c=id_comision,
         comision_porcentaje=com_porcentaje,
         comision_valor=com_valor,
+        especializacion_requerida=(
+            {"id_especializacion": esp.id_especializacion, "nombre": esp.nombre}
+            if esp
+            else None
+        ),
     )
 
 
@@ -751,10 +887,15 @@ def tecnicos_disponibles_cita(
     db: Session = Depends(get_db),
 ):
     """Técnicos activos que están libres el mismo día y hora de la cita
-    (sin contar esta cita). Sirve de filtro al reasignar."""
+    (sin contar esta cita). Anota si cubren la especialización requerida por
+    la cita y los ordena con los que cubren primero. Sirve de filtro al
+    reasignar."""
+    from app.services.asignacion_service import especializacion_requerida_cita
+
     cita = db.query(Cita).filter(Cita.id_cita == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
+    esp_requerida = especializacion_requerida_cita(db, cita)
     fichas = (
         db.query(Tecnico)
         .join(User, User.id_usuario == Tecnico.id_usuario_t)
@@ -762,10 +903,26 @@ def tecnicos_disponibles_cita(
         .all()
     )
     disponibles = []
+    duracion_cita = duracion_estimada_cita(db, cita)
     for ficha in fichas:
-        if tecnico_ocupado(db, ficha.id_tecnico, cita.fecha, cita.hora, excluir_cita_id=cita.id_cita):
+        if tecnico_ocupado(
+            db,
+            ficha.id_tecnico,
+            cita.fecha,
+            cita.hora,
+            excluir_cita_id=cita.id_cita,
+            duracion_horas=duracion_cita,
+        ):
             continue
         u = ficha.usuario
+        propias = [
+            {"id_especializacion": e.id_especializacion, "nombre": e.nombre}
+            for e in (ficha.especializaciones or [])
+        ]
+        cubre = (
+            esp_requerida is None
+            or any(e["id_especializacion"] == esp_requerida.id_especializacion for e in propias)
+        )
         disponibles.append(
             {
                 "id_tecnico": ficha.id_tecnico,
@@ -773,10 +930,121 @@ def tecnicos_disponibles_cita(
                 "nombre": f"{u.first_name} {u.last_name}".strip(),
                 "email": u.email,
                 "certificacion_t": ficha.certificacion_t,
-                "cargo_t": ficha.cargo_t,
+                "especializaciones": propias,
+                "cubre_especializacion": cubre,
+                "especializacion_requerida": (
+                    {
+                        "id_especializacion": esp_requerida.id_especializacion,
+                        "nombre": esp_requerida.nombre,
+                    }
+                    if esp_requerida
+                    else None
+                ),
             }
         )
+    disponibles.sort(key=lambda d: (not d["cubre_especializacion"], d["nombre"].lower()))
     return disponibles
+
+
+@router.get("/admin/{cita_id}/historial", response_model=List[dict])
+def historial_cita(
+    cita_id: int,
+    current_admin: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Historial de trazabilidad de una cita (reasignaciones, cancelaciones…)."""
+    from app.models.especializacion import HistorialCita
+
+    cita = db.query(Cita).filter(Cita.id_cita == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    entradas = (
+        db.query(HistorialCita)
+        .filter(HistorialCita.id_cita == cita_id)
+        .order_by(HistorialCita.created_at.desc(), HistorialCita.id_historial.desc())
+        .all()
+    )
+    return [
+        {
+            "id_historial": h.id_historial,
+            "id_cita": h.id_cita,
+            "accion": h.accion,
+            "tecnico_anterior_id": h.tecnico_anterior_id,
+            "tecnico_anterior_nombre": h.tecnico_anterior_nombre,
+            "tecnico_nuevo_id": h.tecnico_nuevo_id,
+            "tecnico_nuevo_nombre": h.tecnico_nuevo_nombre,
+            "administrador_id": h.administrador_id,
+            "motivo": h.motivo,
+            "detalle": h.detalle,
+            "created_at": h.created_at,
+        }
+        for h in entradas
+    ]
+
+
+@router.get("/admin/reasignaciones-historial", response_model=List[dict])
+def historial_reasignaciones(
+    current_admin: User = Depends(_admin),
+    db: Session = Depends(get_db),
+    limit: int = 50,
+):
+    """Resumen para el panel admin: últimas reasignaciones/cancelaciones con
+    datos de la cita y del reembolso si lo hubo."""
+    from app.models.especializacion import HistorialCita, Reembolso
+
+    entradas = (
+        db.query(HistorialCita)
+        .filter(HistorialCita.accion.in_(("reasignacion", "cancelacion")))
+        .order_by(HistorialCita.created_at.desc(), HistorialCita.id_historial.desc())
+        .limit(max(1, min(limit, 200)))
+        .all()
+    )
+    citas_ids = {h.id_cita for h in entradas}
+    citas = (
+        {c.id_cita: c for c in db.query(Cita).filter(Cita.id_cita.in_(citas_ids)).all()}
+        if citas_ids
+        else {}
+    )
+    clientes = {c.id_cliente: c for c in db.query(Cliente).all()}
+    reembolsos = {}
+    if citas_ids:
+        for r in db.query(Reembolso).filter(Reembolso.id_cita.in_(citas_ids)).all():
+            reembolsos.setdefault(r.id_cita, r)
+    respuesta = []
+    for h in entradas:
+        cita = citas.get(h.id_cita)
+        cliente = clientes.get(cita.id_cliente) if cita else None
+        reembolso = reembolsos.get(h.id_cita)
+        respuesta.append(
+            {
+                "id_historial": h.id_historial,
+                "id_cita": h.id_cita,
+                "accion": h.accion,
+                "fecha_cita": cita.fecha if cita else None,
+                "hora_cita": cita.hora if cita else None,
+                "tipo_servicio": cita.tipo_servicio if cita else None,
+                "estado_cita": cita.estado if cita else None,
+                "cliente_nombre": f"{cliente.first_name} {cliente.last_name}".strip()
+                if cliente
+                else None,
+                "tecnico_anterior_nombre": h.tecnico_anterior_nombre,
+                "tecnico_nuevo_nombre": h.tecnico_nuevo_nombre,
+                "motivo": h.motivo,
+                "detalle": h.detalle,
+                "created_at": h.created_at,
+                "reembolso": (
+                    {
+                        "id_reembolso": reembolso.id_reembolso,
+                        "monto": reembolso.monto,
+                        "estado": reembolso.estado,
+                        "numero_transaccion_reembolso": reembolso.numero_transaccion_reembolso,
+                    }
+                    if reembolso
+                    else None
+                ),
+            }
+        )
+    return respuesta
 
 
 @router.get("/admin/{cita_id}/proxima-fecha", response_model=dict)
@@ -800,8 +1068,16 @@ def proxima_fecha_reasignacion(
     )
     for _ in range(45):
         if _dia_es_laboral(dia):
+            duracion_cita = duracion_estimada_cita(db, cita)
             for ficha in fichas:
-                if not tecnico_ocupado(db, ficha.id_tecnico, dia, cita.hora, excluir_cita_id=cita.id_cita):
+                if not tecnico_ocupado(
+                    db,
+                    ficha.id_tecnico,
+                    dia,
+                    cita.hora,
+                    excluir_cita_id=cita.id_cita,
+                    duracion_horas=duracion_cita,
+                ):
                     u = ficha.usuario
                     return {
                         "fecha": dia,
@@ -824,8 +1100,14 @@ def reasignar_cita_admin(
     db: Session = Depends(get_db),
 ):
     """Reasigna una cita a otro técnico y, opcionalmente, la aplaza a otra
-    fecha/hora. Notifica al nuevo técnico y envía correo al cliente avisando
-    que su cita fue re agendada."""
+    fecha/hora. Valida que el nuevo técnico cubra la especialización requerida
+    por la cita. Notifica al nuevo técnico, registra el historial y envía
+    correo al cliente avisando que su cita fue re agendada."""
+    from app.services.asignacion_service import (
+        especializacion_requerida_cita,
+        registrar_historial,
+    )
+
     cita = db.query(Cita).filter(Cita.id_cita == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
@@ -833,9 +1115,25 @@ def reasignar_cita_admin(
         raise HTTPException(status_code=400, detail="Solo se puede reasignar una cita pendiente o confirmada")
     nueva_fecha = data.fecha or cita.fecha
     nueva_hora = data.hora or cita.hora
-    _validar_franja_cita(nueva_fecha, nueva_hora)
-    if slot_tomado(db, nueva_fecha, nueva_hora, excluir_cita_id=cita.id_cita):
+    duracion_cita = duracion_estimada_cita(db, cita)
+    _validar_franja_cita(nueva_fecha, nueva_hora, duracion_horas=duracion_cita)
+    if slot_tomado(db, nueva_fecha, nueva_hora, excluir_cita_id=cita.id_cita, duracion_horas=duracion_cita):
         raise HTTPException(status_code=400, detail="Esa fecha y hora ya están reservadas por otra cita")
+
+    # Validación de especialización requerida por la cita.
+    esp_requerida = especializacion_requerida_cita(db, cita)
+    tecnico_nuevo = db.query(Tecnico).filter(Tecnico.id_tecnico == data.id_tecnico).first()
+    if esp_requerida is not None and tecnico_nuevo is not None:
+        propias = {e.id_especializacion for e in (tecnico_nuevo.especializaciones or [])}
+        if esp_requerida.id_especializacion not in propias:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"El técnico no tiene la especialización requerida "
+                    f"'{esp_requerida.nombre}' para esta cita."
+                ),
+            )
+
     _validar_tecnico_cita(
         db,
         data.id_tecnico,
@@ -843,6 +1141,7 @@ def reasignar_cita_admin(
         nueva_fecha,
         nueva_hora,
         excluir_cita_id=cita.id_cita,
+        duracion_horas=duracion_cita,
     )
     if data.id_tecnico_2 is not None:
         _validar_tecnico_cita(
@@ -852,7 +1151,22 @@ def reasignar_cita_admin(
             nueva_fecha,
             nueva_hora,
             excluir_cita_id=cita.id_cita,
+            duracion_horas=duracion_cita,
         )
+    if data.id_tecnico_3 is not None:
+        _validar_tecnico_cita(
+            db,
+            data.id_tecnico_3,
+            cita.tipo_servicio,
+            nueva_fecha,
+            nueva_hora,
+            excluir_cita_id=cita.id_cita,
+            duracion_horas=duracion_cita,
+        )
+    # Recordar técnicos previos: el correo va solo a los recién asignados.
+    tecnicos_previos = {cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3}
+    tecnico_anterior_id = cita.id_tecnico
+    fecha_anterior = cita.fecha
     cita.fecha = nueva_fecha
     cita.hora = nueva_hora
     cita.id_tecnico = data.id_tecnico
@@ -860,43 +1174,110 @@ def reasignar_cita_admin(
     if data.id_tecnico_2 is not None:
         cita.id_tecnico_2 = data.id_tecnico_2
         cita.nombre_tecnico_2 = _nombre_tecnico_real(db, data.id_tecnico_2)
+    if data.id_tecnico_3 is not None:
+        cita.id_tecnico_3 = data.id_tecnico_3
+        cita.nombre_tecnico_3 = _nombre_tecnico_real(db, data.id_tecnico_3)
     db.commit()
     db.refresh(cita)
 
+    # Correo a cada técnico nuevo asignado (principal, 2 o 3).
+    nuevos = {t for t in (data.id_tecnico, data.id_tecnico_2, data.id_tecnico_3) if t is not None} - {
+        t for t in tecnicos_previos if t is not None
+    }
     cliente = db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
-    tecnico_obj = (
-        db.query(Tecnico).filter(Tecnico.id_tecnico == data.id_tecnico).first()
+    _notificar_tecnicos_cita(db, cita, cliente, solo_ids=nuevos or None)
+
+    # Si cambió el técnico ENCARGADO, la entrega del pedido lo sigue al nuevo
+    # encargado, ajustada a la nueva fecha/hora de la instalación.
+    if data.id_tecnico != tecnico_anterior_id:
+        from app.services.notificaciones import notificar_entrega_asignada_tecnico
+
+        pedidos_entrega = (
+            db.query(Pedido)
+            .filter(
+                Pedido.id_tecnico_entrega == tecnico_anterior_id,
+                Pedido.fecha_entrega == fecha_anterior,
+                Pedido.estado_entrega.in_(ESTADOS_ENTREGA_OCUPAN),
+            )
+            .all()
+        )
+        nuevo_encargado = (
+            db.query(Tecnico).filter(Tecnico.id_tecnico == data.id_tecnico).first()
+        )
+        for pedido in pedidos_entrega:
+            pedido.id_tecnico_entrega = data.id_tecnico
+            pedido.nombre_tecnico_entrega = cita.nombre_tecnico
+            pedido.fecha_entrega = nueva_fecha
+            pedido.hora_entrega = nueva_hora
+        if pedidos_entrega:
+            db.commit()
+        if (
+            pedidos_entrega
+            and nuevo_encargado
+            and nuevo_encargado.usuario
+            and nuevo_encargado.usuario.email
+        ):
+            for pedido in pedidos_entrega:
+                cliente_pedido = pedido.cliente or cliente
+                notificar_entrega_asignada_tecnico(
+                    db,
+                    nuevo_encargado.usuario.id_usuario,
+                    nuevo_encargado.usuario.email,
+                    cita.nombre_tecnico or "técnico",
+                    {
+                        "pedido": pedido.id_pedido,
+                        "cliente": (
+                            f"{cliente_pedido.first_name} {cliente_pedido.last_name}".strip()
+                            if cliente_pedido
+                            else "Cliente"
+                        ),
+                        "direccion": (
+                            (cliente_pedido.address if cliente_pedido else "")
+                            or (cliente.address if cliente else "")
+                            or ""
+                        ),
+                        "telefono": cliente.telefono_cliente if cliente else None,
+                        "fecha": nueva_fecha.strftime("%d/%m/%Y"),
+                        "hora": nueva_hora,
+                    },
+                )
+
+    # Trazabilidad de la reasignación.
+    registrar_historial(
+        db,
+        cita.id_cita,
+        accion="reasignacion",
+        tecnico_anterior_id=None,
+        tecnico_anterior_nombre=None,
+        tecnico_nuevo_id=data.id_tecnico,
+        tecnico_nuevo_nombre=cita.nombre_tecnico,
+        administrador_id=current_admin.id_usuario,
+        motivo=data.motivo,
+        detalle=(
+            f"Reasignación manual{f' ({data.fecha.isoformat()} {data.hora})' if data.fecha or data.hora else ''}"
+            + (f" — Especialización: {esp_requerida.nombre}" if esp_requerida else "")
+        ),
     )
-    if tecnico_obj and tecnico_obj.usuario and tecnico_obj.usuario.email:
-        nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
-        notificar_cita_asignada_tecnico(
-            db,
-            tecnico_obj.usuario.id_usuario,
-            tecnico_obj.usuario.email,
-            cita.nombre_tecnico or "técnico",
-            {
-                "cliente": nombre_cliente,
-                "servicio": cita.tipo_servicio,
-                "fecha": cita.fecha.strftime("%d/%m/%Y"),
-                "hora": cita.hora,
-                "direccion": cita.direccion,
-                "telefono": cliente.telefono_cliente if cliente else None,
-                "descripcion": cita.descripcion,
-            },
-        )
+
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
     if cliente and cliente.email:
-        notificar_cita_reasignada_cliente(
-            db,
-            cliente_id=cliente.id_cliente,
-            correo=cliente.email,
-            cliente_nombre=f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
-            datos={
-                "servicio": cita.tipo_servicio,
-                "fecha": cita.fecha.strftime("%d/%m/%Y"),
-                "hora": cita.hora,
-                "tecnico": cita.nombre_tecnico or "técnico",
-            },
-        )
+        from app.config import settings as _settings
+
+        # Cambio de técnico: el cliente no se notifica si está desactivado
+        # por configuración (modificaciones al técnico desde el admin).
+        if _settings.NOTIFICAR_CLIENTE_CAMBIOS_TECNICO:
+            notificar_cita_reasignada_cliente(
+                db,
+                cliente_id=cliente.id_cliente,
+                correo=cliente.email,
+                cliente_nombre=f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+                datos={
+                    "servicio": cita.tipo_servicio,
+                    "fecha": cita.fecha.strftime("%d/%m/%Y"),
+                    "hora": cita.hora,
+                    "tecnico": cita.nombre_tecnico or "técnico",
+                },
+            )
     return _respuesta_admin_cita(db, cita)
 
 
@@ -933,8 +1314,9 @@ def editar_cita(
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
     nueva_fecha = update_data.get("fecha", cita.fecha)
     nueva_hora = update_data.get("hora", cita.hora)
-    _validar_franja_cita(nueva_fecha, nueva_hora)
-    if slot_tomado(db, nueva_fecha, nueva_hora, excluir_cita_id=cita.id_cita):
+    duracion_cita = duracion_estimada_cita(db, cita)
+    _validar_franja_cita(nueva_fecha, nueva_hora, duracion_horas=duracion_cita)
+    if slot_tomado(db, nueva_fecha, nueva_hora, excluir_cita_id=cita.id_cita, duracion_horas=duracion_cita):
         raise HTTPException(
             status_code=400,
             detail="Esa fecha y hora ya fue reservada por otro cliente. Elige otra franja.",
@@ -947,6 +1329,7 @@ def editar_cita(
             update_data.get("fecha", cita.fecha),
             update_data.get("hora", cita.hora),
             excluir_cita_id=cita.id_cita,
+            duracion_horas=duracion_cita,
         )
     for field, value in update_data.items():
         setattr(cita, field, value)

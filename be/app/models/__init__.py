@@ -13,6 +13,9 @@ from .solicitud_cuenta import SolicitudCuenta
 from .solicitud_habilitacion_empleado import SolicitudHabilitacionEmpleado
 from .proveedor import Proveedor
 from .pedido import Pedido, DetallePedido
+from .calificacion_producto import CalificacionProducto
+from .ubicacion_tecnico import UbicacionTecnico
+from .devolucion import Devolucion
 from .tecnico import Tecnico
 from .contacto import Contacto
 from .pago import Pago
@@ -20,3 +23,10 @@ from .factura import Factura
 from .tarifa_servicio import TarifaServicio
 from .notificacion import Notificacion
 from .evidencia import Evidencia
+from .especializacion import (
+    Especializacion,
+    HistorialCita,
+    Reembolso,
+    producto_especializacion,
+    tecnico_especializacion,
+)

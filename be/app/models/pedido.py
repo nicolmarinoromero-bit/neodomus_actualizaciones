@@ -14,9 +14,12 @@ class Pedido(Base):
     estado_pedido: Mapped[str] = mapped_column(String(50), nullable=True)
     fecha_entrega: Mapped[date] = mapped_column(Date, nullable=True)
     hora_entrega: Mapped[str] = mapped_column(String(10), nullable=True)
+    hora_entrega_fin: Mapped[str] = mapped_column(String(10), nullable=True)
     id_tecnico_entrega: Mapped[int] = mapped_column(Integer, nullable=True)
     nombre_tecnico_entrega: Mapped[str] = mapped_column(String(150), nullable=True)
     estado_entrega: Mapped[str] = mapped_column(String(20), nullable=True)
+    entrega_actualizada_en: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    evidencia_entrega_url: Mapped[str] = mapped_column(String(255), nullable=True)
 
     cliente = relationship("Cliente", foreign_keys=[id_cliente_pe])
     detalles = relationship("DetallePedido", back_populates="pedido")

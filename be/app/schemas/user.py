@@ -21,7 +21,7 @@ class PerfilEmpleadoResponse(EmployeeResponse):
     """Perfil del empleado autenticado, incluye su ficha técnica (si existe)."""
 
     certificacion_t: Optional[str] = None
-    cargo_t: Optional[str] = None
+    especializaciones: list[dict] = []
 
 # app/schemas/user.py (añade al final)
 
@@ -46,4 +46,3 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     telefono_usuario: Optional[int] = Field(None, ge=1000000000, le=9999999999)
     certificacion_t: Optional[str] = None
-    cargo_t: Optional[str] = None

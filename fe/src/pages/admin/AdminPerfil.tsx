@@ -266,7 +266,6 @@ const AdminPerfil = () => {
             </span>
             <strong className="pf-usuario-nombre">{nombreCompleto}</strong>
             <span className="pf-usuario-correo">{correoUsuario}</span>
-            <span className="pf-rol-badge">{t('adm.perfil.administrador')}</span>
           </div>
 
           <nav className="pf-nav" aria-label={t('adm.perfil.seccionesLabel')}>

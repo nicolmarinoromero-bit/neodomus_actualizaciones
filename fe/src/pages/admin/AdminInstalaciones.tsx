@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   FaCalendarCheck,
@@ -23,7 +23,31 @@ interface TecnicoDisp {
   nombre: string;
   email: string;
   certificacion_t?: string | null;
-  cargo_t?: string | null;
+  especializaciones?: { id_especializacion: number; nombre: string }[];
+  cubre_especializacion?: boolean;
+  especializacion_requerida?: string | null;
+}
+
+interface EntradaHistorial {
+  id_historial: number;
+  id_cita: number;
+  accion: string;
+  fecha_cita: string | null;
+  hora_cita: string | null;
+  tipo_servicio: string | null;
+  estado_cita: string | null;
+  cliente_nombre: string | null;
+  tecnico_anterior_nombre: string | null;
+  tecnico_nuevo_nombre: string | null;
+  motivo: string | null;
+  detalle: string | null;
+  created_at: string;
+  reembolso: {
+    id_reembolso: number;
+    monto: number;
+    estado: string;
+    numero_transaccion_reembolso: string | null;
+  } | null;
 }
 
 interface SugerenciaAplazar {
@@ -64,6 +88,11 @@ const ESTADO_PAGO_TRAD: Record<string, string> = {
   rechazado: 'adm.instalaciones.pagoRechazado',
 };
 
+const TIPO_EVENTO_TRAD: Record<string, string> = {
+  reasignacion: 'adm.instalaciones.historialReasignacion',
+  cancelacion: 'adm.instalaciones.historialCancelacion',
+};
+
 const formatoPeso = (value: number) =>
   value.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
@@ -93,6 +122,7 @@ const AdminInstalaciones = () => {
   const [disponibles, setDisponibles] = useState<Record<number, TecnicoDisp[]>>({});
   const [aplazandoId, setAplazandoId] = useState<number | null>(null);
   const [sugerencia, setSugerencia] = useState<SugerenciaAplazar | null>(null);
+  const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
 
   const POR_PAGINA = 6;
 
@@ -100,14 +130,16 @@ const AdminInstalaciones = () => {
     setCargando(true);
     setError(false);
     try {
-      const [res, resT, resTar] = await Promise.all([
+      const [res, resT, resTar, resH] = await Promise.all([
         api.get<CitaAdmin[]>('/citas/all-admin'),
         api.get<TecnicoAdmin[]>('/tecnicos'),
         api.get<TarifaServicio[]>('/tarifas'),
+        api.get<EntradaHistorial[]>('/citas/admin/reasignaciones-historial').catch(() => ({ data: [] })),
       ]);
       setCitas(res.data || []);
       setTecnicos(resT.data || []);
       setTarifas(resTar.data || []);
+      setHistorial(resH.data || []);
       const activas = (res.data || []).filter((c) => c.estado === 'Pendiente' || c.estado === 'Confirmada');
       const mapa: Record<number, TecnicoDisp[]> = {};
       await Promise.all(
@@ -167,6 +199,7 @@ const AdminInstalaciones = () => {
       estado?: string;
       id_tecnico?: number | null;
       id_tecnico_2?: number | null;
+      id_tecnico_3?: number | null;
       id_comision_c?: number | null;
       comision_porcentaje?: number;
       comision_valor?: number;
@@ -185,6 +218,11 @@ const AdminInstalaciones = () => {
         payload.id_tecnico_2 = cambios.id_tecnico_2;
         const t = tecnicos.find((x) => x.id_tecnico === cambios.id_tecnico_2);
         payload.nombre_tecnico_2 = t ? nombreCompleto(t.first_name, t.last_name) : null;
+      }
+      if (cambios.id_tecnico_3 !== undefined) {
+        payload.id_tecnico_3 = cambios.id_tecnico_3;
+        const t = tecnicos.find((x) => x.id_tecnico === cambios.id_tecnico_3);
+        payload.nombre_tecnico_3 = t ? nombreCompleto(t.first_name, t.last_name) : null;
       }
       if (cambios.comision_porcentaje !== undefined) payload.comision_porcentaje = cambios.comision_porcentaje;
       if (cambios.comision_valor !== undefined) payload.comision_valor = cambios.comision_valor;
@@ -277,7 +315,9 @@ const AdminInstalaciones = () => {
   };
 
   const q = busqueda.trim().toLowerCase();
-  const filtradas = citas.filter((c) => {
+  // Las citas canceladas se eliminan del sistema (backend) y nunca se listan.
+  const visibles = citas.filter((c) => c.estado !== 'Cancelada');
+  const filtradas = visibles.filter((c) => {
     if (filtro !== 'todas' && c.estado !== filtro) return false;
     if (!q) return true;
     return `${c.cliente_nombre || ''} ${c.cliente_email || ''} ${c.tipo_servicio || ''} ${c.nombre_tecnico || ''} ${c.nombre_tecnico_2 || ''} ${c.direccion || ''} ${c.descripcion || ''} ${c.estado_pago || ''} ${c.metodo_pago || ''} ${c.numero_transaccion || ''}`
@@ -285,7 +325,7 @@ const AdminInstalaciones = () => {
       .includes(q);
   });
   const contadores = ESTADOS.reduce<Record<string, number>>((acc, e) => {
-    acc[e] = citas.filter((c) => c.estado === e).length;
+    acc[e] = visibles.filter((c) => c.estado === e).length;
     return acc;
   }, {});
 
@@ -438,6 +478,42 @@ const AdminInstalaciones = () => {
         </div>
       )}
 
+      {!cargando && historial.length > 0 && (
+        <div className="ap-card">
+          <div className="ap-card-head">
+            <h3><FaClockRotateLeft /> {t('adm.instalaciones.historialTitulo')}</h3>
+            <p>{t('adm.instalaciones.historialDesc')}</p>
+          </div>
+          <div className="ap-tarifas-grid">
+            {historial.map((h) => (
+              <div className="ap-tarifa-item" key={h.id_historial} style={{ alignItems: 'flex-start' }}>
+                <div>
+                  <span className="ap-tarifa-nombre" style={{ display: 'block' }}>
+                    #{h.id_cita} · {t(TIPO_EVENTO_TRAD[h.accion] || h.accion)}
+                    {h.cliente_nombre ? ` · ${h.cliente_nombre}` : ''}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: '#9a8f78' }}>
+                    {h.created_at ? formatFecha(h.created_at.split('T')[0]) : ''}
+                    {h.tecnico_anterior_nombre || h.tecnico_nuevo_nombre
+                      ? ` — ${h.tecnico_anterior_nombre || '—'} → ${h.tecnico_nuevo_nombre || '—'}`
+                      : ''}
+                    {h.motivo ? ` · ${h.motivo}` : ''}
+                  </span>
+                </div>
+                {h.reembolso && (
+                  <span className={`ap-badge ${h.reembolso.estado === 'Reembolsado' ? 'ok' : 'warn'}`}>
+                    <FaMoneyBillWave style={{ marginRight: 4, verticalAlign: '-2px' }} />
+                    {formatoPeso(h.reembolso.monto)} · {h.reembolso.estado}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+
       {error ? (
         <div className="ap-card">
           <div className="ap-states error">
@@ -501,6 +577,14 @@ const AdminInstalaciones = () => {
                   <div className="ap-def-label">{t('adm.instalaciones.colHora')}</div>
                   <div className="ap-def-value">{cita.hora}</div>
                 </div>
+                {cita.especializacion_requerida && (
+                  <div className="ap-def">
+                    <div className="ap-def-label">{t('adm.instalaciones.colEspecializacion')}</div>
+                    <div className="ap-def-value">
+                      <span className="ap-badge info">{cita.especializacion_requerida.nombre}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="ap-def">
                   <div className="ap-def-label">{t('adm.instalaciones.colPago')}</div>
                   <div className="ap-def-value">
@@ -670,6 +754,11 @@ const AdminInstalaciones = () => {
                         : disponibles[cita.id_cita].map((tec) => (
                             <option key={tec.id_tecnico} value={tec.id_tecnico}>
                               {tec.nombre.toUpperCase()}
+                              {cita.especializacion_requerida
+                                ? tec.cubre_especializacion
+                                  ? ` ✓ ${t('adm.instalaciones.cubreEspecializacion')}`
+                                  : ` ✕ ${t('adm.instalaciones.sinEspecialidad')}`
+                                : ''}
                             </option>
                           ))}
                   </select>
@@ -686,7 +775,27 @@ const AdminInstalaciones = () => {
                   >
                     <option value="">{t('adm.instalaciones.sinAsignar')}</option>
                     {tecnicos
-                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico)
+                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_3)
+                      .map((tec) => (
+                        <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                          {formatTecnico(tec)}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="ap-form-group">
+                  <label className="ap-form-label">{t('adm.instalaciones.tecnicoLabel3')}</label>
+                  <select
+                    className="ap-form-select"
+                    value={cita.id_tecnico_3?.toString() || ''}
+                    disabled={guardandoId === cita.id_cita}
+                    onChange={(e) =>
+                      actualizar(cita, { id_tecnico_3: e.target.value ? parseInt(e.target.value, 10) : null })
+                    }
+                  >
+                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
+                    {tecnicos
+                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_2)
                       .map((tec) => (
                         <option key={tec.id_tecnico} value={tec.id_tecnico}>
                           {formatTecnico(tec)}

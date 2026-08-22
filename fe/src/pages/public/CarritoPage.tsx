@@ -95,7 +95,10 @@ const CarritoPage = () => {
                       <Link to={`/producto/${item.id_producto}`} className="carrito-item-nombre">
                         {item.nombre_producto}
                       </Link>
-                      {item.color && <span className="carrito-item-color">{t('carrito.color', { color: item.color })}</span>}
+                       {item.color && <span className="carrito-item-color">{t('carrito.color', { color: item.color })}</span>}
+                       {(item.medida || (item as any).tamaño) && (
+                         <span className="carrito-item-color">Medida: {(item as any).medida || (item as any).tamaño}</span>
+                       )}
                       <span className="carrito-item-precio-unit">
                         ${item.precio_venta_producto.toLocaleString()} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
                       </span>

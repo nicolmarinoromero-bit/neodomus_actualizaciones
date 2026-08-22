@@ -4,10 +4,10 @@ import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  FaUserPen, FaLock, FaBox, FaTruck, FaStar, FaScrewdriverWrench,
+  FaUserPen, FaLock, FaBox, FaStar, FaScrewdriverWrench,
   FaFileInvoice, FaGlobe, FaBell, FaXmark, FaCheck,
   FaCamera, FaUser, FaHeart, FaUserSlash, FaHourglassHalf,
-  FaTrashCan,
+  FaTrashCan, FaMoneyBillWave, FaCalendarCheck,
 } from 'react-icons/fa6';
 import type { ReactNode } from 'react';
 import '@styles/perfil-cliente.css';
@@ -16,8 +16,9 @@ import { tabGet, tabSet } from '@utils/tabStorage';
 import SectionHeader from '@components/profile/SectionHeader';
 import PerfilCuenta from '@components/profile/PerfilCuenta';
 
+import ReembolsosCliente from '@components/profile/ReembolsosCliente';
 import OrdersTab from '@components/profile/OrdersTab';
-import MessagesTab from '@components/profile/MessagesTab';
+import ServiciosTab from '@components/profile/ServiciosTab';
 import ReviewsTab from '@components/profile/ReviewsTab';
 import TechniciansTab from '@components/profile/TechniciansTab';
 import FacturasTab from '@components/profile/FacturasTab';
@@ -47,6 +48,8 @@ interface ClientProfile {
   first_name: string;
   last_name: string;
   email: string;
+  id_tipo_documento_c?: number | null;
+  documento_cliente?: number | null;
   telefono_cliente?: number | null;
   address?: string | null;
 }
@@ -60,7 +63,7 @@ interface Producto {
   nombre_categoria?: string;
 }
 
-type TabId = 'perfil' | 'contrasena' | 'pedidos' | 'mensajes' | 'resenas' | 'tecnicos' | 'facturas' | 'idioma' | 'notificaciones' | 'favoritos';
+type TabId = 'perfil' | 'contrasena' | 'pedidos' | 'servicios' | 'resenas' | 'tecnicos' | 'facturas' | 'idioma' | 'notificaciones' | 'favoritos' | 'reembolsos';
 
 const Perfil = () => {
   const { user, refreshUserProfile } = useAuth();
@@ -90,6 +93,8 @@ const Perfil = () => {
   const [emailOriginal, setEmailOriginal] = useState('');
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [tipoDocumento, setTipoDocumento] = useState('');
+  const [documento, setDocumento] = useState('');
 
   useEffect(() => {
     const sync = () => setTick((t) => t + 1);
@@ -146,6 +151,12 @@ const Perfil = () => {
         setEmailOriginal(res.data.email || '');
         setTelefono(res.data.telefono_cliente ? String(res.data.telefono_cliente) : '');
         setDireccion(res.data.address || '');
+        setTipoDocumento(
+          res.data.id_tipo_documento_c ? String(res.data.id_tipo_documento_c) : '',
+        );
+        setDocumento(
+          res.data.documento_cliente ? String(res.data.documento_cliente) : '',
+        );
       })
       .catch((err) => {
         if (err.response?.status === 403) syncFromContext();
@@ -175,8 +186,9 @@ const Perfil = () => {
         label: t('perfil.miActividad'),
         items: [
           { id: 'pedidos', label: t('perfil.misPedidos'), icon: <FaBox /> },
+          { id: 'servicios', label: t('perfil.misServicios'), icon: <FaCalendarCheck /> },
           { id: 'favoritos', label: t('perfil.misFavoritos'), icon: <FaHeart /> },
-          { id: 'mensajes', label: t('perfil.misMensajes'), icon: <FaTruck />, badge: noLeidas },
+          { id: 'reembolsos', label: t('perfil.misReembolsos'), icon: <FaMoneyBillWave /> },
           { id: 'resenas', label: t('perfil.misResenas'), icon: <FaStar /> },
           { id: 'tecnicos', label: t('perfil.misTecnicos'), icon: <FaScrewdriverWrench /> },
         ],
@@ -262,6 +274,11 @@ const Perfil = () => {
       const body: Record<string, unknown> = { ...payload };
       const tel = String(body.telefono_cliente ?? '').replace(/\D/g, '');
       body.telefono_cliente = tel ? parseInt(tel, 10) : null;
+      const doc = String(body.documento_cliente ?? '').replace(/\D/g, '');
+      body.documento_cliente = doc ? parseInt(doc, 10) : null;
+      body.id_tipo_documento_c = body.id_tipo_documento_c
+        ? parseInt(String(body.id_tipo_documento_c), 10)
+        : null;
       await api.put('/clients/me', body);
       const storedUser = tabGet('user');
       if (storedUser) {
@@ -281,6 +298,8 @@ const Perfil = () => {
       }
       setTelefono(tel);
       setDireccion(String(body.address ?? '').trim());
+      setDocumento(doc);
+      setTipoDocumento(body.id_tipo_documento_c ? String(body.id_tipo_documento_c) : '');
       window.dispatchEvent(new CustomEvent('client-profile-updated'));
       await refreshUserProfile();
       notify(t('perfil.cambiosGuardados'), 'success');
@@ -358,6 +377,25 @@ const Perfil = () => {
             valor: apellido,
             placeholder: t('perfil.placeholderApellidos'),
             requerido: true,
+            bloquearPortapapeles: true,
+          },
+          {
+            clave: 'id_tipo_documento_c',
+            label: t('perfil.tipoDocumento'),
+            valor: tipoDocumento,
+            tipo: 'select',
+            opciones: [
+              { valor: '1', etiqueta: 'CC - Cédula de ciudadanía' },
+              { valor: '2', etiqueta: 'CE - Cédula de extranjería' },
+            ],
+          },
+          {
+            clave: 'documento_cliente',
+            label: t('perfil.numeroDocumento'),
+            valor: documento,
+            tipo: 'tel',
+            maxLength: 10,
+            placeholder: t('perfil.placeholderDocumento'),
             bloquearPortapapeles: true,
           },
           {
@@ -509,7 +547,6 @@ const Perfil = () => {
             </span>
             <strong className="pf-usuario-nombre">{nombreCompleto}</strong>
             <span className="pf-usuario-correo">{correoUsuario}</span>
-            <span className="pf-rol-badge">{t('perfil.cuentaCliente')}</span>
           </div>
 
           <nav className="pf-nav" aria-label={t('perfil.seccionesLabel')}>
@@ -553,11 +590,12 @@ const Perfil = () => {
               transition={{ duration: 0.25, ease: 'easeOut' }}
             >
               {activo === 'perfil' && renderPerfilTab()}
-              {activo === 'favoritos' && renderFavoritosTab()}
+{activo === 'favoritos' && renderFavoritosTab()}
               {activo === 'contrasena' && <PasswordTab notify={notify} />}
               {activo === 'pedidos' && <OrdersTab notify={notify} />}
-              {activo === 'mensajes' && <MessagesTab onDataChanged={() => setTick((t) => t + 1)} />}
+              {activo === 'servicios' && <ServiciosTab />}
               {activo === 'resenas' && <ReviewsTab notify={notify} />}
+              {activo === 'reembolsos' && <ReembolsosCliente />}
               {activo === 'tecnicos' && <TechniciansTab />}
               {activo === 'facturas' && <FacturasTab />}
               {activo === 'idioma' && <LanguageTab notify={notify} />}

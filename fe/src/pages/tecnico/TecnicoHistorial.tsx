@@ -6,6 +6,7 @@ import {
   FaLocationDot,
   FaMagnifyingGlass,
   FaScrewdriverWrench,
+  FaTruckFast,
   FaUserTie,
 } from 'react-icons/fa6';
 import { useIdioma } from '@i18n/IdiomaContext';
@@ -26,10 +27,27 @@ interface Cita {
   id_tecnico?: number | null;
   nombre_tecnico?: string | null;
   id_tecnico_2?: number | null;
+  id_tecnico_3?: number | null;
   nombre_tecnico_2?: string | null;
+  nombre_tecnico_3?: string | null;
+  evidencias?: { url_archivo: string; descripcion?: string | null }[];
+}
+
+const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '');
+
+interface EntregaHistorial {
+  id_pedido: number;
+  cliente: string;
+  fecha_entrega?: string | null;
+  hora_entrega?: string | null;
+  hora_entrega_fin?: string | null;
+  estado_entrega?: string | null;
+  evidencias_entrega?: string[];
+  productos?: { descripcion: string; cantidad: number }[];
 }
 
 type Filtro = 'todas' | 'Finalizada' | 'Cancelada';
+type FiltroEntrega = 'todas' | 'Recogido' | 'En camino' | 'Entregado';
 
 const ESTADOS_HISTORIAL = ['Finalizada', 'Cancelada'];
 
@@ -50,10 +68,34 @@ const ESTADO_BADGE: Record<string, string> = {
 
 const TecnicoHistorial = () => {
   const { idioma, t } = useIdioma();
+  const [vista, setVista] = useState<'citas' | 'entregas'>('citas');
   const [citas, setCitas] = useState<Cita[]>([]);
+  const [entregas, setEntregas] = useState<EntregaHistorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('todas');
+  const [filtroEntrega, setFiltroEntrega] = useState<FiltroEntrega>('todas');
   const [busqueda, setBusqueda] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [filtroHora, setFiltroHora] = useState('');
+
+  const hayFiltros =
+    filtro !== 'todas' ||
+    filtroEntrega !== 'todas' ||
+    Boolean(filtroFecha) ||
+    Boolean(filtroHora);
+
+  // Al cambiar de pestaña el filtro de estado vuelve a "todas".
+  useEffect(() => {
+    setFiltro('todas');
+    setFiltroEntrega('todas');
+  }, [vista]);
+
+  const limpiarFiltros = () => {
+    setFiltro('todas');
+    setFiltroEntrega('todas');
+    setFiltroFecha('');
+    setFiltroHora('');
+  };
 
   const fetchCitas = async () => {
     try {
@@ -73,6 +115,45 @@ const TecnicoHistorial = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (vista !== 'entregas' || entregas.length > 0) return;
+    let activo = true;
+    const cargarEntregas = async () => {
+      try {
+        const res = await api.get('/tecnicos/entregas');
+        if (activo) setEntregas(res.data || []);
+      } catch (err) {
+        console.error('Error al cargar entregas:', err);
+      }
+    };
+    cargarEntregas();
+    return () => {
+      activo = false;
+    };
+  }, [vista, entregas.length]);
+
+  const entregasHistorial = entregas
+    .filter((e) => e.estado_entrega === 'Entregado')
+    .sort((a, b) =>
+      (b.fecha_entrega || '').localeCompare(a.fecha_entrega || ''),
+    );
+
+  const qEntrega = busqueda.trim().toLowerCase();
+  const qEntregasBusqueda = busqueda.trim().toLowerCase();
+  const entregasVisibles = entregasHistorial.filter((e) => {
+    if (filtroEntrega !== 'todas' && e.estado_entrega !== filtroEntrega) return false;
+    if (filtroFecha && (e.fecha_entrega || '') !== filtroFecha) return false;
+    if (filtroHora && (e.hora_entrega || '').slice(0, 5) !== filtroHora) return false;
+    if (!qEntregasBusqueda) return true;
+    const campos = [
+      e.cliente,
+      String(e.id_pedido),
+      e.fecha_entrega || '',
+      e.hora_entrega || '',
+    ];
+    return campos.some((v) => v.toLowerCase().includes(qEntrega));
+  });
+
   const historial = citas
     .filter((c) => ESTADOS_HISTORIAL.includes(c.estado))
     .sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
@@ -90,6 +171,8 @@ const TecnicoHistorial = () => {
   const q = busqueda.trim().toLowerCase();
   const visibles = historial.filter((c) => {
     if (filtro !== 'todas' && c.estado !== filtro) return false;
+    if (filtroFecha && c.fecha !== filtroFecha) return false;
+    if (filtroHora && c.hora.slice(0, 5) !== filtroHora) return false;
     if (!q) return true;
     const campos = [
       c.cliente,
@@ -114,8 +197,161 @@ const TecnicoHistorial = () => {
           <h1 className="ap-title"><FaClockRotateLeft /> {t('tec.historialTitulo')}</h1>
           <p className="ap-subtitle">{t('tec.historialSub')}</p>
         </div>
+        <div className="ap-header-right">
+          <div className="ap-tabs" style={{ marginBottom: 8 }}>
+            <button
+              type="button"
+              className={`ap-btn ${vista === 'citas' ? 'ap-btn-primary' : 'ap-btn-ghost'}`}
+              onClick={() => setVista('citas')}
+            >
+              <FaScrewdriverWrench /> Citas
+            </button>
+            <button
+              type="button"
+              className={`ap-btn ${vista === 'entregas' ? 'ap-btn-primary' : 'ap-btn-ghost'}`}
+              onClick={() => setVista('entregas')}
+            >
+              <FaTruckFast /> Entregas
+            </button>
+          </div>
+          <div className="ap-filtros-bar">
+            {vista === 'citas' ? (
+              <select
+                className="ap-filtro-estado"
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value as Filtro)}
+                aria-label={t('tec.estado')}
+              >
+                <option value="todas">{t('tec.todas')}</option>
+                <option value="Finalizada">{t('citas.finalizada')}</option>
+                <option value="Cancelada">{t('citas.cancelada')}</option>
+              </select>
+            ) : (
+              <select
+                className="ap-filtro-estado"
+                value={filtroEntrega}
+                onChange={(e) => setFiltroEntrega(e.target.value as FiltroEntrega)}
+                aria-label={t('tec.estado')}
+              >
+                <option value="todas">{t('tec.todas')}</option>
+                <option value="Recogido">{t('tec.recogido')}</option>
+                <option value="En camino">{t('tec.enCamino')}</option>
+                <option value="Entregado">{t('tec.entregado')}</option>
+              </select>
+            )}
+            <FaCalendarDays className="ap-filtros-icono" />
+            <input
+              type="date"
+              className="ap-filtro-fecha"
+              value={filtroFecha}
+              onChange={(e) => setFiltroFecha(e.target.value)}
+              aria-label={t('tec.fecha')}
+              title={t('tec.fecha')}
+            />
+            <FaClock className="ap-filtros-icono" />
+            <input
+              type="time"
+              className="ap-filtro-fecha ap-filtro-hora"
+              value={filtroHora}
+              onChange={(e) => setFiltroHora(e.target.value)}
+              aria-label={t('tec.hora')}
+              title={t('tec.hora')}
+            />
+            {hayFiltros && (
+              <button
+                type="button"
+                className="ap-btn ap-btn-ghost ap-filtros-limpiar"
+                onClick={limpiarFiltros}
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
+      {vista === 'entregas' ? (
+        <div className="ap-card" style={{ marginTop: 8 }}>
+          {loading || entregas.length === 0 ? (
+            <div className="ap-states">
+              <div className="ap-states-icon"><FaTruckFast /></div>
+              <h3>{'No tienes entregas completadas todavía.'}</h3>
+            </div>
+          ) : entregasVisibles.length === 0 ? (
+            <div className="ap-states">
+              <div className="ap-states-icon"><FaMagnifyingGlass /></div>
+              <h3>{t('tec.vacioHistorial')}</h3>
+            </div>
+          ) : (
+            <div className="ap-table-wrap">
+              <table className="ap-table">
+                <thead>
+                  <tr>
+                    <th>{t('tec.cliente')}</th>
+                    <th>Pedido</th>
+                    <th>{t('tec.fecha')}</th>
+                    <th>Franja</th>
+                    <th>Productos</th>
+                    <th>{t('tec.estado')}</th>
+                    <th>Evidencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entregasVisibles.map((e) => (
+                    <tr key={e.id_pedido}>
+                      <td><strong>{e.cliente}</strong></td>
+                      <td>#{e.id_pedido}</td>
+                      <td>
+                        <FaCalendarDays />{' '}
+                        {e.fecha_entrega
+                          ? new Date(`${e.fecha_entrega}T00:00:00`).toLocaleDateString(idioma === 'en' ? 'en-US' : 'es-ES')
+                          : '—'}
+                      </td>
+                      <td>
+                        <FaClock />{' '}
+                        {e.hora_entrega_fin
+                          ? `${e.hora_entrega || ''} - ${e.hora_entrega_fin}`
+                          : e.hora_entrega || '—'}
+                      </td>
+                      <td>
+                        {(e.productos || []).map((p, i) => (
+                          <div key={i} className="muted">
+                            × {p.cantidad} {p.descripcion}
+                          </div>
+                        ))}
+                      </td>
+                      <td>
+                        <span className="ap-badge ok">{e.estado_entrega}</span>
+                      </td>
+                      <td>
+                        {e.evidencias_entrega && e.evidencias_entrega.length > 0 ? (
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {e.evidencias_entrega.slice(0, 3).map((url) => (
+                              <a key={url} href={`${API_HOST}${url}`} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={`${API_HOST}${url}`}
+                                  alt="Evidencia"
+                                  style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
+                                />
+                              </a>
+                            ))}
+                            {e.evidencias_entrega.length > 3 && (
+                              <span className="muted">+{e.evidencias_entrega.length - 3}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       <form className="ap-search" style={{ marginBottom: 14 }} onSubmit={(e) => e.preventDefault()}>
         <FaMagnifyingGlass />
         <input
@@ -134,30 +370,15 @@ const TecnicoHistorial = () => {
           </div>
         ) : (
           <>
-            {historial.length > 0 && (
-              <div className="ap-card-head" style={{ flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '0.9rem' }}>{t('tec.historialTitulo')}</h2>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {(['todas', 'Finalizada', 'Cancelada'] as Filtro[]).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      className={`ap-btn ${filtro === f ? 'ap-btn-primary' : 'ap-btn-ghost'}`}
-                      style={{ padding: '6px 14px', fontSize: '0.8rem' }}
-                      onClick={() => setFiltro(f)}
-                    >
-                      {f === 'todas'
-                        ? t('tec.todas')
-                        : t(`citas.${f.toLowerCase()}`)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {visibles.length === 0 ? (
+            {historial.length === 0 ? (
               <div className="ap-states">
                 <div className="ap-states-icon"><FaClockRotateLeft /></div>
+                <h3>{t('tec.vacioHistorial')}</h3>
+                <p>{t('tec.vacioHistorialHint')}</p>
+              </div>
+            ) : visibles.length === 0 ? (
+              <div className="ap-states">
+                <div className="ap-states-icon"><FaMagnifyingGlass /></div>
                 <h3>{t('tec.vacioHistorial')}</h3>
                 <p>{t('tec.vacioHistorialHint')}</p>
               </div>
@@ -172,6 +393,7 @@ const TecnicoHistorial = () => {
                       <th>{t('tec.motivo')}</th>
                       <th>{t('tec.estado')}</th>
                       <th>{t('tec.tecnico')}</th>
+                      <th>Evidencias</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -204,6 +426,32 @@ const TecnicoHistorial = () => {
                         <td>
                           <FaUserTie /> {cita.nombre_tecnico || t('tec.tecnico')}
                           {cita.nombre_tecnico_2 ? <div className="muted"><FaUserTie /> {cita.nombre_tecnico_2}</div> : null}
+                          {cita.nombre_tecnico_3 ? <div className="muted"><FaUserTie /> {cita.nombre_tecnico_3}</div> : null}
+                        </td>
+                        <td>
+                          {cita.evidencias && cita.evidencias.length > 0 ? (
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              {cita.evidencias.slice(0, 3).map((ev) => (
+                                <a
+                                  key={ev.url_archivo}
+                                  href={`${API_HOST}/static/evidencias/${ev.url_archivo}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <img
+                                    src={`${API_HOST}/static/evidencias/${ev.url_archivo}`}
+                                    alt="Evidencia"
+                                    style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
+                                  />
+                                </a>
+                              ))}
+                              {cita.evidencias.length > 3 && (
+                                <span className="muted">+{cita.evidencias.length - 3}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -214,6 +462,8 @@ const TecnicoHistorial = () => {
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

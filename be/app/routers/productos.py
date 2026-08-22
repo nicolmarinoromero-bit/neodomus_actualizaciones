@@ -15,7 +15,13 @@ from app.models.categoria import Categoria
 from app.models.proveedor import Proveedor
 from app.models.roles_usuario import RolesUsuario
 from app.models.user import User
-from app.utils.security import get_current_employee, get_current_user, oauth2_scheme
+from app.utils.security import (
+    get_current_employee,
+    get_current_user,
+    oauth2_scheme,
+    ACCESS_COOKIE_NAME,
+)
+from app.services import minio_service
 
 # Umbral de stock bajo (configurable). Productos con stock >= STOCK_MINIMO
 # se consideran "disponible"; entre 1 y STOCK_MINIMO-1 "bajo"; 0 => "agotado".
@@ -50,6 +56,11 @@ class VarianteResponse(BaseModel):
     id: int
     nombre: str
     hex: Optional[str] = None
+    tamaño: Optional[str] = None
+    ancho_cm: Optional[int] = None
+    alto_cm: Optional[int] = None
+    etiqueta_medida: Optional[str] = None
+    precio: Optional[float] = None
     imagen_url: Optional[str] = None
     stock: int = 0
 
@@ -80,6 +91,10 @@ class ProductoResponse(BaseModel):
     promocion_hasta: Optional[str] = None
     es_nuevo: bool = False
     tecnicos_requeridos: int = 1
+    dificultad_instalacion: Optional[str] = None
+    tiempo_estimado_horas: Optional[float] = None
+    tiene_medidas: bool = False
+    especializaciones_requeridas: List[dict] = []
     variantes: List[VarianteResponse] = []
 
 
@@ -102,6 +117,10 @@ class ProductoCreate(BaseModel):
     promocion_hasta: Optional[str] = None
     es_nuevo_producto: Optional[bool] = True
     tecnicos_requeridos: int = 1
+    dificultad_instalacion: Optional[str] = None
+    tiempo_estimado_horas: Optional[float] = None
+    tiene_medidas: bool = False
+    especializaciones_ids: Optional[List[int]] = None
 
 
 class CategoriaResponse(BaseModel):
@@ -113,6 +132,10 @@ class CategoriaResponse(BaseModel):
 class VarianteCreate(BaseModel):
     nombre: str
     hex: Optional[str] = None
+    tamaño: Optional[str] = None
+    ancho_cm: Optional[int] = None
+    alto_cm: Optional[int] = None
+    precio: Optional[float] = None
     imagen_url: Optional[str] = None
     stock: int = 0
 
@@ -137,6 +160,8 @@ class ProveedorCreate(BaseModel):
 class SolicitudReabastecimientoItem(BaseModel):
     id_producto: int
     cantidad: int = 1
+    id_variante: Optional[int] = None
+    marca: Optional[str] = None
 
 
 def _admin(
@@ -149,25 +174,42 @@ def _admin(
     return current_user
 
 
+def _etiqueta_medida(v: ProductoVariante) -> Optional[str]:
+    """Etiqueta legible de la medida: '150 cm por 100 cm'."""
+    if v.ancho_cm and v.alto_cm:
+        return f"{v.ancho_cm} cm por {v.alto_cm} cm"
+    if v.ancho_cm:
+        return f"{v.ancho_cm} cm"
+    return (v.tamaño or "").strip() or None
+
+
 def _serializar_variante(v: ProductoVariante) -> VarianteResponse:
     return VarianteResponse(
         id=v.id,
         nombre=v.nombre,
         hex=v.hex,
+        tamaño=v.tamaño,
+        ancho_cm=v.ancho_cm,
+        alto_cm=v.alto_cm,
+        etiqueta_medida=_etiqueta_medida(v),
+        precio=float(v.precio) if v.precio is not None else None,
         imagen_url=v.imagen_url,
         stock=v.stock or 0,
     )
 
 
 async def _empleado_opcional(
+    request: Request = None,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
-    """Devuelve el empleado autenticado o None si no hay sesión válida."""
+    """Devuelve el empleado autenticado (por cookie o header) o None si no hay sesión válida."""
+    if not token and request is not None:
+        token = request.cookies.get(ACCESS_COOKIE_NAME)
     if not token:
         return None
     try:
-        user = await get_current_user(token, db)
+        user = await get_current_user(request=request, token=token, db=db)
     except HTTPException:
         return None
     return user if isinstance(user, User) else None
@@ -205,6 +247,13 @@ def _serializar(p: Producto) -> ProductoResponse:
         promocion_hasta=p.promocion_hasta.isoformat() if p.promocion_hasta else None,
         es_nuevo=es_nuevo,
         tecnicos_requeridos=max(1, p.tecnicos_requeridos or 1),
+        dificultad_instalacion=p.dificultad_instalacion,
+        tiempo_estimado_horas=p.tiempo_estimado_horas,
+        tiene_medidas=bool(p.tiene_medidas),
+        especializaciones_requeridas=[
+            {"id_especializacion": e.id_especializacion, "nombre": e.nombre}
+            for e in (p.especializaciones_requeridas or [])
+        ],
         variantes=[_serializar_variante(v) for v in p.variantes],
     )
 
@@ -216,6 +265,160 @@ def _parsear_fecha_promo(valor: Optional[str]):
         return datetime.strptime(valor[:10], "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return None
+
+
+def _aplicar_especializaciones_producto(
+    db: Session, producto: Producto, ids: Optional[List[int]]
+) -> None:
+    """Reemplaza las especializaciones requeridas de un producto."""
+    from app.models.especializacion import Especializacion
+
+    if not ids:
+        producto.especializaciones_requeridas = []
+        return
+    encontradas = (
+        db.query(Especializacion)
+        .filter(Especializacion.id_especializacion.in_(ids))
+        .all()
+    )
+    faltantes = set(ids) - {e.id_especializacion for e in encontradas}
+    if faltantes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Especializaciones no válidas: {sorted(faltantes)}",
+        )
+    producto.especializaciones_requeridas = encontradas
+
+
+def _notificar_todos_los_clientes(db: Session, tipo: str, titulo: str, mensaje: str) -> None:
+    """Crea una notificación de plataforma para todos los clientes activos."""
+    from app.models.cliente import Cliente
+    from app.services.notificaciones import crear_notificacion
+
+    clientes = (
+        db.query(Cliente.id_cliente)
+        .filter(Cliente.is_active == True)  # noqa: E712
+        .all()
+    )
+    for (id_cliente,) in clientes:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=id_cliente,
+            tipo=tipo,
+            titulo=titulo,
+            mensaje=mensaje,
+        )
+
+
+def _avisar_producto_nuevo(db: Session, producto: Producto) -> None:
+    if (producto.estado_producto or "") != "activo":
+        return
+    precio_txt = (
+        f"${float(producto.precio_venta_producto):,.0f} COP"
+        if producto.precio_venta_producto
+        else ""
+    )
+    _notificar_todos_los_clientes(
+        db,
+        tipo="producto",
+        titulo=f"Novedad: {producto.nombre_producto}",
+        mensaje=(
+            f"Ya tenemos '{producto.nombre_producto}' disponible en la tienda."
+            + (f" Precio: {precio_txt}." if precio_txt else "")
+            + " ¡Descúbrelo!"
+        ),
+    )
+
+
+def _avisar_producto_en_promocion(db: Session, producto: Producto) -> None:
+    if (producto.estado_producto or "") != "activo":
+        return
+    hasta_txt = ""
+    try:
+        from datetime import datetime as _dt
+
+        if producto.promocion_hasta:
+            hasta_txt = (
+                f" hasta el {_dt.fromisoformat(str(producto.promocion_hasta)).strftime('%d/%m/%Y')}"
+                if isinstance(producto.promocion_hasta, str)
+                else f" hasta el {producto.promocion_hasta.strftime('%d/%m/%Y')}"
+            )
+    except Exception:
+        hasta_txt = ""
+    _notificar_todos_los_clientes(
+        db,
+        tipo="promocion",
+        titulo=f"Promoción: {producto.nombre_producto}",
+        mensaje=(
+            f"'{producto.nombre_producto}' está EN PROMOCIÓN{hasta_txt}. "
+            "¡Aprovecha antes que se acabe!"
+        ),
+    )
+
+
+def _validar_dificultad(valor: Optional[str]) -> Optional[str]:
+    if valor is None:
+        return None
+    v = valor.strip().lower()
+    if not v:
+        return None
+    if v not in ("baja", "media", "alta"):
+        raise HTTPException(
+            status_code=400,
+            detail="La dificultad de instalación debe ser baja, media o alta",
+        )
+    return v
+
+
+# (especialización del catálogo, palabras clave en el nombre del producto)
+PALABRAS_ESPECIALIZACION = [
+    ("Instalación de cámaras de seguridad", ["camara", "cámara", "cctv", "vigilancia", "dvr", "nvr", "grabador"]),
+    ("Sistemas de alarmas", ["alarma", "sirena", "intrus", "antirrobo", "pánico", "panico"]),
+    ("Cerraduras inteligentes", ["cerradura", "chapa", "biométric", "biometric", "huella", "candado"]),
+    ("Control de acceso", ["acceso", "rfid", "tarjeta", "lector", "tag", "llave"]),
+    ("Iluminación inteligente", ["luz", "luces", "iluminaci", "led", "bombilla", "foco", "lámpara", "lampara", "tira", "dimmer", "interruptor"]),
+    ("Sensores inteligentes", ["sensor", "movimiento", "humo", "gas", "apertura", "inundaci", "presencia", "detector"]),
+    ("Redes y conectividad IoT", ["wifi", "wi-fi", "router", "red ", "zigbee", "z-wave", "zwave", "hub", "gateway", "bluetooth", "mesh", "repetidor"]),
+    ("Climatización inteligente", ["termostato", "aire acondicionado", "clima", "temperatura", "ventilador", "calefac"]),
+    ("Audio y video inteligente", ["audio", "altavoz", "parlante", "bocina", "soundbar", "video", "portero", "timbre", "multiroom"]),
+    ("Automatización de hogares", ["alexa", "google home", "asistente", "automatiza", "escena", "rutina", "central", "domotic", "controlador", "smart"]),
+    ("Instalación eléctrica y cableado", ["electric", "eléctric", "cable", "toma", "enchufe", "tablero", "voltaje", "relé", "rele", "fuente ", "transformador", "220", "110v"]),
+    ("Energía solar y respaldo eléctrico", ["solar", "panel", "batería", "bateria", "ups", "inversor"]),
+    ("Riego y jardinería inteligente", ["riego", "aspersor", "electroválvula", "electrovalvula", "jardín", "jardin", "grifo"]),
+    ("Piscinas y spas inteligentes", ["piscina", "spa", "jacuzzi", "cloro", "filtración", "filtracion"]),
+    ("Motores, persianas y cortinas", ["persiana", "cortina", "motor", "toldo"]),
+    ("Integración de dispositivos domóticos", ["integración", "integracion", "compatib", "kit", "paquete", "combo"]),
+    ("Mantenimiento de sistemas domóticos", ["mantenimiento", "reparación", "reparacion", "servicio técnico", "servicio tecnico", "diagnóstico", "diagnostico", "soporte"]),
+]
+
+
+def _vincular_especializaciones_automatico(db: Session, producto: Producto) -> None:
+    """Si el producto NO tiene especializaciones asignadas manualmente, las
+    deduce de su nombre según palabras clave del catálogo domótico."""
+    from app.models.especializacion import Especializacion
+
+    if producto.especializaciones_requeridas:
+        return  # elección manual del administrador: no se toca
+    nombre = (producto.nombre_producto or "").lower().strip()
+    if not nombre:
+        return
+    ids: list[int] = []
+    for esp_nombre, palabras in PALABRAS_ESPECIALIZACION:
+        if any(kw in nombre for kw in palabras):
+            esp = (
+                db.query(Especializacion)
+                .filter(Especializacion.nombre == esp_nombre)
+                .first()
+            )
+            if esp and esp.id_especializacion not in ids:
+                ids.append(esp.id_especializacion)
+    if ids:
+        producto.especializaciones_requeridas = (
+            db.query(Especializacion)
+            .filter(Especializacion.id_especializacion.in_(ids))
+            .all()
+        )
 
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -360,19 +563,49 @@ async def solicitar_reabastecimiento(
         if not item.cantidad or item.cantidad <= 0:
             continue
         p = db.query(Producto).filter(Producto.id_producto == item.id_producto).first()
-        if p and p.id_proveedor_pr == proveedor_id:
-            filas.append((p, item.cantidad))
+        if not (p and p.id_proveedor_pr == proveedor_id):
+            continue
+        variante = None
+        if item.id_variante is not None:
+            variante = next(
+                (v for v in (p.variantes or []) if v.id == item.id_variante), None
+            )
+            if variante is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"La variante {item.id_variante} no pertenece al producto '{p.nombre_producto}'",
+                )
+        filas.append((p, item.cantidad, variante, item.marca))
     if not filas:
         raise HTTPException(status_code=400, detail="Selecciona al menos un producto con cantidad mayor a 0")
 
+    def _celda(texto, ancho=False):
+        return (
+            f"<td style='padding:10px 12px;border:1px solid #eee;font-size:13px;"
+            f"color:#666;text-align:{'left' if ancho else 'center'}'>{texto}</td>"
+        )
+
     filas_html = "".join(
-        f"<tr style='background:{'#ffffff' if i % 2 == 0 else '#faf7f0'}'>"
-        f"<td style='padding:10px 12px;border:1px solid #eee;font-size:13px;color:#333'><strong>{p.nombre_producto}</strong></td>"
-        f"<td style='padding:10px 12px;border:1px solid #eee;font-size:13px;color:#666'>{p.referencia_producto or '-'}</td>"
-        f"<td style='padding:10px 12px;border:1px solid #eee;font-size:13px;color:#666;text-align:center'>{p.stock_producto or 0}</td>"
-        f"<td style='padding:10px 12px;border:1px solid #eee;font-size:14px;color:#b8860b;font-weight:700;text-align:center'>{item_cantidad}</td>"
-        f"</tr>"
-        for i, (p, item_cantidad) in enumerate(filas)
+        "<tr style='background:%s'>%s%s%s%s%s</tr>"
+        % (
+            "#ffffff" if i % 2 == 0 else "#faf7f0",
+            _celda(f"<strong>{p.nombre_producto}</strong>", True),
+            _celda(item_marca or p.marca or "-"),
+            _celda(p.referencia_producto or "-"),
+            _celda(
+                f"{v.nombre}{(' · ' + _etiqueta_medida(v)) if v else ''}"
+                if v
+                else "—",
+                True,
+            ),
+            _celda(
+                (v.stock if v else (p.stock_producto or 0)),
+            ),
+            _celda(
+                f"<span style='color:#b8860b;font-weight:700;font-size:14px'>{item_cantidad}</span>",
+            ),
+        )
+        for i, (p, item_cantidad, v, item_marca) in enumerate(filas)
     )
     subject = f"Solicitud de reabastecimiento para {proveedor.nombre_proveedor}"
     body = (
@@ -388,7 +621,9 @@ async def solicitar_reabastecimiento(
         "<table style='border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif'>"
         "<thead><tr style='background:#1f1a12'>"
         "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffffff;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:left'>Producto</th>"
+        "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffffff;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:left'>Marca</th>"
         "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffffff;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:left'>Referencia</th>"
+        "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffffff;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:left'>Color / Medida</th>"
         "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffffff;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:center'>Stock actual</th>"
         "<th style='padding:10px 12px;border:1px solid #1f1a12;color:#ffd98a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;text-align:center'>Cantidad solicitada</th>"
         "</tr></thead><tbody>"
@@ -460,6 +695,10 @@ def crear_variante(
         id_producto=producto_id,
         nombre=nombre,
         hex=(data.hex or "").strip() or None,
+        tamaño=(data.tamaño or "").strip() or None,
+        ancho_cm=data.ancho_cm,
+        alto_cm=data.alto_cm,
+        precio=data.precio,
         imagen_url=(data.imagen_url or "").strip() or None,
         stock=data.stock or 0,
     )
@@ -490,6 +729,10 @@ def editar_variante(
         raise HTTPException(status_code=404, detail="Variante no encontrada")
     variante.nombre = data.nombre.strip()
     variante.hex = (data.hex or "").strip() or None
+    variante.tamaño = (data.tamaño or "").strip() or None
+    variante.ancho_cm = data.ancho_cm
+    variante.alto_cm = data.alto_cm
+    variante.precio = data.precio
     variante.imagen_url = (data.imagen_url or "").strip() or None
     variante.stock = data.stock or 0
     db.commit()
@@ -523,10 +766,9 @@ def eliminar_variante(
 @router.post("/upload-imagen", response_model=dict)
 async def subir_imagen_producto(
     file: UploadFile = File(...),
-    request: Request = None,
     _admin_user: User = Depends(_admin),
 ):
-    """Sube una imagen de producto y devuelve su URL pública (solo administrador)."""
+    """Sube una imagen de producto a MinIO y devuelve su URL pública (solo administrador)."""
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Selecciona un archivo de imagen")
     ext = Path(file.filename or "").suffix.lower()
@@ -544,9 +786,8 @@ async def subir_imagen_producto(
     except Exception:
         raise HTTPException(status_code=400, detail="El archivo no es una imagen válida")
     nombre = f"{uuid.uuid4().hex}{ext}"
-    (PRODUCTOS_IMG_DIR / nombre).write_bytes(contenido)
-    base = str(request.base_url).rstrip("/")
-    return {"url": f"{base}/uploads/{nombre}", "filename": nombre}
+    url = minio_service.subir_imagen("productos", nombre, contenido)
+    return {"url": url, "filename": nombre}
 
 
 @router.post("", response_model=ProductoResponse)
@@ -583,10 +824,25 @@ def crear_producto(
         promocion_hasta=_parsear_fecha_promo(data.promocion_hasta),
         es_nuevo_producto=True if data.es_nuevo_producto is None else bool(data.es_nuevo_producto),
         tecnicos_requeridos=max(1, data.tecnicos_requeridos or 1),
+        dificultad_instalacion=_validar_dificultad(data.dificultad_instalacion),
+        tiempo_estimado_horas=data.tiempo_estimado_horas,
+        tiene_medidas=bool(data.tiene_medidas),
     )
     db.add(producto)
+    db.flush()
+    if data.especializaciones_ids is not None:
+        _aplicar_especializaciones_producto(db, producto, data.especializaciones_ids)
+    else:
+        _vincular_especializaciones_automatico(db, producto)
     db.commit()
     db.refresh(producto)
+
+    # Avisos a clientes: producto nuevo y/o en promoción.
+    if data.es_nuevo_producto is None or bool(data.es_nuevo_producto):
+        _avisar_producto_nuevo(db, producto)
+    if data.descuento_activo:
+        _avisar_producto_en_promocion(db, producto)
+
     return _serializar(producto)
 
 
@@ -619,11 +875,29 @@ def editar_producto(
         "promocion_hasta": _parsear_fecha_promo(data.promocion_hasta),
         "es_nuevo_producto": True if data.es_nuevo_producto is None else bool(data.es_nuevo_producto),
         "tecnicos_requeridos": max(1, data.tecnicos_requeridos or 1),
+        "dificultad_instalacion": _validar_dificultad(data.dificultad_instalacion),
+        "tiempo_estimado_horas": data.tiempo_estimado_horas,
+        "tiene_medidas": bool(data.tiene_medidas),
     }
+    nombre_anterior = producto.nombre_producto
+    era_promocion = bool(producto.descuento_activo)
     for campo, valor in campos.items():
         setattr(producto, campo, valor)
+    if data.especializaciones_ids is not None:
+        _aplicar_especializaciones_producto(db, producto, data.especializaciones_ids)
+    elif data.nombre_producto.strip() != (nombre_anterior or ""):
+        # Si cambió el nombre y no eligió especializaciones, re-deducirlas.
+        producto.especializaciones_requeridas = []
+        _vincular_especializaciones_automatico(db, producto)
+    else:
+        _vincular_especializaciones_automatico(db, producto)
     db.commit()
     db.refresh(producto)
+
+    # Aviso a clientes solo cuando la promoción se ACTIVA (evita spam en cada edición).
+    if data.descuento_activo and not era_promocion:
+        _avisar_producto_en_promocion(db, producto)
+
     return _serializar(producto)
 
 

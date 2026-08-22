@@ -10,7 +10,9 @@ import { GOOGLE_LOGIN_HABILITADO } from '@utils/google';
 import '@styles/login.css';
 
 const REMEMBERED_EMAIL_KEY = 'neodomus_remembered_email';
-const REMEMBERED_PASSWORD_KEY = 'neodomus_remembered_password';
+// Clave legado: versiones anteriores guardaban la contraseña en texto plano.
+// Se limpia al montar y nunca se vuelve a escribir.
+const LEGACY_REMEMBERED_PASSWORD_KEY = 'neodomus_remembered_password';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +20,11 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Solo redirige automáticamente cuando el inicio de sesión ocurrió en esta
+  // pestaña. Si la pestaña heredó la sesión de otra (duplicar pestaña o abrir
+  // un link en pestaña nueva), se permite iniciar sesión con otra cuenta sin
+  // afectar la sesión original.
+  const [sesionIniciadaAqui, setSesionIniciadaAqui] = useState(false);
   const { login, googleLogin, user, isAuthenticated, passwordResetRequired } = useAuth();
   const { openAuth, closeAuth } = useAuthModal();
   const navigate = useNavigate();
@@ -28,44 +35,47 @@ const Login = () => {
   const [emailSinVerificar, setEmailSinVerificar] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user?.rol) {
-      closeAuth();
-      const rol = user.rol;
-      if (passwordResetRequired && rol !== 'cliente') {
-        if (rol === 'tecnico') {
-          navigate('/dashboard/tecnico', { replace: true });
-        } else {
-          navigate('/cambiar-password-obligatorio', { replace: true });
-        }
+    if (!isAuthenticated || !user?.rol || !sesionIniciadaAqui) return;
+    closeAuth();
+    const rol = user.rol;
+    if (passwordResetRequired && rol !== 'cliente') {
+      if (rol === 'tecnico') {
+        navigate('/dashboard/tecnico', { replace: true });
+      } else {
+        navigate('/cambiar-password-obligatorio', { replace: true });
+      }
+      return;
+    }
+    const destino = sessionStorage.getItem(PF_REDIRECT_AFTER_LOGIN_KEY);
+    if (destino) {
+      sessionStorage.removeItem(PF_REDIRECT_AFTER_LOGIN_KEY);
+      if (rol === 'cliente') {
+        navigate(destino, { replace: true });
         return;
       }
-      const destino = sessionStorage.getItem(PF_REDIRECT_AFTER_LOGIN_KEY);
-      if (destino) {
-        sessionStorage.removeItem(PF_REDIRECT_AFTER_LOGIN_KEY);
-        if (rol === 'cliente') {
-          navigate(destino, { replace: true });
-          return;
-        }
-      }
-      if (rol === 'administrador' || rol === 'admin') {
-        navigate('/dashboard/admin', { replace: true });
-      } else if (rol === 'cliente') {
-        navigate('/productos', { replace: true });
-      } else if (rol === 'tecnico') {
-        navigate('/dashboard/tecnico', { replace: true });
-      }
     }
-  }, [isAuthenticated, user, navigate, closeAuth]);
+    if (rol === 'administrador' || rol === 'admin') {
+      navigate('/dashboard/admin', { replace: true });
+    } else if (rol === 'cliente') {
+      navigate('/productos', { replace: true });
+    } else if (rol === 'tecnico') {
+      navigate('/dashboard/tecnico', { replace: true });
+    }
+  }, [isAuthenticated, user, sesionIniciadaAqui, navigate, closeAuth]);
 
-  // Restaurar credenciales guardadas con "Recordarme"
+  // Restaurar el correo guardado con "Recordarme" (nunca la contraseña).
   useEffect(() => {
+    // Limpieza de instalaciones antiguas que guardaban la contraseña.
+    try {
+      localStorage.removeItem(LEGACY_REMEMBERED_PASSWORD_KEY);
+    } catch {
+      /* noop */
+    }
     const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
-    const savedPassword = localStorage.getItem(REMEMBERED_PASSWORD_KEY);
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-    if (savedPassword) setPassword(savedPassword);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,12 +91,12 @@ const Login = () => {
     setLoading(true);
     try {
       await login(email, password);
+      setSesionIniciadaAqui(true);
       if (rememberMe) {
+        // Solo se recuerda el correo; jamás la contraseña.
         localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
-        localStorage.setItem(REMEMBERED_PASSWORD_KEY, password);
       } else {
         localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-        localStorage.removeItem(REMEMBERED_PASSWORD_KEY);
       }
     } catch (err: any) {
       const status = err.response?.status;
@@ -246,9 +256,11 @@ const Login = () => {
                 <GoogleLogin
                   onSuccess={(credentialResponse) => {
                     if (credentialResponse.credential) {
-                      googleLogin(credentialResponse.credential).catch((err) => {
-                        setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
-                      });
+                      googleLogin(credentialResponse.credential)
+                        .then(() => setSesionIniciadaAqui(true))
+                        .catch((err) => {
+                          setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
+                        });
                     }
                   }}
                   onError={() => {

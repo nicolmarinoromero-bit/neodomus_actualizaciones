@@ -34,6 +34,8 @@ const AdminProductos = () => {
   const [error, setError] = useState(false);
   const [mostrarSolicitud, setMostrarSolicitud] = useState(false);
   const [cantidades, setCantidades] = useState<Record<number, string>>({});
+  const [varianteSel, setVarianteSel] = useState<Record<number, string>>({});
+  const [marcaSel, setMarcaSel] = useState<Record<number, string>>({});
   const [solicitando, setSolicitando] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
   const [proveedores, setProveedores] = useState<ProveedorAdmin[]>([]);
@@ -133,17 +135,37 @@ const AdminProductos = () => {
 
   const abrirSolicitud = (idProducto?: number) => {
     const inicial: Record<number, string> = {};
+    const marcasIniciales: Record<number, string> = {};
     productos.forEach((p) => {
       inicial[p.id_producto] = p.id_producto === idProducto ? '1' : '';
+      marcasIniciales[p.id_producto] = p.marca || '';
     });
     setCantidades(inicial);
+    setMarcaSel(marcasIniciales);
+    setVarianteSel({});
     setMostrarSolicitud(true);
   };
 
   const solicitarReabastecimiento = async (e: React.FormEvent) => {
     e.preventDefault();
+    for (const p of productos) {
+      const cantidad = parseInt(cantidades[p.id_producto] || '0', 10);
+      if (cantidad > 0 && (p.variantes?.length ?? 0) > 0 && !varianteSel[p.id_producto]) {
+        notify(`Elige color/medida para "${p.nombre_producto}"`, 'err');
+        return;
+      }
+    }
     const items = productos
-      .map((p) => ({ id_producto: p.id_producto, cantidad: parseInt(cantidades[p.id_producto] || '0', 10) }))
+      .map((p) => {
+        const selId = varianteSel[p.id_producto];
+        const variante = (p.variantes || []).find((v) => String(v.id) === String(selId));
+        return {
+          id_producto: p.id_producto,
+          cantidad: parseInt(cantidades[p.id_producto] || '0', 10),
+          id_variante: variante ? variante.id : undefined,
+          marca: marcaSel[p.id_producto]?.trim() || p.marca || undefined,
+        };
+      })
       .filter((i) => i.cantidad > 0);
     if (items.length === 0) {
       notify(t('adm.productos.notifyCantidad'), 'err');
