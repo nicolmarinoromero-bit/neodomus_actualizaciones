@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaBars, FaChevronDown, FaRightFromBracket } from 'react-icons/fa6';
+import { FaBars, FaChevronDown, FaRightFromBracket, FaUserGear } from 'react-icons/fa6';
 import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { useTecnicoNotificaciones } from '../../hooks/useTecnicoNotificaciones';
@@ -117,10 +117,9 @@ const userData = (() => {
             </button>
 
             <div className={`anr-dropdown ${open ? 'open' : ''}`}>
-              <div className="anr-dd-head">
-                <div className="anr-dd-name">{userData.nombre}</div>
-                <div className="anr-dd-mail">{userData.correo}</div>
-              </div>
+              <Link to="/perfil/tecnico" className="anr-dd-item" onClick={() => setOpen(false)}>
+                <FaUserGear /> {t('tec.miPerfil')}
+              </Link>
               <div className="anr-dd-sep" />
               <button type="button" className="anr-dd-item danger" onClick={handleLogout}>
                 <FaRightFromBracket /> {t('tec.cerrarSesion')}

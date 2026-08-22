@@ -1,11 +1,21 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # Importar middlewares desde la nueva carpeta
-from app.middleware import setup_cors, setup_rate_limit
+from app.middleware import setup_cors, setup_rate_limit, setup_security_headers
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    from app.services.scheduler import detener_scheduler, iniciar_scheduler
+
+    iniciar_scheduler()
+    yield
+    detener_scheduler()
 
 # Importar routers
 from app.routers import (
@@ -22,18 +32,23 @@ from app.routers import (
     tarifas_router,
     calificaciones_router,
     notificaciones_router,
+    especializaciones_router,
+    reembolsos_router,
+    devoluciones_router,
 )
 
-# Crear la aplicación FastAPI
+# Crear la aplicación FastAPI (con scheduler de tareas en segundo plano)
 app = FastAPI(
     title="Neodomus API",
     description="API para sistema de gestión de domótica",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configurar middlewares
 setup_cors(app)
 setup_rate_limit(app)
+setup_security_headers(app)
 
 # Incluir routers con prefijo /api/v1
 app.include_router(auth_router, prefix="/api/v1")
@@ -49,6 +64,9 @@ app.include_router(pedidos_router, prefix="/api/v1")
 app.include_router(tarifas_router, prefix="/api/v1")
 app.include_router(calificaciones_router, prefix="/api/v1")
 app.include_router(notificaciones_router, prefix="/api/v1")
+app.include_router(especializaciones_router, prefix="/api/v1")
+app.include_router(reembolsos_router, prefix="/api/v1")
+app.include_router(devoluciones_router, prefix="/api/v1")
 
 # Imágenes subidas (productos) servidas desde /uploads
 PRODUCTOS_IMG_DIR = Path(__file__).resolve().parent / "static" / "productos"

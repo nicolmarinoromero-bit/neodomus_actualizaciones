@@ -23,7 +23,6 @@ interface CitaFinalizada {
   tecnico_email?: string | null;
   tecnico_foto_url?: string | null;
   tecnico_certificacion?: string | null;
-  tecnico_cargo?: string | null;
   tipo_servicio: string;
   estado: string;
 }
@@ -64,7 +63,6 @@ const TechniciansTab = () => {
             email: string | null | undefined,
             foto: string | null | undefined,
             certificacion: string | null | undefined,
-            cargo: string | null | undefined,
           ) => {
             const clave = String(id);
             const actual = mapa.get(clave);
@@ -74,7 +72,7 @@ const TechniciansTab = () => {
               id: clave,
               nombre,
               especialidad:
-                certificacion || cargo || actual?.especialidad || TIPO_SERVICIO[c.tipo_servicio] || c.tipo_servicio,
+                certificacion || actual?.especialidad || TIPO_SERVICIO[c.tipo_servicio] || c.tipo_servicio,
               trabajos: (actual?.trabajos ?? 0) + 1,
               telefono: telefono?.toString() ?? actual?.telefono ?? '',
               email: email ?? actual?.email ?? null,
@@ -90,7 +88,6 @@ const TechniciansTab = () => {
               c.tecnico_email,
               c.tecnico_foto_url,
               c.tecnico_certificacion,
-              c.tecnico_cargo,
             );
           }
           if (c.id_tecnico_2) {
@@ -98,7 +95,6 @@ const TechniciansTab = () => {
               c.id_tecnico_2,
               c.nombre_tecnico_2,
               c.tecnico_2_nombre,
-              undefined,
               undefined,
               undefined,
               undefined,

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, date
@@ -10,8 +10,6 @@ from app.database import get_db
 from app.models.user import User
 from app.models.roles_usuario import RolesUsuario
 from app.models.tecnico import Tecnico
-from app.models.cita import Cita
-from app.models.cliente import Cliente
 from app.schemas.user import EmployeeResponse, PerfilEmpleadoResponse, UserUpdate
 from app.utils.respaldo_usuarios import respaldar_usuarios
 from app.utils.security import get_current_employee, require_roles, hash_password
@@ -28,7 +26,7 @@ class EmployeeCreate(BaseModel):
     documento_usuario: Optional[int] = None
     id_rol: int = 2
     certificacion: Optional[str] = None
-    cargo: Optional[str] = None
+    especializaciones_ids: Optional[List[int]] = None
 
 
 class EmployeeUpdate(BaseModel):
@@ -41,7 +39,7 @@ class EmployeeUpdate(BaseModel):
     is_active: Optional[bool] = None
     desactivado_hasta: Optional[datetime] = None
     certificacion: Optional[str] = None
-    cargo: Optional[str] = None
+    especializaciones_ids: Optional[List[int]] = None
     motivo: Optional[str] = None
 
 
@@ -112,51 +110,38 @@ async def _notificar_estado_empleado(
         pass
 
 
-def _marcar_citas_para_reasignar(db: Session, usuario: User) -> int:
-    """Al inhabilitar un técnico: NO cancela sus citas. Si el técnico era el
-    segundo asignado, se retira de esa cita (queda el principal); si era el
-    principal, la cita se conserva tal cual y se alerta a los administradores
-    (plataforma + correo) para que la reasignen o la aplacen. Devuelve la
-    cantidad de citas que quedaron pendientes de reasignación."""
+def _proceso_desactivacion_tecnico(db: Session, usuario: User) -> dict | None:
+    """Al desactivar un técnico ejecuta el proceso completo: libera sus cupos
+    como segundo técnico, reasigna automáticamente sus citas futuras a
+    técnicos con la especialización requerida (cancela + reembolsa si no hay
+    candidato), reasigna entregas y alerta a los administradores."""
+    from app.services.asignacion_service import desactivar_tecnico_proceso
+
     ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == usuario.id_usuario).first()
     if not ficha:
-        return 0
-    citas = (
-        db.query(Cita)
-        .filter(
-            or_(
-                Cita.id_tecnico == ficha.id_tecnico,
-                Cita.id_tecnico_2 == ficha.id_tecnico,
-            ),
-            Cita.estado.in_(("Pendiente", "Confirmada")),
-            Cita.fecha >= date.today(),
-        )
-        .order_by(Cita.fecha.asc(), Cita.hora.asc())
+        return None
+    return desactivar_tecnico_proceso(db, ficha, motivo="Técnico desactivado por el administrador")
+
+
+def _aplicar_especializaciones(db: Session, ficha: Tecnico, ids: List[int]) -> None:
+    """Reemplaza el set de especializaciones de una ficha técnica."""
+    from app.models.especializacion import Especializacion
+
+    if not ids:
+        ficha.especializaciones = []
+        return
+    encontradas = (
+        db.query(Especializacion)
+        .filter(Especializacion.id_especializacion.in_(ids))
         .all()
     )
-    if not citas:
-        return 0
-    clientes = {c.id_cliente: c for c in db.query(Cliente).all()}
-    for cita in citas:
-        if cita.id_tecnico_2 == ficha.id_tecnico and cita.id_tecnico != ficha.id_tecnico:
-            cita.id_tecnico_2 = None
-            cita.nombre_tecnico_2 = None
-    db.commit()
-
-    citas_principal = [c for c in citas if c.id_tecnico == ficha.id_tecnico]
-    if not citas_principal:
-        return 0
-    resumen = []
-    for cita in citas_principal:
-        cliente = clientes.get(cita.id_cliente)
-        nombre = f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "cliente"
-        resumen.append(f"{nombre} ({cita.fecha.strftime('%d/%m/%Y')} {cita.hora})")
-
-    from app.services.notificaciones import notificar_admin_citas_reasignar
-
-    nombre_tecnico = f"{usuario.first_name} {usuario.last_name}".strip() or "el técnico"
-    notificar_admin_citas_reasignar(db, len(citas_principal), nombre_tecnico, resumen)
-    return len(citas_principal)
+    faltantes = set(ids) - {e.id_especializacion for e in encontradas}
+    if faltantes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Especializaciones no válidas: {sorted(faltantes)}",
+        )
+    ficha.especializaciones = encontradas
 
 
 def _admin(
@@ -174,7 +159,14 @@ def _perfil_empleado(usuario: User, db: Session) -> dict:
     data = EmployeeResponse.model_validate(usuario).model_dump()
     ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == usuario.id_usuario).first()
     data["certificacion_t"] = ficha.certificacion_t if ficha else None
-    data["cargo_t"] = ficha.cargo_t if ficha else None
+    data["especializaciones"] = (
+        [
+            {"id_especializacion": e.id_especializacion, "nombre": e.nombre, "descripcion": e.descripcion}
+            for e in (ficha.especializaciones or [])
+        ]
+        if ficha
+        else []
+    )
     return data
 
 
@@ -210,24 +202,19 @@ def update_me(
         if campo in update_data:
             update_data[campo] = update_data[campo].strip()
     certificacion_t = update_data.pop("certificacion_t", None)
-    cargo_t = update_data.pop("cargo_t", None)
     for field, value in update_data.items():
         setattr(current_user, field, value)
-    if certificacion_t is not None or cargo_t is not None:
+    if certificacion_t is not None:
         ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
         if not ficha:
             db.add(
                 Tecnico(
                     id_usuario_t=current_user.id_usuario,
                     certificacion_t=certificacion_t or "",
-                    cargo_t=cargo_t or "",
                 )
             )
         else:
-            if certificacion_t is not None:
-                ficha.certificacion_t = certificacion_t
-            if cargo_t is not None:
-                ficha.cargo_t = cargo_t
+            ficha.certificacion_t = certificacion_t
     db.commit()
     db.refresh(current_user)
     return _perfil_empleado(current_user, db)
@@ -283,13 +270,14 @@ def crear_empleado(
     db.add(usuario)
     db.flush()
     if rol.nombre_rol == "tecnico":
-        db.add(
-            Tecnico(
-                id_usuario_t=usuario.id_usuario,
-                certificacion_t=data.certificacion,
-                cargo_t=data.cargo,
-            )
+        ficha = Tecnico(
+            id_usuario_t=usuario.id_usuario,
+            certificacion_t=data.certificacion,
         )
+        db.add(ficha)
+        db.flush()
+        if data.especializaciones_ids:
+            _aplicar_especializaciones(db, ficha, data.especializaciones_ids)
     db.commit()
     respaldar_usuarios()
     if rol.nombre_rol == "tecnico":
@@ -324,7 +312,7 @@ async def editar_empleado(
         if existe_doc:
             raise HTTPException(status_code=400, detail="El documento ya está registrado")
     certificacion = upd.pop("certificacion", None)
-    cargo = upd.pop("cargo", None)
+    especializaciones_ids = upd.pop("especializaciones_ids", None)
     motivo = upd.pop("motivo", None)
     nueva_password = upd.pop("password", None)
     if nueva_password:
@@ -344,26 +332,25 @@ async def editar_empleado(
             upd["desactivado_hasta"] = None
     for campo, valor in upd.items():
         setattr(usuario, campo, valor)
-    if certificacion is not None or cargo is not None:
+    if certificacion is not None or especializaciones_ids is not None:
         ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == user_id).first()
         if not ficha:
-            db.add(
-                Tecnico(
-                    id_usuario_t=user_id,
-                    certificacion_t=certificacion or "",
-                    cargo_t=cargo or "",
-                )
+            ficha = Tecnico(
+                id_usuario_t=user_id,
+                certificacion_t=certificacion or "",
             )
+            db.add(ficha)
+            db.flush()
         else:
             if certificacion is not None:
                 ficha.certificacion_t = certificacion
-            if cargo is not None:
-                ficha.cargo_t = cargo
+        if especializaciones_ids is not None:
+            _aplicar_especializaciones(db, ficha, especializaciones_ids)
     db.commit()
     if cambio_estado:
         await _notificar_estado_empleado(usuario, activo, desactivado_hasta, motivo)
         if not activo:
-            _marcar_citas_para_reasignar(db, usuario)
+            _proceso_desactivacion_tecnico(db, usuario)
     return {"msg": "Usuario actualizado correctamente", "id": user_id}
 
 
@@ -381,7 +368,7 @@ async def desactivar_empleado(
     usuario.is_active = False
     db.commit()
     await _notificar_estado_empleado(usuario, False, usuario.desactivado_hasta)
-    _marcar_citas_para_reasignar(db, usuario)
+    _proceso_desactivacion_tecnico(db, usuario)
     return {"msg": "Usuario desactivado", "id": user_id}
 
 

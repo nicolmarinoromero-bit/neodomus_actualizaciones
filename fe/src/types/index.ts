@@ -69,6 +69,15 @@ export interface ClienteAdmin {
   citas_count?: number;
 }
 
+export interface Especializacion {
+  id_especializacion: number;
+  nombre: string;
+  descripcion?: string | null;
+  activa: boolean;
+  tecnicos_count?: number;
+  productos_count?: number;
+}
+
 export interface CitaAdmin {
   id_cita: number;
   id_cliente: number;
@@ -76,6 +85,8 @@ export interface CitaAdmin {
   nombre_tecnico?: string | null;
   id_tecnico_2?: number | null;
   nombre_tecnico_2?: string | null;
+  id_tecnico_3?: number | null;
+  nombre_tecnico_3?: string | null;
   tipo_servicio: string;
   fecha: string;
   hora: string;
@@ -92,6 +103,7 @@ export interface CitaAdmin {
   id_comision_c?: number | null;
   comision_porcentaje?: number | null;
   comision_valor?: number | null;
+  especializacion_requerida?: { id_especializacion: number; nombre: string } | null;
 }
 
 export interface TarifaServicio {
@@ -104,6 +116,11 @@ export interface VarianteAdmin {
   id: number;
   nombre: string;
   hex?: string | null;
+  tamaño?: string | null;
+  ancho_cm?: number | null;
+  alto_cm?: number | null;
+  etiqueta_medida?: string | null;
+  precio?: number | null;
   imagen_url?: string | null;
   stock: number;
 }
@@ -134,6 +151,10 @@ export interface ProductoAdmin {
   promocion_hasta?: string | null;
   es_nuevo?: boolean;
   tecnicos_requeridos?: number;
+  dificultad_instalacion?: 'baja' | 'media' | 'alta' | null;
+  tiempo_estimado_horas?: number | null;
+  tiene_medidas?: boolean;
+  especializaciones_requeridas?: { id_especializacion: number; nombre: string }[];
   variantes?: VarianteAdmin[];
 }
 
@@ -155,12 +176,16 @@ export interface TecnicoAdmin {
   telefono_usuario?: number | null;
   documento_usuario?: number | null;
   certificacion_t?: string | null;
-  cargo_t?: string | null;
   is_active: boolean;
   desactivado_hasta?: string | null;
   created_at?: string | null;
   password_reset_required?: boolean;
   servicios?: string[];
+  especializaciones?: { id_especializacion: number; nombre: string }[];
+  citas_pendientes?: number;
+  entregas_pendientes?: number;
+  calificacion?: number | null;
+  total_calificaciones?: number;
 }
 
 export interface ReporteResumen {

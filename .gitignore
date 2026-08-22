@@ -31,7 +31,11 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# datos sensibles generados (usuarios + hashes de contraseñas)
+scripts/init_db.sql
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +45,13 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+
+# Respaldos locales de datos
+backup_neodomus.sql
+evidencias_backup/

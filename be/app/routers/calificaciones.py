@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models.calificacion import Calificacion
 from app.models.cita import Cita
 from app.models.cliente import Cliente
+from app.models.pedido import Pedido
 from app.models.tecnico import Tecnico
 from app.models.user import User
 from app.utils.security import get_current_client, get_current_employee
@@ -258,4 +259,139 @@ def estado_calificacion_cita(
         "calificada": cal is not None,
         "calificacion": cal.calificacion if cal else None,
         "comentario": cal.comentario if cal else None,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────
+# ⭐ Calificaciones de productos de un pedido entregado
+# ──────────────────────────────────────────────────────────────────
+
+
+def _pedido_entregado_propio(db: Session, id_pedido: int, id_cliente: int) -> Pedido:
+    from app.models.pedido import Pedido
+
+    pedido = (
+        db.query(Pedido)
+        .filter(Pedido.id_pedido == id_pedido, Pedido.id_cliente_pe == id_cliente)
+        .first()
+    )
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    if pedido.estado_entrega != "Entregado":
+        raise HTTPException(
+            status_code=400,
+            detail="Solo puedes calificar productos de pedidos ya entregados",
+        )
+    return pedido
+
+
+class CalificacionProductoCreate(BaseModel):
+    id_pedido: int
+    id_producto: int
+    calificacion: int = Field(ge=1, le=5)
+    comentario: Optional[str] = None
+
+
+@router.post("/producto")
+def calificar_producto(
+    data: CalificacionProductoCreate,
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El cliente califica (1-5 estrellas) un producto de un pedido entregado.
+    Cada producto se califica una sola vez por pedido."""
+    from app.models.calificacion_producto import CalificacionProducto
+    from app.models.pedido import DetallePedido
+    from app.models.producto import Producto
+
+    pedido = _pedido_entregado_propio(db, data.id_pedido, client.id_cliente)
+
+    en_pedido = (
+        db.query(DetallePedido)
+        .filter(
+            DetallePedido.id_pedido_d == pedido.id_pedido,
+            DetallePedido.id_producto_d == data.id_producto,
+        )
+        .first()
+    )
+    if not en_pedido:
+        raise HTTPException(
+            status_code=400, detail="Ese producto no pertenece a este pedido"
+        )
+
+    ya_calificada = (
+        db.query(CalificacionProducto)
+        .filter(
+            CalificacionProducto.id_pedido_cp == pedido.id_pedido,
+            CalificacionProducto.id_producto_cp == data.id_producto,
+            CalificacionProducto.id_cliente_cp == client.id_cliente,
+        )
+        .first()
+    )
+    if ya_calificada:
+        raise HTTPException(status_code=400, detail="Ya calificaste este producto")
+
+    calificacion = CalificacionProducto(
+        id_cliente_cp=client.id_cliente,
+        id_pedido_cp=pedido.id_pedido,
+        id_producto_cp=data.id_producto,
+        calificacion=data.calificacion,
+        comentario=(data.comentario or "").strip() or None,
+    )
+    db.add(calificacion)
+    db.commit()
+    db.refresh(calificacion)
+
+    producto = (
+        db.query(Producto).filter(Producto.id_producto == data.id_producto).first()
+    )
+    return {
+        "id_calificacion_producto": calificacion.id_calificacion_producto,
+        "id_pedido": pedido.id_pedido,
+        "id_producto": data.id_producto,
+        "nombre_producto": producto.nombre_producto if producto else None,
+        "calificacion": calificacion.calificacion,
+        "comentario": calificacion.comentario,
+        "created_at": calificacion.created_at.isoformat() if calificacion.created_at else None,
+    }
+
+
+@router.get("/producto/pedido/{id_pedido}")
+def calificaciones_de_mi_pedido(
+    id_pedido: int,
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Calificaciones de productos que el cliente ya dejó en uno de sus pedidos."""
+    from app.models.calificacion_producto import CalificacionProducto
+    from app.models.pedido import Pedido
+
+    pedido = (
+        db.query(Pedido)
+        .filter(Pedido.id_pedido == id_pedido, Pedido.id_cliente_pe == client.id_cliente)
+        .first()
+    )
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    filas = (
+        db.query(CalificacionProducto)
+        .filter(
+            CalificacionProducto.id_pedido_cp == id_pedido,
+            CalificacionProducto.id_cliente_cp == client.id_cliente,
+        )
+        .all()
+    )
+    return {
+        "id_pedido": id_pedido,
+        "estado_entrega": pedido.estado_entrega,
+        "calificaciones": [
+            {
+                "id_calificacion_producto": f.id_calificacion_producto,
+                "id_producto": f.id_producto_cp,
+                "calificacion": f.calificacion,
+                "comentario": f.comentario,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in filas
+        ],
     }

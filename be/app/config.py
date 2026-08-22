@@ -49,6 +49,21 @@ class Settings(BaseSettings):
     # sin credenciales ni registro de empresa.
     PAYMENT_PROVIDER: str = "simulator"
 
+    # --- Notificaciones al cliente por cambios de técnico ---
+    # False: cuando el administrador modifica/desactiva un técnico (y eso
+    # reasigna citas o entregas), el cliente NO recibe aviso.
+    NOTIFICAR_CLIENTE_CAMBIOS_TECNICO: bool = False
+
+    # --- MinIO (almacenamiento de imágenes) ---
+    # MINIO_ENDPOINT: host:puerto para conectar desde la API (dentro de Docker: minio:9000).
+    # MINIO_PUBLIC_ENDPOINT: URL que reciben los navegadores para cargar las imágenes.
+    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_ACCESS_KEY: str = "neodomus"
+    MINIO_SECRET_KEY: str = "neodomus12345"
+    MINIO_BUCKET: str = "neodomus-media"
+    MINIO_PUBLIC_ENDPOINT: str = "http://localhost:9000"
+    MINIO_SECURE: bool = False
+
     # --- Frontend URLs ---
     FRONTEND_URL: str = "http://localhost:5173"
     FRONTEND_VERIFY_EMAIL_PATH: str = "/verify-email"

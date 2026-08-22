@@ -17,6 +17,7 @@ import {
   FaBolt,
   FaEnvelopeOpenText,
   FaTruckField,
+  FaTriangleExclamation,
   FaUserShield,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
@@ -85,11 +86,25 @@ const AccesosRapidos = [
 
 const formatoPesos = (v: number) => `$${Math.round(v).toLocaleString('es-CO')}`;
 
+interface OperativoMetricas {
+  citas_pendientes_asignacion: number;
+  citas_reprogramadas: number;
+  citas_canceladas: number;
+  citas_problemas_disponibilidad: number;
+  tecnicos_disponibles_hoy: number;
+  tecnicos_ocupados_hoy: number;
+  reembolsos_pendientes_citas: number;
+  entregas_sin_tecnico: number;
+  entregas_asignadas: number;
+  entregas_con_tecnico_alternativo: number;
+}
+
 const AdminDashboard = () => {
   const { t, idioma } = useIdioma();
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
   const [datos, setDatos] = useState<ReporteResumen | null>(null);
+  const [operativo, setOperativo] = useState<OperativoMetricas | null>(null);
 
   const cargar = async () => {
     setCargando(true);
@@ -101,6 +116,12 @@ const AdminDashboard = () => {
       setError(true);
     } finally {
       setCargando(false);
+    }
+    try {
+      const op = await api.get<OperativoMetricas>('/reports/operativo');
+      setOperativo(op.data);
+    } catch {
+      setOperativo(null);
     }
   };
 
@@ -207,6 +228,45 @@ const AdminDashboard = () => {
               <div className="ap-mini-sub">{t('adm.dashboard.productosActivos', { n: datos.productos_activos })}</div>
             </div>
           </div>
+
+          {operativo && (
+            <div className="ap-card" style={{ marginTop: 20 }}>
+              <div className="ap-card-head">
+                <h2><FaBolt /> Operaciones de servicio</h2>
+              </div>
+              <div className="admin-stats-grid" style={{ marginTop: 12 }}>
+                {[
+                  { icono: <FaCalendarCheck />, valor: operativo.citas_pendientes_asignacion, label: 'Citas por asignar', to: '/admin/instalaciones' },
+                  { icono: <FaRotate />, valor: operativo.citas_reprogramadas, label: 'Citas reprogramadas', to: '/admin/instalaciones' },
+                  { icono: <FaCircleInfo />, valor: operativo.citas_canceladas, label: 'Citas canceladas' },
+                  { icono: <FaTriangleExclamation />, valor: operativo.citas_problemas_disponibilidad, label: 'Con problemas de disponibilidad', to: '/admin/instalaciones' },
+                  { icono: <FaUserGear />, valor: operativo.tecnicos_disponibles_hoy, label: 'Técnicos disponibles hoy', to: '/admin/tecnicos' },
+                  { icono: <FaUserGear />, valor: operativo.tecnicos_ocupados_hoy, label: 'Técnicos ocupados hoy' },
+                  { icono: <FaWallet />, valor: operativo.reembolsos_pendientes_citas, label: 'Reembolsos pendientes (citas)', to: '/admin/consultas#reembolsos' },
+                  { icono: <FaBoxesStacked />, valor: operativo.entregas_sin_tecnico, label: 'Entregas sin técnico', to: '/admin/instalaciones' },
+                  { icono: <FaTruckField />, valor: operativo.entregas_asignadas, label: 'Entregas asignadas', to: '/admin/instalaciones' },
+                  { icono: <FaBolt />, valor: operativo.entregas_con_tecnico_alternativo, label: 'Entregas con técnico alternativo', to: '/admin/instalaciones' },
+                ].map((m, i) => {
+                  const contenido = (
+                    <>
+                      <div className="admin-stat-icon">{m.icono}</div>
+                      <div className="admin-stat-info">
+                        <div className="admin-stat-value">{m.valor}</div>
+                        <div className="admin-stat-label">{m.label}</div>
+                      </div>
+                    </>
+                  );
+                  return m.to ? (
+                    <Link key={i} to={m.to} className="admin-stat-card" style={{ textDecoration: 'none' }}>
+                      {contenido}
+                    </Link>
+                  ) : (
+                    <div key={i} className="admin-stat-card">{contenido}</div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="admin-dash-grid">
             <div className="admin-dash-col">

@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -38,6 +38,151 @@ def _admin(
     if role not in ("admin", "administrador"):
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
     return current_user
+
+
+@router.get("/operativo")
+def operativo_admin(
+    _admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Métricas operativas de citas/entregas/técnicos para el dashboard del
+    administrador (solo admin)."""
+    from datetime import date as _date
+
+    from app.models.especializacion import (
+        Especializacion,
+        HistorialCita,
+        Reembolso,
+    )
+    from app.services.especialidades import (
+        ESTADOS_ENTREGA_OCUPAN,
+        ESTADOS_OCUPAN,
+        especializaciones_de_productos,
+        especializaciones_de_tecnico,
+    )
+
+    hoy = _date.today()
+
+    # ── Citas ───────────────────────────────────────────
+    citas_pendientes_asignacion = (
+        db.query(Cita)
+        .filter(
+            Cita.estado.in_(ESTADOS_OCUPAN),
+            Cita.id_tecnico.is_(None),
+        )
+        .count()
+    )
+    citas_reprogramadas = (
+        db.query(HistorialCita)
+        .filter(HistorialCita.accion == "reprogramacion")
+        .count()
+    )
+    citas_canceladas = db.query(Cita).filter(Cita.estado == "Cancelada").count()
+
+    ids_tecnicos_inactivos = {
+        t.id_tecnico
+        for t in db.query(Tecnico).join(User, User.id_usuario == Tecnico.id_usuario_t).all()
+        if not (t.usuario and t.usuario.is_active)
+    }
+    problemas = (
+        db.query(Cita)
+        .filter(
+            Cita.fecha >= hoy,
+            Cita.estado.in_(ESTADOS_OCUPAN),
+            or_(
+                Cita.id_tecnico.is_(None),
+                Cita.id_tecnico.in_(ids_tecnicos_inactivos) if ids_tecnicos_inactivos else False,
+            ),
+        )
+        .count()
+    )
+
+    # ── Técnicos hoy ────────────────────────────────────
+    tecnicos_activos = (
+        db.query(Tecnico)
+        .join(User, User.id_usuario == Tecnico.id_usuario_t)
+        .filter(User.is_active == True, User.id_rol_u == 2)  # noqa: E712
+        .all()
+    )
+    ocupados_ids = set()
+
+    def _ocupado_hoy(id_tecnico: int) -> bool:
+        cita_hoy = (
+            db.query(Cita)
+            .filter(
+                Cita.fecha == hoy,
+                Cita.estado.in_(ESTADOS_OCUPAN),
+                (Cita.id_tecnico == id_tecnico) | (Cita.id_tecnico_2 == id_tecnico),
+            )
+            .first()
+        )
+        if cita_hoy:
+            return True
+        entrega_hoy = (
+            db.query(Pedido)
+            .filter(
+                Pedido.fecha_entrega == hoy,
+                Pedido.estado_entrega.in_(ESTADOS_ENTREGA_OCUPAN),
+                Pedido.id_tecnico_entrega == id_tecnico,
+            )
+            .first()
+        )
+        return entrega_hoy is not None
+
+    for t in tecnicos_activos:
+        if _ocupado_hoy(t.id_tecnico):
+            ocupados_ids.add(t.id_tecnico)
+
+    # ── Reembolsos pendientes (citas y pedidos) ──────────
+    reembolsos_pendientes = (
+        db.query(Reembolso)
+        .filter(Reembolso.estado.in_(("Pendiente", "Procesando")))
+        .count()
+    )
+
+    # ── Entregas ────────────────────────────────────────
+    entregas_sin_tecnico = (
+        db.query(Pedido)
+        .filter(
+            Pedido.estado_entrega == "Pendiente",
+            Pedido.id_tecnico_entrega.is_(None),
+        )
+        .count()
+    )
+    entregas_asignadas = (
+        db.query(Pedido).filter(Pedido.estado_entrega == "Asignada").count()
+    )
+
+    entregas_alternativas = 0
+    entregas_activas = (
+        db.query(Pedido)
+        .filter(
+            Pedido.fecha_entrega >= hoy,
+            Pedido.estado_entrega.in_(ESTADOS_ENTREGA_OCUPAN),
+        )
+        .all()
+    )
+    for p in entregas_activas:
+        productos = [d.producto for d in (p.detalles or []) if d.producto is not None]
+        requeridas = set(especializaciones_de_productos(productos))
+        tecnico_p = next(
+            (t for t in tecnicos_activos if t.id_tecnico == p.id_tecnico_entrega), None
+        )
+        if requeridas and tecnico_p and not requeridas.issubset(set(especializaciones_de_tecnico(tecnico_p))):
+            entregas_alternativas += 1
+
+    return {
+        "citas_pendientes_asignacion": citas_pendientes_asignacion,
+        "citas_reprogramadas": citas_reprogramadas,
+        "citas_canceladas": citas_canceladas,
+        "citas_problemas_disponibilidad": problemas,
+        "tecnicos_disponibles_hoy": len(tecnicos_activos) - len(ocupados_ids),
+        "tecnicos_ocupados_hoy": len(ocupados_ids),
+        "reembolsos_pendientes_citas": reembolsos_pendientes,
+        "entregas_sin_tecnico": entregas_sin_tecnico,
+        "entregas_asignadas": entregas_asignadas,
+        "entregas_con_tecnico_alternativo": entregas_alternativas,
+    }
 
 
 # ── Helpers de fecha ──────────────────────────────────────────────
@@ -503,7 +648,6 @@ def reporte_tecnico(
             "id_tecnico": id_tecnico,
             "nombre": nombre,
             "certificacion": tecnico.certificacion_t,
-            "cargo": tecnico.cargo_t,
         },
         "periodo": periodo,
         "fecha_inicio": str(inicio),
@@ -584,7 +728,6 @@ def lista_tecnicos_reporte(
             "id_tecnico": t.id_tecnico,
             "nombre": nombre,
             "certificacion": t.certificacion_t,
-            "cargo": t.cargo_t,
             "activo": user.is_active if user else False,
             "total_citas": int(total_citas),
             "citas_finalizadas": int(citas_finalizadas),

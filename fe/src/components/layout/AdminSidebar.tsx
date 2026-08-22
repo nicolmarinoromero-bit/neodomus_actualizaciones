@@ -9,8 +9,9 @@ import {
   FaEnvelopeOpenText,
   FaUsers,
   FaChartColumn,
-  FaUserShield,
   FaTruckField,
+  FaRotateLeft,
+  FaBoxOpen,
 } from "react-icons/fa6";
 import "../../styles/admin-sidebar.css";
 
@@ -47,6 +48,7 @@ const AdminSidebar = ({ open, pendientes, onNavigate }: AdminSidebarProps) => {
         { to: "/admin/catalogo", icon: <FaTags />, label: t('adm.sidebar.catalogo') },
         { to: "/admin/tecnicos", icon: <FaUserGear />, label: t('adm.sidebar.tecnicos') },
         { to: "/admin/instalaciones", icon: <FaCalendarCheck />, label: t('adm.sidebar.citas') },
+        { to: "/admin/pedidos", icon: <FaBoxOpen />, label: t('adm.sidebar.pedidos') },
         { to: "/admin/clientes", icon: <FaUsers />, label: t('adm.sidebar.clientes') },
         { to: "/admin/proveedores", icon: <FaTruckField />, label: t('adm.sidebar.proveedores') },
       ],
@@ -55,8 +57,8 @@ const AdminSidebar = ({ open, pendientes, onNavigate }: AdminSidebarProps) => {
       titulo: t('adm.sidebar.sistema'),
       links: [
         { to: "/admin/consultas", icon: <FaEnvelopeOpenText />, label: t('adm.sidebar.solicitudes') },
+        { to: "/admin/devoluciones", icon: <FaRotateLeft />, label: t('adm.sidebar.devoluciones') },
         { to: "/admin/reportes", icon: <FaChartColumn />, label: t('adm.sidebar.reportes') },
-        { to: "/perfil/admin", icon: <FaUserShield />, label: t('adm.sidebar.miPerfil') },
       ],
     },
   ];

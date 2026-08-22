@@ -1,14 +1,19 @@
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database import get_db
 from app.models.cliente import Cliente
 from app.models.pedido import DetallePedido, Pedido
+from app.models.producto import Producto
 from app.models.roles_usuario import RolesUsuario
+from app.models.tecnico import Tecnico
+from app.models.ubicacion_tecnico import UbicacionTecnico
 from app.models.user import User
 from app.services.pagos_service import BANCOS_COLOMBIANOS, METODOS_PAGO
 from app.services import pedidos_service
@@ -113,6 +118,7 @@ def _serializar_pedido(pedido, con_detalles=False):
         "estado": pedido.estado_pedido,
         "fecha_entrega": pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
         "hora_entrega": pedido.hora_entrega,
+        "hora_entrega_fin": pedido.hora_entrega_fin,
         "id_tecnico_entrega": pedido.id_tecnico_entrega,
         "nombre_tecnico_entrega": pedido.nombre_tecnico_entrega,
         "estado_entrega": pedido.estado_entrega,
@@ -129,6 +135,38 @@ def _serializar_pedido(pedido, con_detalles=False):
 
 
 # ── Endpoints ───────────────────────────────────────────────────
+
+class RecomendacionRequest(BaseModel):
+    items: List[ItemCarrito]
+    fecha: Optional[str] = None
+    hora: Optional[str] = None
+
+
+@router.post("/recomendacion-tecnicos")
+def recomendacion_tecnicos(
+    data: RecomendacionRequest,
+    db: Session = Depends(get_db),
+):
+    """Analiza el carrito y recomienda técnicos según las especializaciones
+    requeridas por los productos, la dificultad y el tiempo estimado.
+    Público para clientes autenticados (también usable en el checkout)."""
+    from datetime import date as _date
+
+    from app.services.recomendacion_service import recomendar_tecnicos
+
+    fecha = None
+    if data.fecha:
+        try:
+            fecha = _date.fromisoformat(str(data.fecha))
+        except (TypeError, ValueError):
+            fecha = None
+    return recomendar_tecnicos(
+        db,
+        [item.dict() for item in data.items],
+        fecha=fecha,
+        hora=data.hora,
+    )
+
 
 @router.get("/metodos-pago")
 def metodos_pago():
@@ -251,8 +289,341 @@ def listar_pedidos_admin(
                 if cliente else None
             ),
             "cliente_email": cliente.email if cliente else None,
+            "estado_entrega": p.estado_entrega,
+            "fecha_entrega": p.fecha_entrega.isoformat() if p.fecha_entrega else None,
+            "hora_entrega": p.hora_entrega,
+            # Técnico 1 / encargado de la entrega del pedido.
+            "id_tecnico_entrega": p.id_tecnico_entrega,
+            "nombre_tecnico_entrega": p.nombre_tecnico_entrega,
         })
     return resultado
+
+
+@router.get("/admin/entregas")
+def listar_entregas_admin(
+    _admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Todas las entregas (pedidos con fecha de entrega o estado de entrega):
+    permite ver cuáles no tienen técnico asignado y reasignarlas."""
+    pedidos = (
+        db.query(Pedido)
+        .filter(or_(Pedido.fecha_entrega.isnot(None), Pedido.estado_entrega.isnot(None)))
+        .order_by(Pedido.fecha_entrega.desc(), Pedido.id_pedido.desc())
+        .limit(100)
+        .all()
+    )
+    clientes = {c.id_cliente: c for c in db.query(Cliente).all()}
+    tecnicos = {t.id_tecnico: t for t in db.query(Tecnico).all()}
+    ids_pedidos = [p.id_pedido for p in pedidos]
+    detalles = (
+        db.query(DetallePedido)
+        .filter(DetallePedido.id_pedido_d.in_(ids_pedidos), DetallePedido.id_producto_d.isnot(None))
+        .all()
+        if ids_pedidos
+        else []
+    )
+    productos = {p.id_producto: p for p in db.query(Producto).all()}
+    productos_por_pedido: dict[int, list[str]] = {}
+    for d in detalles:
+        nombre = (
+            d.descripcion_detalle
+            or (
+                productos[d.id_producto_d].nombre_producto
+                if d.id_producto_d in productos
+                else f"Producto #{d.id_producto_d}"
+            )
+        )
+        productos_por_pedido.setdefault(d.id_pedido_d, []).append(nombre)
+
+    return [
+        {
+            "id_pedido": p.id_pedido,
+            "cliente": (
+                f"{clientes[p.id_cliente_pe].first_name} {clientes[p.id_cliente_pe].last_name}".strip()
+                if p.id_cliente_pe in clientes
+                else None
+            ),
+            "direccion": (
+                (clientes[p.id_cliente_pe].address or "").strip()
+                if p.id_cliente_pe in clientes
+                else None
+            ),
+            "telefono": (
+                clientes[p.id_cliente_pe].telefono_cliente
+                if p.id_cliente_pe in clientes
+                else None
+            ),
+            "fecha_entrega": p.fecha_entrega.isoformat() if p.fecha_entrega else None,
+            "hora_entrega": p.hora_entrega,
+            "estado_entrega": p.estado_entrega,
+            "entrega_actualizada_en": (
+                p.entrega_actualizada_en.isoformat() if p.entrega_actualizada_en else None
+            ),
+            "id_tecnico_entrega": p.id_tecnico_entrega,
+            "nombre_tecnico": p.nombre_tecnico_entrega,
+            "productos": productos_por_pedido.get(p.id_pedido, []),
+        }
+        for p in pedidos
+    ]
+
+
+class EntregaAsignarRequest(BaseModel):
+    id_tecnico: Optional[int] = None
+    fecha_entrega: Optional[date] = None
+    hora_entrega: Optional[str] = None
+    hora_entrega_fin: Optional[str] = None
+
+
+@router.put("/admin/{pedido_id}/entrega")
+def asignar_entrega_admin(
+    pedido_id: int,
+    data: EntregaAsignarRequest,
+    admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Asigna o reasigna el técnico responsable de entregar un pedido.
+    Con id_tecnico null deja la entrega sin técnico (estado Pendiente)."""
+    pedido = db.query(Pedido).filter(Pedido.id_pedido == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    from app.services.notificaciones import (
+        crear_notificacion,
+        notificar_entrega_asignada_tecnico,
+        notificar_entrega_programada_cliente,
+    )
+
+    cliente = (
+        db.query(Cliente).filter(Cliente.id_cliente == pedido.id_cliente_pe).first()
+    )
+
+    if data.id_tecnico is None:
+        anterior = pedido.nombre_tecnico_entrega
+        pedido.id_tecnico_entrega = None
+        pedido.nombre_tecnico_entrega = None
+        pedido.estado_entrega = "Pendiente"
+        pedido.entrega_actualizada_en = datetime.now()
+        db.commit()
+        return {
+            "id_pedido": pedido.id_pedido,
+            "estado_entrega": pedido.estado_entrega,
+            "nombre_tecnico": None,
+            "mensaje": f"Entrega del pedido #{pedido_id} sin técnico (antes: {anterior or '—'})",
+        }
+
+    tecnico = (
+        db.query(Tecnico)
+        .join(User, User.id_usuario == Tecnico.id_usuario_t)
+        .filter(
+            Tecnico.id_tecnico == data.id_tecnico,
+            User.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not tecnico:
+        raise HTTPException(status_code=404, detail="Técnico no encontrado o inactivo")
+
+    # Actualización opcional de fecha/rango de entrega.
+    rango_cambiado = False
+    if data.fecha_entrega is not None:
+        from app.services.especialidades import _dia_es_laboral
+
+        if not _dia_es_laboral(data.fecha_entrega):
+            raise HTTPException(
+                status_code=400,
+                detail="Las entregas solo se programan de lunes a sábado",
+            )
+        rango_cambiado = pedido.fecha_entrega != data.fecha_entrega
+        pedido.fecha_entrega = data.fecha_entrega
+    if data.hora_entrega is not None:
+        rango_cambiado = rango_cambiado or pedido.hora_entrega != data.hora_entrega
+        pedido.hora_entrega = data.hora_entrega
+    if data.hora_entrega_fin is not None:
+        rango_cambiado = (
+            rango_cambiado or (pedido.hora_entrega_fin or "") != data.hora_entrega_fin
+        )
+        pedido.hora_entrega_fin = data.hora_entrega_fin
+
+    # Validar que el técnico esté libre dentro del rango de la entrega.
+    if pedido.fecha_entrega is not None:
+        from app.services.especialidades import tecnico_libre_en_rango
+
+        libre = tecnico_libre_en_rango(
+            db,
+            tecnico.id_tecnico,
+            pedido.fecha_entrega,
+            pedido.hora_entrega or "10:00",
+            pedido.hora_entrega_fin,
+            excluir_pedido_id=pedido.id_pedido,
+        )
+        if not libre:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "El técnico ya tiene una cita o entrega que se cruza con el "
+                    "rango de entrega indicado"
+                ),
+            )
+
+    pedido.id_tecnico_entrega = tecnico.id_tecnico
+    pedido.nombre_tecnico_entrega = (
+        f"{tecnico.usuario.first_name} {tecnico.usuario.last_name}".strip()
+        if tecnico.usuario
+        else "Técnico"
+    )
+    if pedido.estado_entrega != "En camino":
+        pedido.estado_entrega = "Asignada"
+    pedido.entrega_actualizada_en = datetime.now()
+    db.commit()
+
+    fecha_txt = (
+        pedido.fecha_entrega.strftime("%d/%m/%Y") if pedido.fecha_entrega else "-"
+    )
+    hora_txt = (
+        f"{pedido.hora_entrega or '-'} - {pedido.hora_entrega_fin}"
+        if pedido.hora_entrega_fin
+        else (pedido.hora_entrega or "-")
+    )
+
+    # Notificar al técnico asignado.
+    if tecnico.usuario and tecnico.usuario.email:
+        notificar_entrega_asignada_tecnico(
+            db,
+            tecnico.usuario.id_usuario,
+            tecnico.usuario.email,
+            pedido.nombre_tecnico_entrega or "técnico",
+            {
+                "pedido": pedido.id_pedido,
+                "cliente": (
+                    f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
+                ),
+                "direccion": ((cliente.address or "").strip() if cliente else "") or "Por definir",
+                "telefono": cliente.telefono_cliente if cliente else None,
+                "fecha": fecha_txt,
+                "hora": hora_txt,
+            },
+        )
+
+    # Notificar al cliente sobre la entrega programada.
+    if cliente:
+        datos_cliente = {
+            "pedido": pedido.id_pedido,
+            "fecha": fecha_txt,
+            "hora": hora_txt,
+            "tecnico": pedido.nombre_tecnico_entrega or "técnico",
+        }
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente.id_cliente,
+            tipo="entrega",
+            titulo="Rango de entrega actualizado" if rango_cambiado else "Entrega asignada a un técnico",
+            mensaje=(
+                f"Tu pedido #{pedido.id_pedido} será entregado el {fecha_txt} "
+                f"en la franja {hora_txt} por {datos_cliente['tecnico']}."
+            ),
+        )
+        if cliente.email:
+            notificar_entrega_programada_cliente(
+                db,
+                cliente.id_cliente,
+                cliente.email,
+                f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+                datos_cliente,
+            )
+
+    return {
+        "id_pedido": pedido.id_pedido,
+        "estado_entrega": pedido.estado_entrega,
+        "id_tecnico_entrega": pedido.id_tecnico_entrega,
+        "nombre_tecnico": pedido.nombre_tecnico_entrega,
+    }
+
+
+@router.get("/{pedido_id}/seguimiento")
+def seguimiento_pedido(
+    pedido_id: int,
+    cliente: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Rastreo del pedido para el cliente: línea de progreso, datos del
+    técnico y ubicación GPS real (solo mientras esté En camino)."""
+    pedido = (
+        db.query(Pedido)
+        .filter(Pedido.id_pedido == pedido_id, Pedido.id_cliente_pe == cliente.id_cliente)
+        .first()
+    )
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    from app.services.especialidades import auto_en_camino
+
+    # Regla automática: faltan 5 min para cumplirse las 3 h → En camino.
+    auto_en_camino(db, pedido)
+
+    estado_entrega = pedido.estado_entrega
+    confirmado = bool(pedido.estado_pedido and pedido.estado_pedido.lower().startswith("pag"))
+    asignado = pedido.id_tecnico_entrega is not None
+    recogido = estado_entrega in ("Recogido", "En camino", "Entregado")
+    en_camino = estado_entrega == "En camino"
+    entregado = estado_entrega == "Entregado"
+    pasos = [
+        {"paso": "Confirmado", "completado": confirmado},
+        {"paso": "Asignado", "completado": asignado},
+        {"paso": "Recogido", "completado": recogido},
+        {"paso": "En camino", "completado": en_camino or entregado},
+        {"paso": "Entregado", "completado": entregado},
+    ]
+
+    tecnico_data = None
+    if pedido.tecnico_entrega and pedido.tecnico_entrega.usuario:
+        u = pedido.tecnico_entrega.usuario
+        tecnico_data = {
+            "nombre": pedido.nombre_tecnico_entrega,
+            "telefono": u.telefono_usuario,
+            "foto": u.foto_url,
+        }
+
+    ubicacion_data = None
+    if en_camino and pedido.id_tecnico_entrega is not None:
+        ub = (
+            db.query(UbicacionTecnico)
+            .filter(UbicacionTecnico.id_tecnico_ut == pedido.id_tecnico_entrega)
+            .first()
+        )
+        if ub:
+            ubicacion_data = {
+                "latitud": ub.latitud,
+                "longitud": ub.longitud,
+                "actualizado_en": (
+                    ub.actualizado_en.isoformat() if ub.actualizado_en else None
+                ),
+            }
+
+    return {
+        "id_pedido": pedido.id_pedido,
+        "estado_pedido": pedido.estado_pedido,
+        "estado_entrega": estado_entrega,
+        "pasos": pasos,
+        "fecha_entrega": pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
+        "hora_entrega": pedido.hora_entrega,
+        "hora_entrega_fin": pedido.hora_entrega_fin,
+        "evidencia_entrega_url": pedido.evidencia_entrega_url,
+        "rango_entrega": (
+            f"{pedido.hora_entrega or '10:00'} - {pedido.hora_entrega_fin}"
+            if pedido.hora_entrega_fin
+            else (pedido.hora_entrega or None)
+        ),
+        "tecnico": tecnico_data,
+        "ubicacion": ubicacion_data,
+        "entrega_actualizada_en": (
+            pedido.entrega_actualizada_en.isoformat()
+            if pedido.entrega_actualizada_en
+            else None
+        ),
+    }
 
 
 @router.get("/{pedido_id}")

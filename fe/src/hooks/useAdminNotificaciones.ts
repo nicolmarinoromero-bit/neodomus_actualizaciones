@@ -6,7 +6,7 @@ import type {
   SolicitudEmpleado,
 } from '../types';
 
-export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega';
+export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega' | 'reembolso' | 'producto' | 'promocion';
 
 export interface NotifAdmin {
   id: string;
@@ -49,6 +49,17 @@ interface PedidoCliente {
   total?: number | null;
   estado?: string | null;
 }
+
+interface NotifPlataforma {
+  id_notificacion: number;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  fecha_creacion?: string | null;
+}
+
+const TIPOS_PLATAFORMA_CLIENTE: TipoNotificacion[] = ['reembolso', 'entrega', 'producto', 'promocion'];
 
 interface CitaReasignar {
   id_cita: number;
@@ -225,14 +236,29 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
           accion: { to: '/tecnico/citas', label: 'Ver mis citas' },
         }));
       } else {
-        const [citasRes, pedidosRes] = await Promise.all([
+        const [citasRes, pedidosRes, notisRes] = await Promise.all([
           api.get<CitaCliente[]>('/citas/mis-citas'),
           api.get<PedidoCliente[]>('/pedidos/mis-pedidos'),
+          api.get<NotifPlataforma[]>('/notificaciones/mias'),
         ]);
         const citas = citasRes.data || [];
         const pedidos = pedidosRes.data || [];
 
+        const plataforma = ((notisRes.data || []) as NotifPlataforma[])
+          .filter((n) => (TIPOS_PLATAFORMA_CLIENTE as string[]).includes(n.tipo))
+          .map((n) => ({
+            id: `plat-${n.id_notificacion}`,
+            tipo: n.tipo as TipoNotificacion,
+            titulo: n.titulo,
+            mensaje: n.mensaje,
+            fecha: formatoFecha(n.fecha_creacion),
+            timestamp: Date.parse(n.fecha_creacion || '') || 0,
+            leida: n.leida || Boolean(leidas[`plat-${n.id_notificacion}`]),
+            accion: { to: '/perfil?tab=reembolsos', label: 'Ver mis reembolsos' },
+          }));
+
         notis = [
+          ...plataforma,
           ...citas.map((c) => ({
             id: `cita-${c.id_cita}`,
             tipo: 'cita' as TipoNotificacion,

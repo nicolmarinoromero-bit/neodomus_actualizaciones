@@ -17,7 +17,7 @@ import '@styles/dashboard-admin.css';
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { STOCK_MINIMO, badgeStock, textoStock } from '../../constants';
-import type { ProductoAdmin, CategoriaAdmin, ProveedorAdmin, VarianteAdmin } from '../../types';
+import type { ProductoAdmin, CategoriaAdmin, ProveedorAdmin, VarianteAdmin, Especializacion } from '../../types';
 
 interface EstadoForm {
   nombre_producto: string;
@@ -37,12 +37,20 @@ interface EstadoForm {
   marca?: string;
   es_nuevo_producto: boolean;
   tecnicos_requeridos: string;
+  dificultad_instalacion: string;
+  tiempo_estimado_horas: string;
+  tiene_medidas: boolean;
+  especializaciones_ids: number[];
 }
 
 interface VarianteForm {
   id: number | null;
   nombre: string;
   hex: string;
+  tamaño: string;
+  ancho_cm: string;
+  alto_cm: string;
+  precio: string;
   imagen_url: string;
   stock: string;
 }
@@ -51,6 +59,10 @@ const VARIANTE_VACIA = (): VarianteForm => ({
   id: null,
   nombre: '',
   hex: '#d4a54b',
+  tamaño: '',
+  ancho_cm: '',
+  alto_cm: '',
+  precio: '',
   imagen_url: '',
   stock: '0',
 });
@@ -73,6 +85,10 @@ const VACIO: EstadoForm = {
   caracteristicas_producto: '',
   es_nuevo_producto: true,
   tecnicos_requeridos: '1',
+  dificultad_instalacion: '',
+  tiempo_estimado_horas: '',
+  tiene_medidas: false,
+  especializaciones_ids: [],
 };
 
 const AdminProductoDetalle = () => {
@@ -89,6 +105,7 @@ const AdminProductoDetalle = () => {
   const [producto, setProducto] = useState<ProductoAdmin | null>(null);
   const [categorias, setCategorias] = useState<CategoriaAdmin[]>([]);
   const [proveedores, setProveedores] = useState<ProveedorAdmin[]>([]);
+  const [catalogoEspecializaciones, setCatalogoEspecializaciones] = useState<Especializacion[]>([]);
   const [form, setForm] = useState<EstadoForm>(() => ({
     ...VACIO,
     ...(categoriaInicial ? { id_cate_pr: categoriaInicial } : {}),
@@ -161,12 +178,14 @@ const AdminProductoDetalle = () => {
     setCargando(true);
     setError(false);
     try {
-      const [cats, prov] = await Promise.all([
+      const [cats, prov, esp] = await Promise.all([
         api.get<CategoriaAdmin[]>('/productos/categorias'),
         api.get<ProveedorAdmin[]>('/productos/proveedores'),
+        api.get<Especializacion[]>('/especializaciones'),
       ]);
       setCategorias(cats.data || []);
       setProveedores(prov.data || []);
+      setCatalogoEspecializaciones(esp.data || []);
       if (!esNuevo) {
         const res = await api.get<ProductoAdmin>(`/productos/${id}`);
         setProducto(res.data);
@@ -175,6 +194,10 @@ const AdminProductoDetalle = () => {
             id: v.id,
             nombre: v.nombre,
             hex: v.hex || '#d4a54b',
+            tamaño: v.tamaño || '',
+            ancho_cm: v.ancho_cm != null ? String(v.ancho_cm) : '',
+            alto_cm: v.alto_cm != null ? String(v.alto_cm) : '',
+            precio: v.precio != null ? String(v.precio) : '',
             imagen_url: v.imagen_url || '',
             stock: String(v.stock ?? 0),
           })),
@@ -197,6 +220,13 @@ const AdminProductoDetalle = () => {
           caracteristicas_producto: res.data.caracteristicas_producto || '',
           es_nuevo_producto: !!res.data.es_nuevo,
           tecnicos_requeridos: String(res.data.tecnicos_requeridos || 1),
+          dificultad_instalacion: res.data.dificultad_instalacion || '',
+          tiempo_estimado_horas:
+            res.data.tiempo_estimado_horas != null ? String(res.data.tiempo_estimado_horas) : '',
+          tiene_medidas: !!res.data.tiene_medidas,
+          especializaciones_ids: (res.data.especializaciones_requeridas || []).map(
+            (e) => e.id_especializacion,
+          ),
         });
         setCaractLista(
           (res.data.caracteristicas_producto || '')
@@ -308,6 +338,11 @@ const AdminProductoDetalle = () => {
           caractLista.map((c) => c.trim()).filter(Boolean).join('\n') || null,
         es_nuevo_producto: form.es_nuevo_producto,
         tecnicos_requeridos: Math.max(1, parseInt(form.tecnicos_requeridos, 10) || 1),
+        dificultad_instalacion: form.dificultad_instalacion || null,
+        tiempo_estimado_horas:
+          form.tiempo_estimado_horas.trim() === '' ? null : parseFloat(form.tiempo_estimado_horas),
+        tiene_medidas: form.tiene_medidas,
+        especializaciones_ids: form.especializaciones_ids,
       };
       if (esNuevo) {
         const res = await api.post<{ id_producto: number }>('/productos', payload);
@@ -365,9 +400,32 @@ const AdminProductoDetalle = () => {
     }
     setGuardando(true);
     try {
+      const precioNum = v.precio.trim() === '' ? null : parseFloat(v.precio);
+      if (v.precio.trim() !== '' && (Number.isNaN(precioNum) || (precioNum ?? 0) <= 0)) {
+        notify('El precio de la variante debe ser un número mayor a 0', 'err');
+        return;
+      }
+      if (form.tiene_medidas) {
+        const ancho = parseInt(v.ancho_cm, 10);
+        const alto = parseInt(v.alto_cm, 10);
+        if (Number.isNaN(ancho) || ancho <= 0 || Number.isNaN(alto) || alto <= 0) {
+          notify('Ingresa el ancho y el alto en cm de la variante', 'err');
+          return;
+        }
+      }
+      const anchoNum =
+        form.tiene_medidas && v.ancho_cm.trim() !== '' ? parseInt(v.ancho_cm, 10) : null;
+      const altoNum =
+        form.tiene_medidas && v.alto_cm.trim() !== '' ? parseInt(v.alto_cm, 10) : null;
       const payload = {
         nombre: v.nombre.trim(),
         hex: v.hex.trim() || null,
+        tamaño: form.tiene_medidas
+          ? `${v.ancho_cm} cm por ${v.alto_cm} cm`
+          : v.tamaño.trim() || null,
+        ancho_cm: anchoNum,
+        alto_cm: altoNum,
+        precio: precioNum,
         imagen_url: v.imagen_url.trim() || null,
         stock,
       };
@@ -376,7 +434,18 @@ const AdminProductoDetalle = () => {
         setVariantesForm((prev) =>
           prev.map((x) =>
             x.id === res.data.id
-              ? { ...x, id: res.data.id, nombre: res.data.nombre, hex: res.data.hex || '', imagen_url: res.data.imagen_url || '', stock: String(res.data.stock) }
+              ? {
+                  ...x,
+                  id: res.data.id,
+                  nombre: res.data.nombre,
+                  hex: res.data.hex || '',
+                  tamaño: res.data.tamaño || '',
+                  ancho_cm: res.data.ancho_cm != null ? String(res.data.ancho_cm) : '',
+                  alto_cm: res.data.alto_cm != null ? String(res.data.alto_cm) : '',
+                  precio: res.data.precio != null ? String(res.data.precio) : '',
+                  imagen_url: res.data.imagen_url || '',
+                  stock: String(res.data.stock),
+                }
               : x,
           ),
         );
@@ -641,6 +710,84 @@ const AdminProductoDetalle = () => {
             </div>
 
             <div className="ap-form-group">
+              <label className="ap-form-label" htmlFor="apf-dificultad">{t('adm.productoDetalle.labelDificultad')}</label>
+              <select
+                id="apf-dificultad"
+                className="ap-form-select"
+                value={form.dificultad_instalacion}
+                onChange={(e) => setCampo('dificultad_instalacion', e.target.value)}
+              >
+                <option value="">{t('adm.productoDetalle.dificultadNoDefinida')}</option>
+                <option value="baja">{t('adm.productoDetalle.dificultadBaja')}</option>
+                <option value="media">{t('adm.productoDetalle.dificultadMedia')}</option>
+                <option value="alta">{t('adm.productoDetalle.dificultadAlta')}</option>
+              </select>
+              <span className="ap-form-hint">{t('adm.productoDetalle.hintDificultad')}</span>
+            </div>
+
+            <div className="ap-form-group">
+              <label className="ap-form-label" htmlFor="apf-tiempo">{t('adm.productoDetalle.labelTiempoEstimado')}</label>
+              <input
+                id="apf-tiempo"
+                className="ap-form-input"
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={form.tiempo_estimado_horas}
+                onChange={(e) => setCampo('tiempo_estimado_horas', e.target.value)}
+                placeholder="2"
+              />
+              <span className="ap-form-hint">{t('adm.productoDetalle.hintTiempoEstimado')}</span>
+            </div>
+
+            <div className="ap-form-group full">
+              <label className="ap-form-label">
+                {t('adm.productoDetalle.labelEspecializaciones')}{' '}
+                <span style={{ color: '#9a8f78', fontWeight: 400 }}>
+                  ({t('adm.tecnicos.especializacionesMultiple')})
+                </span>
+              </label>
+              {catalogoEspecializaciones.length === 0 ? (
+                <span className="ap-form-hint">{t('adm.tecnicos.catalogoNoDisponible')}</span>
+              ) : (
+                <div
+                  role="group"
+                  aria-label={t('adm.productoDetalle.labelEspecializaciones')}
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
+                >
+                  {catalogoEspecializaciones.map((esp) => {
+                    const activa = form.especializaciones_ids.includes(esp.id_especializacion);
+                    return (
+                      <button
+                        key={esp.id_especializacion}
+                        type="button"
+                        className={`ap-badge ${activa ? 'ok' : 'pendiente'}`}
+                        style={{
+                          cursor: 'pointer',
+                          border: '1px solid',
+                          opacity: esp.activa ? 1 : 0.55,
+                          background: activa ? undefined : 'transparent',
+                        }}
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            especializaciones_ids: prev.especializaciones_ids.includes(esp.id_especializacion)
+                              ? prev.especializaciones_ids.filter((x) => x !== esp.id_especializacion)
+                              : [...prev.especializaciones_ids, esp.id_especializacion],
+                          }))
+                        }
+                        title={esp.descripcion || esp.nombre}
+                      >
+                        {esp.nombre}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <span className="ap-form-hint">{t('adm.productoDetalle.hintEspecializaciones')}</span>
+            </div>
+
+            <div className="ap-form-group">
               <div className="ap-nuevo-head">
                 <label className="ap-form-label" htmlFor="apf-nuevo">
                   {t('adm.productoDetalle.labelNuevo')}
@@ -661,6 +808,33 @@ const AdminProductoDetalle = () => {
               >
                 <span className="ap-nuevo-thumb" />
               </button>
+            </div>
+
+            <div className="ap-form-group">
+              <div className="ap-nuevo-head">
+                <label className="ap-form-label" htmlFor="apf-medidas">
+                  Se vende con medidas (ancho × alto)
+                </label>
+                <span className={`ap-nuevo-sino ${form.tiene_medidas ? 'on' : ''}`}>
+                  {form.tiene_medidas ? t('adm.productoDetalle.si') : t('adm.productoDetalle.no')}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                id="apf-medidas"
+                aria-checked={form.tiene_medidas}
+                className={`ap-nuevo-switch ${form.tiene_medidas ? 'on' : ''}`}
+                onClick={() =>
+                  setForm((prev) => ({ ...prev, tiene_medidas: !prev.tiene_medidas }))
+                }
+              >
+                <span className="ap-nuevo-thumb" />
+              </button>
+              <span className="ap-form-hint">
+                Al activarlo, cada variante pide Ancho y Alto en cm (ej: 150 × 100) con su
+                propio stock, y la tienda muestra el selector de medidas.
+              </span>
             </div>
 
             <div className="ap-form-group">
@@ -869,6 +1043,45 @@ const AdminProductoDetalle = () => {
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                     )}
+                    <input
+                      className="ap-form-input"
+                      type="text"
+                      placeholder="Tamaño (ej: S, M, 80cm)"
+                      value={v.tamaño}
+                      onChange={(e) => setVariante(i, 'tamaño', e.target.value)}
+                    />
+                    {form.tiene_medidas && (
+                      <>
+                        <input
+                          className="ap-form-input"
+                          type="number"
+                          min="1"
+                          placeholder="Ancho cm"
+                          value={v.ancho_cm}
+                          onChange={(e) => setVariante(i, 'ancho_cm', e.target.value)}
+                          style={{ maxWidth: 90 }}
+                        />
+                        <input
+                          className="ap-form-input"
+                          type="number"
+                          min="1"
+                          placeholder="Alto cm"
+                          value={v.alto_cm}
+                          onChange={(e) => setVariante(i, 'alto_cm', e.target.value)}
+                          style={{ maxWidth: 90 }}
+                        />
+                      </>
+                    )}
+                    <input
+                      className="ap-form-input"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="Precio variante ($)"
+                      value={v.precio}
+                      onChange={(e) => setVariante(i, 'precio', e.target.value)}
+                      title="Vacío = usa el precio del producto"
+                    />
                     <input
                       className="ap-form-input"
                       type="number"
@@ -1096,7 +1309,12 @@ const AdminProductoDetalle = () => {
                         className="ap-cchip"
                         style={{ ['--chip-color' as never]: v.hex || '#d4a54b' } as React.CSSProperties}
                       >
-                        {t('adm.productoDetalle.varianteInfo', { nombre: v.nombre, stock: v.stock })}
+                        {v.etiqueta_medida || v.tamaño
+                          ? `${v.nombre} · ${v.etiqueta_medida || v.tamaño} · `
+                          : t('adm.productoDetalle.varianteInfo', { nombre: v.nombre, stock: v.stock })}
+                        {(v.etiqueta_medida || v.tamaño)
+                          ? `${v.stock} u.${v.precio != null ? ` · $${Number(v.precio).toLocaleString()}` : ''}`
+                          : ''}
                       </span>
                     ))}
                   </div>

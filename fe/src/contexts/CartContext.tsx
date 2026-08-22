@@ -11,6 +11,9 @@ export interface CartItem {
   imagen: string;
   cantidad: number;
   color?: string;
+  tamaño?: string;
+  medida?: string;
+  id_variante?: number;
   venta_por_metros?: boolean;
   metros?: number;
   tecnicos_requeridos?: number;
@@ -29,8 +32,14 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const itemKey = (item: { id_producto: number; color?: string }) =>
-  item.color ? `${item.id_producto}-${item.color.toLowerCase()}` : `${item.id_producto}`;
+const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string }) =>
+  [
+    item.id_producto,
+    item.color?.toLowerCase(),
+    (item.medida || item.tamaño || '').toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join('-');
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>(() => loadItem<CartItem[]>(CART_KEY, []));

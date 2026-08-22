@@ -7,6 +7,7 @@ import { FaUserTie, FaCheck, FaArrowLeft } from 'react-icons/fa6';
 import '@styles/perfil-cliente.css';
 import api from '@services/api';
 import { tituloNombre } from '@utils/formatoNombre';
+import { suscribirCambiosTecnicos } from '@utils/tecnicosSync';
 
 interface Tecnico {
   id: number;
@@ -25,7 +26,6 @@ interface TecnicoPublico {
   first_name: string;
   last_name: string;
   certificacion_t?: string | null;
-  cargo_t?: string | null;
   is_active: boolean;
 }
 
@@ -38,8 +38,9 @@ const TecnicosPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTecnicos = async () => {
-      setLoading(true);
+    let activo = true;
+    const fetchTecnicos = async (silencioso = false) => {
+      if (!silencioso) setLoading(true);
       try {
         const res = await api.get<TecnicoPublico[]>('/tecnicos/publicos');
         const data = res.data;
@@ -48,20 +49,31 @@ const TecnicosPage = () => {
           nombre: tituloNombre(t.first_name),
           apellido: tituloNombre(t.last_name),
           foto_url: null,
-          especialidad: t.cargo_t || t.certificacion_t || '',
+          especialidad: t.certificacion_t || '',
           anios_experiencia: 0,
           calificacion: 0,
           disponible: t.is_active,
         }));
-        setTecnicos(reales);
+        if (activo) setTecnicos(reales);
       } catch (err: any) {
         console.warn('No se pudieron cargar los técnicos reales:', err.message);
-        setTecnicos([]);
+        if (activo) setTecnicos([]);
       } finally {
-        setLoading(false);
+        if (activo) setLoading(false);
       }
     };
     fetchTecnicos();
+
+    // Tiempo real: cambios del administrador en esta u otra pestaña.
+    const cancelarSuscripcion = suscribirCambiosTecnicos(() => fetchTecnicos(true));
+    // Respaldo: refresco silencioso periódico.
+    const intervalo = window.setInterval(() => fetchTecnicos(true), 30000);
+
+    return () => {
+      activo = false;
+      cancelarSuscripcion();
+      window.clearInterval(intervalo);
+    };
   }, []);
 
   const renderStars = (rating: number) => {

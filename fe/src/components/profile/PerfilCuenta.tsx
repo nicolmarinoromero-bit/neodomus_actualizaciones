@@ -10,13 +10,21 @@ export interface CampoPerfilDef {
   clave: string;
   label: string;
   valor: string;
-  tipo?: 'text' | 'tel';
+  tipo?: 'text' | 'tel' | 'select';
+  opciones?: { valor: string; etiqueta: string }[];
   maxLength?: number;
   placeholder?: string;
   hint?: string;
   requerido?: boolean;
   bloquearPortapapeles?: boolean;
 }
+
+const etiquetaSeleccionada = (
+  c: CampoPerfilDef,
+): string => {
+  if (c.tipo !== 'select') return c.valor || '—';
+  return c.opciones?.find((o) => o.valor === c.valor)?.etiqueta || '—';
+};
 
 interface PerfilCuentaProps {
   campos: CampoPerfilDef[];
@@ -40,7 +48,6 @@ const PerfilCuenta = ({
   campos,
   email,
   emailOriginal,
-  rol,
   notificar,
   onGuardar,
   onEmailVerificado,
@@ -106,16 +113,12 @@ const PerfilCuenta = ({
               key={c.clave}
             >
               <span className="pf-dato-label">{c.label}</span>
-              <span className="pf-dato-valor">{c.valor || '—'}</span>
+              <span className="pf-dato-valor">{etiquetaSeleccionada(c)}</span>
             </div>
           ))}
           <div className="pf-dato-cell pf-dato-span">
             <span className="pf-dato-label">{t('perfil.correo')}</span>
             <span className="pf-dato-valor pf-dato-correo">{email || '—'}</span>
-          </div>
-          <div className="pf-dato-cell pf-dato-span">
-            <span className="pf-dato-label">{t('perfil.rol')}</span>
-            <span className="pf-dato-chip">{rol}</span>
           </div>
         </div>
 
@@ -150,24 +153,42 @@ const PerfilCuenta = ({
             <label className="pf-form-label" htmlFor={`pc-${c.clave}`}>
               {c.label}
             </label>
-            <input
-              id={`pc-${c.clave}`}
-              className="pf-form-input"
-              type={c.tipo || 'text'}
-              maxLength={c.maxLength}
-              placeholder={c.placeholder}
-              value={borrador[c.clave] ?? ''}
-              onChange={(e) =>
-                setBorrador({
-                  ...borrador,
-                  [c.clave]:
-                    c.tipo === 'tel'
-                      ? e.target.value.replace(/\D/g, '')
-                      : e.target.value,
-                })
-              }
-              {...(c.bloquearPortapapeles ? propsPortapapeles : {})}
-            />
+            {c.tipo === 'select' ? (
+              <select
+                id={`pc-${c.clave}`}
+                className="pf-form-input"
+                value={borrador[c.clave] ?? ''}
+                onChange={(e) =>
+                  setBorrador({ ...borrador, [c.clave]: e.target.value })
+                }
+              >
+                <option value="">{t('perfil.seleccionaOpcion')}</option>
+                {(c.opciones || []).map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.etiqueta}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id={`pc-${c.clave}`}
+                className="pf-form-input"
+                type={c.tipo || 'text'}
+                maxLength={c.maxLength}
+                placeholder={c.placeholder}
+                value={borrador[c.clave] ?? ''}
+                onChange={(e) =>
+                  setBorrador({
+                    ...borrador,
+                    [c.clave]:
+                      c.tipo === 'tel'
+                        ? e.target.value.replace(/\D/g, '')
+                        : e.target.value,
+                  })
+                }
+                {...(c.bloquearPortapapeles ? propsPortapapeles : {})}
+              />
+            )}
             {c.hint && <span className="pf-campo-hint">{c.hint}</span>}
           </div>
         ))}

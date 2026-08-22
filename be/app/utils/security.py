@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,6 +14,11 @@ from app.models.user import User
 from app.models.cliente import Cliente
 from app.models.roles_usuario import RolesUsuario
 from app.config import settings
+
+# Cookies HttpOnly de autenticación (web). El móvil sigue usando el header
+# Authorization con los tokens que recibe en el cuerpo de la respuesta.
+ACCESS_COOKIE_NAME = "access_token"
+REFRESH_COOKIE_NAME = "refresh_token"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -76,10 +81,56 @@ def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
+
+def _cookie_secure() -> bool:
+    """Cookies 'Secure' solo en producción; en desarrollo se sirve por http."""
+    return settings.ENVIRONMENT == "production"
+
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Escribe las cookies HttpOnly de sesión (inaccesibles desde JavaScript)."""
+    response.set_cookie(
+        key=ACCESS_COOKIE_NAME,
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(),
+        path="/",
+    )
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(),
+        path="/",
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
+
+
+def _token_desde_request(request: Optional[Request], token: Optional[str]) -> Optional[str]:
+    """Prioriza la cookie HttpOnly (web); si no hay, usa el header
+    Authorization (móvil). Así un residuo viejo en el navegador no pisa una
+    sesión válida por cookie."""
+    if request is not None:
+        cookie_token = request.cookies.get(ACCESS_COOKIE_NAME)
+        if cookie_token:
+            return cookie_token
+    return token
+
+
 async def get_current_user(
+    request: Request = None,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Union[User, Cliente]:
+    token = _token_desde_request(request, token)
     if not token:
         raise HTTPException(status_code=401, detail="No autenticado")
     payload = decode_token(token)
@@ -123,21 +174,31 @@ async def get_current_user(
         return client
 
 async def get_current_employee(
+    request: Request = None,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> User:
-    user = await get_current_user(token, db)
+    user = await get_current_user(request, token=token, db=db)
     if not isinstance(user, User):
-        raise HTTPException(status_code=403, detail="Se requiere rol de empleado")
+        # 401 (y no 403): la cookie pertenece a otra TIPO de cuenta; así el
+        # frontend cierra sesión automáticamente en vez de mostrar errores.
+        raise HTTPException(
+            status_code=401,
+            detail="Esta sesión corresponde a una cuenta de cliente. Inicia sesión con tu cuenta de empleado.",
+        )
     return user
 
 async def get_current_client(
+    request: Request = None,
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Cliente:
-    user = await get_current_user(token, db)
+    user = await get_current_user(request, token=token, db=db)
     if not isinstance(user, Cliente):
-        raise HTTPException(status_code=403, detail="Se requiere rol de cliente")
+        raise HTTPException(
+            status_code=401,
+            detail="Esta sesión corresponde a una cuenta de empleado. Inicia sesión con tu cuenta de cliente.",
+        )
     return user
 
 def require_roles(*allowed_roles: str):

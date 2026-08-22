@@ -11,3 +11,6 @@ from .pedidos import router as pedidos_router
 from .tarifas import router as tarifas_router
 from .calificaciones import router as calificaciones_router
 from .notificaciones import router as notificaciones_router
+from .especializaciones import router as especializaciones_router
+from .reembolsos import router as reembolsos_router
+from .devoluciones import router as devoluciones_router

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   FaBell,
   FaCalendarCheck,
@@ -73,7 +73,9 @@ interface Entrega {
   direccion?: string | null;
   fecha_entrega?: string | null;
   hora_entrega?: string | null;
+  hora_entrega_fin?: string | null;
   estado_entrega?: string | null;
+  evidencias_entrega?: string[];
   productos?: { descripcion: string; cantidad: number; subtotal: number }[];
 }
 
@@ -137,6 +139,8 @@ const TechnicianDashboard = () => {
   const [descEvidencia, setDescEvidencia] = useState('');
   const [subiendoEvidencia, setSubiendoEvidencia] = useState(false);
   const [eliminandoEvidencia, setEliminandoEvidencia] = useState<number | null>(null);
+  const [compartiendoUbicacion, setCompartiendoUbicacion] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [passOpen, setPassOpen] = useState(false);
   const [nueva, setNueva] = useState('');
@@ -255,9 +259,11 @@ const TechnicianDashboard = () => {
     try {
       await api.put(`/tecnicos/entregas/${pedidoId}/estado`, { estado: nuevoEstado });
       notificar(
-        nuevoEstado === 'En camino'
-          ? 'El cliente fue notificado de tu llegada inminente'
-          : 'Entrega marcada como entregada'
+        nuevoEstado === 'Recogido'
+          ? t('tec.avisoRecogido')
+          : nuevoEstado === 'En camino'
+            ? 'El cliente fue notificado de tu llegada inminente'
+            : 'Entrega marcada como entregada. El cliente ya puede calificar sus productos'
       );
       await fetchCitas();
     } catch (err: any) {
@@ -267,6 +273,66 @@ const TechnicianDashboard = () => {
       setUpdatingEntrega(null);
     }
   };
+
+  const evidenciaRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [subiendoEvidenciaId, setSubiendoEvidenciaId] = useState<number | null>(null);
+
+  const subirEvidenciasEntrega = async (pedidoId: number, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setSubiendoEvidenciaId(pedidoId);
+    try {
+      const fd = new FormData();
+      Array.from(files).forEach((f) => fd.append('files', f));
+      await api.post(`/tecnicos/entregas/${pedidoId}/evidencias`, fd);
+      // Con la evidencia subida se marca Entregado automáticamente.
+      await api.put(`/tecnicos/entregas/${pedidoId}/estado`, { estado: 'Entregado' });
+      notificar('Pedido entregado con evidencias guardadas');
+      await fetchCitas();
+    } catch (err: any) {
+      notificar(err.response?.data?.detail || 'No se pudieron guardar las evidencias', 'error');
+    } finally {
+      setSubiendoEvidenciaId(null);
+    }
+  };
+
+  const detenerUbicacion = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }    setCompartiendoUbicacion(false);
+  };
+
+  const compartirUbicacion = () => {
+    if (!('geolocation' in navigator)) {
+      notificar(t('tec.ubicacionNoSoportada'), 'error');
+      return;
+    }
+    if (compartiendoUbicacion) {
+      detenerUbicacion();
+      return;
+    }
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        try {
+          await api.post('/tecnicos/ubicacion', {
+            latitud: pos.coords.latitude,
+            longitud: pos.coords.longitude,
+          });
+          setCompartiendoUbicacion(true);
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      (err) => {
+        console.error(err);
+        detenerUbicacion();
+        notificar(t('tec.ubicacionPermisoDenegado'), 'error');
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+    );
+  };
+
+  useEffect(() => () => detenerUbicacion(), []);
 
   const hoy = fechaLocal();
   const q = busqueda.trim().toLowerCase();
@@ -296,18 +362,29 @@ const TechnicianDashboard = () => {
     ];
     return campos.some((v) => v.toLowerCase().includes(q));
   };
-  const citasHoy = citas.filter((c) => c.fecha === hoy);
+  const citasHoy = citas.filter((c) => c.fecha === hoy && c.estado !== 'Cancelada');
   const citasHoyVisibles = citasHoy.filter(coincideCita);
   const citasProximas = citas.filter(
     (c) => c.fecha > hoy && ESTADOS_PROGRAMADA.includes(c.estado) && coincideCita(c)
   );
+  // Citas activas con fecha pasada: siguen pendientes de cerrar y deben ser visibles.
+  const citasAtrasadas = citas
+    .filter((c) => c.fecha < hoy && ESTADOS_PROGRAMADA.includes(c.estado))
+    .filter(coincideCita)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
   const citasProgramadas = citas.filter((c) => ESTADOS_PROGRAMADA.includes(c.estado));
   const citasCompletadas = citas.filter((c) => c.estado === 'Finalizada');
   const historial = citas
     .filter((c) => c.estado === 'Finalizada' || c.estado === 'Cancelada')
     .filter(coincideCita)
     .slice(0, 5);
-  const entregasVisibles = entregas.filter(coincideEntrega);
+  const entregasVisibles = entregas
+    .filter(
+      (e) =>
+        // Las entregas ya despachadas (Entregado con evidencia) pasan al historial.
+        !(e.estado_entrega === 'Entregado' && (e.evidencias_entrega || []).length > 0),
+    )
+    .filter(coincideEntrega);
 
   const fechaHoyTexto = new Date().toLocaleDateString(idioma === 'en' ? 'en-US' : 'es-ES', {
     weekday: 'long',
@@ -515,6 +592,18 @@ const TechnicianDashboard = () => {
         </div>
       )}
 
+      {!loading && citasAtrasadas.length > 0 && (
+        <div className="ap-card" style={{ marginTop: 20, borderLeft: '4px solid #e0a54b' }}>
+          <div className="ap-card-head">
+            <h2><FaCircleExclamation /> {t('tec.citasAtrasadas')}</h2>
+            <p>{t('tec.citasAtrasadasHint')}</p>
+          </div>
+          <div className="ap-carrusel">
+            {citasAtrasadas.map(renderCitaRow)}
+          </div>
+        </div>
+      )}
+
       <div className="ap-card" style={{ marginTop: 20 }}>
         <div className="ap-card-head">
           <h2><FaClockRotateLeft /> {t('tec.historialReciente')}</h2>
@@ -545,7 +634,7 @@ const TechnicianDashboard = () => {
                     </span>
                   </h3>
                   <p><FaCalendarDays style={{ marginRight: 6 }} />
-                    {e.fecha_entrega ? new Date(e.fecha_entrega).toLocaleDateString(idioma === 'en' ? 'en-US' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : ''} · {e.hora_entrega || ''}
+                    {e.fecha_entrega ? new Date(e.fecha_entrega).toLocaleDateString(idioma === 'en' ? 'en-US' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : ''} · {e.hora_entrega_fin ? `Entre ${e.hora_entrega || '10:00'} y ${e.hora_entrega_fin}` : (e.hora_entrega || '')}
                   </p>
                   <p><FaLocationDot style={{ marginRight: 6 }} />{e.direccion || t('tec.noRegistrado')}</p>
                   <p><FaPhone style={{ marginRight: 6 }} />{e.telefono ?? t('tec.noRegistrado')}</p>
@@ -562,12 +651,30 @@ const TechnicianDashboard = () => {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                <span className={`ap-badge ${e.estado_entrega === 'Entregado' ? 'ok' : e.estado_entrega === 'En camino' ? 'info' : 'pendiente'}`}>
+                <span className={`ap-badge ${
+                  e.estado_entrega === 'Entregado'
+                    ? 'ok'
+                    : e.estado_entrega === 'En camino'
+                      ? 'info'
+                      : e.estado_entrega === 'Recogido'
+                        ? 'proceso'
+                        : 'pendiente'
+                }`}>
                   {e.estado_entrega || 'Asignada'}
                 </span>
                 {e.estado_entrega !== 'Entregado' && (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    {e.estado_entrega !== 'En camino' && (
+                    {e.estado_entrega !== 'Recogido' && e.estado_entrega !== 'En camino' && (
+                      <button
+                        type="button"
+                        className="ap-btn ap-btn-primary"
+                        disabled={updatingEntrega === e.id_pedido}
+                        onClick={() => actualizarEntrega(e.id_pedido, 'Recogido')}
+                      >
+                        {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.yaRecogido')}
+                      </button>
+                    )}
+                    {e.estado_entrega === 'Recogido' && (
                       <button
                         type="button"
                         className="ap-btn ap-btn-primary"
@@ -577,17 +684,71 @@ const TechnicianDashboard = () => {
                         {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.enCamino')}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ok"
-                      disabled={updatingEntrega === e.id_pedido}
-                      onClick={() => actualizarEntrega(e.id_pedido, 'Entregado')}
-                    >
-                      <FaCircleCheck />
-                      {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.entregado')}
-                    </button>
+                    {e.estado_entrega === 'En camino' && (
+                      <button
+                        type="button"
+                        className="ap-btn ap-btn-ok"
+                        disabled={updatingEntrega === e.id_pedido}
+                        onClick={() => evidenciaRefs.current[e.id_pedido]?.click()}
+                        title="Al elegir las fotos el pedido se marca como Entregado"
+                      >
+                        <FaCircleCheck />
+                        {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.entregado')}
+                      </button>
+                    )}
                   </div>
                 )}
+                {e.estado_entrega === 'En camino' && (
+                  <button
+                    type="button"
+                    className={`ap-btn ${compartiendoUbicacion ? 'ap-btn-ghost' : 'ap-btn-primary'}`}
+                    onClick={compartirUbicacion}
+                    title={t('tec.compartirUbicacionTitle')}
+                  >
+                    <FaLocationDot />
+                    {compartiendoUbicacion ? t('tec.detenerUbicacion') : t('tec.compartirUbicacion')}
+                  </button>
+                )}
+                {e.estado_entrega === 'Entregado' &&
+                  (e.evidencias_entrega || []).length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(e.evidencias_entrega || []).slice(0, 3).map((url) => (
+                        <a key={url} href={`${API_HOST}${url}`} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={`${API_HOST}${url}`}
+                            alt="Evidencia"
+                            style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }}
+                          />
+                        </a>
+                      ))}
+                      {(e.evidencias_entrega || []).length > 3 && (
+                        <span className="muted">+{(e.evidencias_entrega || []).length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                {e.estado_entrega === 'Entregado' && (
+                  <button
+                    type="button"
+                    className="ap-btn ap-btn-ghost"
+                    disabled={subiendoEvidenciaId === e.id_pedido}
+                    onClick={() => evidenciaRefs.current[e.id_pedido]?.click()}
+                  >
+                    <FaCamera /> Agregar más fotos
+                  </button>
+                )}
+                {/* Input oculto compartido: lo abre el botón Entregado */}
+                <input
+                  ref={(el) => { evidenciaRefs.current[e.id_pedido] = el; }}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(ev) => {
+                    subirEvidenciasEntrega(e.id_pedido, ev.target.files);
+                    ev.target.value = '';
+                  }}
+                />
               </div>
             </div>
           ))

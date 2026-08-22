@@ -1,8 +1,12 @@
 /* ===== Sidebar Administrador · Neodomus ===== */
 
 .admin-sidebar {
+  position: sticky;
+  top: var(--ap-navbar-h, 72px);
+  align-self: flex-start;
   width: 268px;
   min-width: 268px;
+  height: calc(100vh - var(--ap-navbar-h, 72px));
   background: rgba(10, 10, 10, 0.72);
   backdrop-filter: blur(8px);
   border-right: 1px solid rgba(255, 255, 255, 0.08);

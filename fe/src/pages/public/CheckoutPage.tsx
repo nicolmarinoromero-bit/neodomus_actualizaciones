@@ -51,8 +51,8 @@ interface LineaServicio {
   hora?: string;
   id_tecnico?: number | null;
   id_tecnico_2?: number | null;
+  id_tecnico_3?: number | null;
   modo_tecnico?: 'auto' | 'lista';
-  modo_tecnico_2?: 'auto' | 'lista';
 }
 
 interface TecnicoCheckout {
@@ -76,6 +76,22 @@ interface OrdenInstalacion {
   hora?: string;
   direccion?: string;
   estado?: string;
+}
+
+interface TecnicoSugerido {
+  id_tecnico: number;
+  nombre: string;
+  cubiertas: number;
+  total_requeridas: number;
+  cubre_todo: boolean;
+}
+
+interface Recomendacion {
+  tiempo_total_horas: number;
+  horas_por_tecnico?: number;
+  tecnicos_necesarios: number;
+  especializaciones_requeridas: { id_especializacion: number; nombre: string }[];
+  tecnicos_sugeridos: TecnicoSugerido[];
 }
 
 interface ResultadoCheckout {
@@ -109,6 +125,9 @@ const CheckoutPage = () => {
     punto_pago: '',
     cuotas: 1,
   });
+  // Credenciales del último intento rechazado (para reintentar sin reescribir
+  // todo). El CVV nunca se guarda: debe ingresarse de nuevo en cada intento.
+  const PAGO_REINTENTO_KEY = 'checkout_pago_reintento';
   const [bancos, setBancos] = useState<string[]>([]);
   const [metodosDisponibles, setMetodosDisponibles] = useState<Metodo[] | null>(null);
   const [servicios, setServicios] = useState<LineaServicio[]>([]);
@@ -118,13 +137,19 @@ const CheckoutPage = () => {
   const [descargando, setDescargando] = useState(false);
   const [direccionCliente, setDireccionCliente] = useState('');
   const [tecnicosMap, setTecnicosMap] = useState<Record<number, TecnicoCheckout[]>>({});
+  const [recomendacion, setRecomendacion] = useState<Recomendacion | null>(null);
   const hoyISO = new Date().toISOString().split('T')[0];
   const ahoraLocal = new Date();
   const horaActual = `${String(ahoraLocal.getHours()).padStart(2, '0')}:${String(ahoraLocal.getMinutes()).padStart(2, '0')}`;
+  // Los servicios técnicos se agendan con mínimo 3 días de anticipación.
+  const fechaMinimaServicio = new Date();
+  fechaMinimaServicio.setDate(fechaMinimaServicio.getDate() + 3);
+  const fechaMinimaServicioISO = `${fechaMinimaServicio.getFullYear()}-${String(fechaMinimaServicio.getMonth() + 1).padStart(2, '0')}-${String(fechaMinimaServicio.getDate()).padStart(2, '0')}`;
 
   const totalServicios = servicios.reduce((acc, s) => acc + s.precio, 0);
   const total = totalPrice + totalServicios;
   const maxTecnicos = Math.max(1, ...items.map((i) => Number(i.tecnicos_requeridos) || 1));
+  const tecnicosNecesarios = recomendacion?.tecnicos_necesarios ?? maxTecnicos;
 
   useEffect(() => {
     api.get('/pedidos/metodos-pago').then((res) => {
@@ -159,6 +184,36 @@ const CheckoutPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmaServicios, servicios.length]);
 
+  const firmaItems = items
+    .map((i) => `${i.id_producto}-${i.venta_por_metros ? i.metros : i.cantidad}`)
+    .join('|');
+  const servicioInstalacion = servicios.find((s) => s.tipo === 'Instalación');
+  useEffect(() => {
+    if (items.length === 0) {
+      setRecomendacion(null);
+      return;
+    }
+    let cancelado = false;
+    api
+      .post<Recomendacion>('/pedidos/recomendacion-tecnicos', {
+        items: items.map((i) => ({
+          id_producto: i.id_producto,
+          cantidad: i.venta_por_metros ? 1 : i.cantidad,
+          metros: i.venta_por_metros ? i.metros : undefined,
+        })),
+        fecha: servicioInstalacion?.fecha || undefined,
+        hora: servicioInstalacion?.hora || undefined,
+      })
+      .then((res) => {
+        if (!cancelado) setRecomendacion(res.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmaItems, servicioInstalacion?.fecha, servicioInstalacion?.hora]);
+
   const agregarServicio = () => {
     const primero = TIPOS_SERVICIO[0];
     setServicios((prev) => [
@@ -172,8 +227,8 @@ const CheckoutPage = () => {
         hora: '08:00',
         id_tecnico: null,
         id_tecnico_2: null,
+        id_tecnico_3: null,
         modo_tecnico: 'auto',
-        modo_tecnico_2: 'auto',
       },
     ]);
   };
@@ -182,7 +237,7 @@ const CheckoutPage = () => {
     const info = TIPOS_SERVICIO.find((t) => t.tipo === tipo) || TIPOS_SERVICIO[0];
     setServicios((prev) =>
       prev.map((s) =>
-        s.id === id ? { ...s, tipo, nombre: tipo, precio: info.precio, fecha: '', hora: '08:00', id_tecnico: null, id_tecnico_2: null, modo_tecnico: 'auto', modo_tecnico_2: 'auto' } : s
+        s.id === id ? { ...s, tipo, nombre: tipo, precio: info.precio, fecha: '', hora: '08:00', id_tecnico: null, id_tecnico_2: null, id_tecnico_3: null, modo_tecnico: 'auto' } : s
       )
     );
   };
@@ -254,18 +309,23 @@ const CheckoutPage = () => {
         setError('Selecciona la fecha en que deseas el servicio técnico.');
         return;
       }
+      if (s.fecha < fechaMinimaServicioISO) {
+        setError('Los servicios se agendan con al menos 3 días de anticipación. Elige una fecha posterior.');
+        return;
+      }
       const fechaHora = new Date(`${s.fecha}T${s.hora || '08:00'}:00`);
       if (isNaN(fechaHora.getTime()) || fechaHora.getTime() <= Date.now()) {
         setError('La fecha y hora del servicio debe ser posterior al momento actual.');
         return;
       }
-      if (s.modo_tecnico === 'lista' && !s.id_tecnico) {
-        setError('Selecciona un técnico de la lista o elige asignación automática.');
-        return;
-      }
-      if (s.modo_tecnico_2 === 'lista' && !s.id_tecnico_2) {
-        setError('Selecciona el segundo técnico de la lista o elige asignación automática.');
-        return;
+      const camposTecnicos: (keyof LineaServicio)[] = ['id_tecnico', 'id_tecnico_2', 'id_tecnico_3'];
+      if (s.modo_tecnico === 'lista') {
+        for (let i = 0; i < tecnicosNecesarios && i < 3; i++) {
+          if (!s[camposTecnicos[i]]) {
+            setError(`Selecciona el técnico ${i + 1} de la lista o elige asignación automática.`);
+            return;
+          }
+        }
       }
     }
 
@@ -277,6 +337,8 @@ const CheckoutPage = () => {
           cantidad: i.venta_por_metros ? 1 : i.cantidad,
           metros: i.venta_por_metros ? i.metros : undefined,
           color: i.color,
+          tamaño: i.tamaño,
+          id_variante: i.id_variante ?? undefined,
         })),
         servicios: servicios.map((s) => ({
           nombre: s.nombre,
@@ -285,7 +347,14 @@ const CheckoutPage = () => {
           fecha: s.fecha || undefined,
           hora: s.hora || '08:00',
           id_tecnico: s.modo_tecnico === 'lista' ? s.id_tecnico ?? undefined : undefined,
-          id_tecnico_2: s.modo_tecnico_2 === 'lista' ? s.id_tecnico_2 ?? undefined : undefined,
+          id_tecnico_2:
+            s.modo_tecnico === 'lista' && (s.tipo !== 'Instalación' || tecnicosNecesarios >= 2)
+              ? s.id_tecnico_2 ?? undefined
+              : undefined,
+          id_tecnico_3:
+            s.modo_tecnico === 'lista' && s.tipo === 'Instalación' && tecnicosNecesarios >= 3
+              ? s.id_tecnico_3 ?? undefined
+              : undefined,
         })),
         pago: payloadPago,
       });
@@ -317,11 +386,21 @@ const CheckoutPage = () => {
             'Tu pago quedó pendiente. Realiza el pago en el punto físico con el código generado y luego confírmalo aquí.',
         });
       } else {
+        // Pago rechazado: guardar credenciales del intento para el reintento.
+        const { cvv: _cvv, resultado_simulacion: _sim, ...credenciales } = pago;
+        try {
+          sessionStorage.setItem(
+            PAGO_REINTENTO_KEY,
+            JSON.stringify({ metodo, ...credenciales, cuotas: pago.cuotas }),
+          );
+        } catch {
+          /* almacenamiento no disponible */
+        }
         setResultado({
           tipo: 'rechazado',
           pedido: data.pedido,
           pago: data.pago,
-          mensaje: 'El pago fue rechazado por el sistema. Tu carrito se conserva: revisa los datos e inténtalo de nuevo.',
+          mensaje: 'El pago fue rechazado por el sistema. Tus datos de pago quedaron guardados para el reintento.',
         });
       }
     } catch (err: any) {
@@ -373,7 +452,65 @@ const CheckoutPage = () => {
     setError('');
     setServicios([]);
     setPago({ numero: '', titular: '', expiracion: '', cvv: '', banco: '', correo_paypal: '', resultado_simulacion: '', punto_pago: '', cuotas: 1 });
+    try {
+      sessionStorage.removeItem(PAGO_REINTENTO_KEY);
+    } catch {
+      /* noop */
+    }
   };
+
+  // Volver a intentar tras un rechazo: restaura método y credenciales
+  // guardadas del último intento (el CVV se pide de nuevo por seguridad).
+  const reintentarPago = () => {
+    try {
+      const guardado = sessionStorage.getItem(PAGO_REINTENTO_KEY);
+      if (guardado) {
+        const datos = JSON.parse(guardado);
+        if (datos.metodo) setMetodo(datos.metodo as Metodo);
+        setPago((prev) => ({
+          ...prev,
+          numero: datos.numero || '',
+          titular: datos.titular || '',
+          expiracion: datos.expiracion || '',
+          cvv: '',
+          banco: datos.banco || '',
+          correo_paypal: datos.correo_paypal || '',
+          punto_pago: datos.punto_pago || '',
+          cuotas: datos.cuotas ?? 1,
+          resultado_simulacion: '',
+        }));
+      }
+    } catch {
+      /* datos corruptos: se ignora */
+    }
+    sessionStorage.removeItem(PAGO_REINTENTO_KEY);
+    setResultado(null);
+    setError('');
+  };
+
+  // Si el usuario vuelve a /checkout después de un rechazo, precarga las
+  // credenciales guardadas.
+  useEffect(() => {
+    try {
+      const guardado = sessionStorage.getItem(PAGO_REINTENTO_KEY);
+      if (!guardado) return;
+      const datos = JSON.parse(guardado);
+      if (datos.metodo) setMetodo(datos.metodo as Metodo);
+      setPago((prev) => ({
+        ...prev,
+        numero: datos.numero || '',
+        titular: datos.titular || '',
+        expiracion: datos.expiracion || '',
+        banco: datos.banco || '',
+        correo_paypal: datos.correo_paypal || '',
+        punto_pago: datos.punto_pago || '',
+        cuotas: datos.cuotas ?? prev.cuotas,
+      }));
+    } catch {
+      /* noop */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pantalla de éxito (modal)
   if (resultado?.tipo === 'aprobado') {
@@ -465,13 +602,6 @@ const CheckoutPage = () => {
               <button type="button" className="checkout-pdf-btn" onClick={() => navigate('/productos')}>
                 Seguir comprando
               </button>
-              <button
-                type="button"
-                className="checkout-volver-btn"
-                onClick={() => navigate('/carrito')}
-              >
-                Volver al carrito
-              </button>
               {resultado.pdf_url && (
                 <button
                   type="button"
@@ -548,8 +678,8 @@ const CheckoutPage = () => {
             Tu carrito se mantuvo intacto: los productos siguen disponibles en el checkout.
           </p>
           <div className="checkout-success-acciones">
-            <button type="button" className="checkout-pdf-btn" onClick={reiniciar}>
-              <FaArrowLeft /> Intentar de nuevo
+            <button type="button" className="checkout-pdf-btn" onClick={reintentarPago}>
+              <FaArrowLeft /> Reintentar con los mismos datos
             </button>
             <button type="button" className="checkout-volver-btn" onClick={() => navigate('/carrito')}>
               Ver mi carrito
@@ -633,15 +763,27 @@ const CheckoutPage = () => {
                       </div>
                       <div className="checkout-servicio-detalles">
                           {s.tipo === 'Instalación' && (
-                            <span className="checkout-tecnicos-aviso">
-                              <FaUsers /> Según los productos de tu compra, esta instalación requerirá{' '}
-                              {maxTecnicos === 1 ? '1 técnico' : `${maxTecnicos} técnicos`}.
-                            </span>
+                            <>
+                              <span className="checkout-tecnicos-aviso">
+                                <FaUsers /> Según los productos de tu compra, esta instalación requerirá{' '}
+                                {tecnicosNecesarios === 1 ? '1 técnico' : `${tecnicosNecesarios} técnicos`}
+                                {recomendacion && recomendacion.horas_por_tecnico
+                                  ? ` (~${recomendacion.horas_por_tecnico} h por técnico)`
+                                  : ''}
+                                .
+                              </span>
+                              {recomendacion && recomendacion.especializaciones_requeridas.length > 0 && (
+                                <span className="checkout-tecnicos-aviso">
+                                  Especializaciones requeridas:{' '}
+                                  {recomendacion.especializaciones_requeridas.map((e) => e.nombre).join(', ')}.
+                                </span>
+                              )}
+                            </>
                           )}
                           <input
                             type="date"
                             value={s.fecha || ''}
-                            min={hoyISO}
+                            min={fechaMinimaServicioISO}
                             onChange={(e) => actualizarServicio(s.id, 'fecha', e.target.value)}
                           />
                           <input
@@ -651,66 +793,85 @@ const CheckoutPage = () => {
                             step={3600}
                             onChange={(e) => actualizarServicio(s.id, 'hora', e.target.value)}
                           />
-                          <select
-                            className="checkout-tecnico-modo"
-                            value={s.modo_tecnico || 'auto'}
-                            onChange={(e) => actualizarServicio(s.id, 'modo_tecnico', e.target.value)}
-                          >
-                            <option value="auto">Técnico 1: asignación automática</option>
-                            <option value="lista">Técnico 1: elegir de la lista</option>
-                          </select>
-                          {s.modo_tecnico === 'lista' && (
-                            <select
-                              className="checkout-tecnico-select"
-                              value={s.id_tecnico ?? ''}
-                              onChange={(e) => actualizarServicio(s.id, 'id_tecnico', e.target.value)}
-                            >
-                              <option value="">Selecciona un técnico</option>
-                              {(tecnicosMap[s.id] || []).map((t) => (
-                                <option
-                                  key={t.id_tecnico}
-                                  value={t.id_tecnico}
-                                  disabled={t.disponible === false || Number(s.id_tecnico_2) === t.id_tecnico}
-                                >
-                                  {t.first_name || ''} {t.last_name || ''}
-                                  {t.calificacion ? ` (★ ${Number(t.calificacion).toFixed(1)})` : ''}
-                                  {t.disponible === false ? ' — ocupado ese día' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          {s.tipo === 'Instalación' && maxTecnicos >= 2 && (
-                            <>
-                              <select
-                                className="checkout-tecnico-modo"
-                                value={s.modo_tecnico_2 || 'auto'}
-                                onChange={(e) => actualizarServicio(s.id, 'modo_tecnico_2', e.target.value)}
-                              >
-                                <option value="auto">Técnico 2: asignación automática</option>
-                                <option value="lista">Técnico 2: elegir de la lista</option>
-                              </select>
-                              {s.modo_tecnico_2 === 'lista' && (
+                          {(() => {
+                            const esInstalacion = s.tipo === 'Instalación';
+                            const totalTecnicos = esInstalacion ? Math.max(1, Math.min(tecnicosNecesarios, 3)) : 1;
+                            const campos = ['id_tecnico', 'id_tecnico_2', 'id_tecnico_3'] as const;
+                            const elegidos: (number | null | undefined)[] = campos.map((c) => s[c]);
+                            // Solo técnicos relacionados con los productos del carrito
+                            // (comparten al menos una especialización requerida).
+                            const relacionados = new Set(
+                              (esInstalacion && recomendacion?.especializaciones_requeridas.length
+                                ? recomendacion.tecnicos_sugeridos.filter((ts) => ts.cubiertas > 0)
+                                : []
+                              ).map((ts) => ts.id_tecnico),
+                            );
+                            const opciones = (tecnicosMap[s.id] || []).filter(
+                              (t) =>
+                                !relacionados.size ||
+                                relacionados.has(t.id_tecnico) ||
+                                elegidos.includes(t.id_tecnico),
+                            );
+                            return (
+                              <>
                                 <select
-                                  className="checkout-tecnico-select"
-                                  value={s.id_tecnico_2 ?? ''}
-                                  onChange={(e) => actualizarServicio(s.id, 'id_tecnico_2', e.target.value)}
+                                  className="checkout-tecnico-modo"
+                                  value={s.modo_tecnico || 'auto'}
+                                  onChange={(e) => actualizarServicio(s.id, 'modo_tecnico', e.target.value)}
                                 >
-                                  <option value="">Selecciona un técnico</option>
-                                  {(tecnicosMap[s.id] || []).map((t) => (
-                                    <option
-                                      key={t.id_tecnico}
-                                      value={t.id_tecnico}
-                                      disabled={t.disponible === false || Number(s.id_tecnico) === t.id_tecnico}
-                                    >
-                                      {t.first_name || ''} {t.last_name || ''}
-                                      {t.calificacion ? ` (★ ${Number(t.calificacion).toFixed(1)})` : ''}
-                                      {t.disponible === false ? ' — ocupado ese día' : ''}
-                                    </option>
-                                  ))}
+                                  {esInstalacion && totalTecnicos > 1 ? (
+                                    <>
+                                      <option value="auto">Asignación automática de los {totalTecnicos} técnicos</option>
+                                      <option value="lista">Elegir mis {totalTecnicos} técnicos</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="auto">Técnico: asignación automática</option>
+                                      <option value="lista">Técnico: elegir de la lista</option>
+                                    </>
+                                  )}
                                 </select>
-                              )}
-                            </>
-                          )}
+                                {s.modo_tecnico === 'lista' &&
+                                  Array.from({ length: totalTecnicos }).map((_, i) => {
+                                    const campo = campos[i];
+                                    return (
+                                      <select
+                                        key={campo}
+                                        className="checkout-tecnico-select"
+                                        value={(s[campo] as number | null | undefined) ?? ''}
+                                        onChange={(e) =>
+                                          actualizarServicio(s.id, campo, e.target.value)
+                                        }
+                                      >
+                                        <option value="">Técnico {i + 1}: selecciona uno</option>
+                                        {opciones.map((t) => {
+                                          const tomadoPorOtro = elegidos.some(
+                                            (v, j) => j !== i && Number(v) === t.id_tecnico,
+                                          );
+                                          return (
+                                            <option
+                                              key={t.id_tecnico}
+                                              value={t.id_tecnico}
+                                              disabled={t.disponible === false || tomadoPorOtro}
+                                            >
+                                              {t.first_name || ''} {t.last_name || ''}
+                                              {t.calificacion ? ` (★ ${Number(t.calificacion).toFixed(1)})` : ''}
+                                              {t.disponible === false ? ' — ocupado ese día' : ''}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    );
+                                  })}
+                                {!(s.modo_tecnico === 'lista') && esInstalacion && totalTecnicos > 1 && (
+                                  <span className="checkout-tecnicos-aviso">
+                                    <FaUsers /> Se asignarán automáticamente los {totalTecnicos} técnicos
+                                    según disponibilidad en tu franja.
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                           {direccionCliente ? (
                             <span className="checkout-servicio-direccion">
                               <FaLocationDot /> {direccionCliente}

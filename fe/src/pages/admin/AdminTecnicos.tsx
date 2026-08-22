@@ -13,11 +13,15 @@ import {
   FaCircleCheck,
   FaIdCard,
   FaXmark,
+  FaCalendarCheck,
+  FaBoxOpen,
+  FaStar,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
-import type { TecnicoAdmin } from '../../types';
+import { notificarCambiosTecnicos } from '@utils/tecnicosSync';
+import type { Especializacion, TecnicoAdmin } from '../../types';
 
 interface FormTecnico {
   first_name: string;
@@ -26,9 +30,8 @@ interface FormTecnico {
   password: string;
   telefono: string;
   documento: string;
-  certificacion: string;
-  cargo: string;
   is_active: boolean;
+  especializaciones_ids: number[];
 }
 
 const VACIO: FormTecnico = {
@@ -38,25 +41,8 @@ const VACIO: FormTecnico = {
   password: '',
   telefono: '',
   documento: '',
-  certificacion: '',
-  cargo: 'Junior',
   is_active: true,
-};
-
-const CARGOS = ['Junior', 'Semi Senior', 'Senior'];
-
-const SERVICIOS_LABEL: Record<string, string> = {
-  instalacion: 'adm.tecnicos.servInstalacion',
-  mantenimiento: 'adm.tecnicos.servMantenimiento',
-  reparacion: 'adm.tecnicos.servReparacion',
-  revision: 'adm.tecnicos.servRevision',
-  soporte: 'adm.tecnicos.servSoporte',
-};
-
-const CARGOS_LABEL: Record<string, string> = {
-  Junior: 'adm.tecnicos.cargoJunior',
-  'Semi Senior': 'adm.tecnicos.cargoSemiSenior',
-  Senior: 'adm.tecnicos.cargoSenior',
+  especializaciones_ids: [],
 };
 
 const AdminTecnicos = () => {
@@ -76,6 +62,16 @@ const AdminTecnicos = () => {
   const [hastaFecha, setHastaFecha] = useState('');
   const [motivoDesactivar, setMotivoDesactivar] = useState('');
   const [guardandoDesactivar, setGuardandoDesactivar] = useState(false);
+  const [catalogo, setCatalogo] = useState<Especializacion[]>([]);
+
+  const cargarCatalogo = async () => {
+    try {
+      const res = await api.get<Especializacion[]>('/especializaciones', { params: { todas: true } });
+      setCatalogo(res.data || []);
+    } catch {
+      setCatalogo([]);
+    }
+  };
 
   const cargar = async () => {
     setCargando(true);
@@ -92,6 +88,7 @@ const AdminTecnicos = () => {
 
   useEffect(() => {
     cargar();
+    cargarCatalogo();
   }, []);
 
   useEffect(() => {
@@ -136,11 +133,19 @@ const AdminTecnicos = () => {
       password: '',
       telefono: t.telefono_usuario?.toString() || '',
       documento: t.documento_usuario?.toString() || '',
-      certificacion: t.certificacion_t || '',
-      cargo: t.cargo_t || 'Junior',
       is_active: t.is_active,
+      especializaciones_ids: (t.especializaciones || []).map((e) => e.id_especializacion),
     });
     setModal('editar');
+  };
+
+  const toggleEspecializacion = (id: number) => {
+    setForm((f) => ({
+      ...f,
+      especializaciones_ids: f.especializaciones_ids.includes(id)
+        ? f.especializaciones_ids.filter((x) => x !== id)
+        : [...f.especializaciones_ids, id],
+    }));
   };
 
   const guardar = async (e: React.FormEvent) => {
@@ -166,10 +171,10 @@ const AdminTecnicos = () => {
         };
         if (form.telefono.trim()) payload.telefono_usuario = parseInt(form.telefono.replace(/\D/g, ''), 10);
         if (form.documento.trim()) payload.documento_usuario = parseInt(form.documento.replace(/\D/g, ''), 10);
-        if (form.certificacion.trim()) payload.certificacion = form.certificacion.trim();
-        if (form.cargo.trim()) payload.cargo = form.cargo.trim();
+        payload.especializaciones_ids = form.especializaciones_ids;
         await api.post('/users', payload);
         notify(t('adm.tecnicos.registradoOk', { email: form.email }));
+        notificarCambiosTecnicos();
       } else if (editando) {
         if (cambiarPass && form.password.length < 6) {
           notify(t('adm.tecnicos.passCorta'), 'err');
@@ -180,14 +185,14 @@ const AdminTecnicos = () => {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           email: form.email.trim(),
-          certificacion: form.certificacion.trim() || null,
-          cargo: form.cargo.trim() || null,
+          especializaciones_ids: form.especializaciones_ids,
         };
         if (cambiarPass) payload.password = form.password;
         if (form.telefono.trim()) payload.telefono_usuario = parseInt(form.telefono.replace(/\D/g, ''), 10);
         if (form.documento.trim()) payload.documento_usuario = parseInt(form.documento.replace(/\D/g, ''), 10);
         await api.put(`/users/${editando.id_usuario}`, payload);
         notify(t('adm.tecnicos.actualizadoOk'));
+        notificarCambiosTecnicos();
       }
       cerrarModal();
       await cargar();
@@ -231,6 +236,7 @@ const AdminTecnicos = () => {
         'err',
       );
       setDesactivando(null);
+      notificarCambiosTecnicos();
       await cargar();
     } catch (err: any) {
       const msg = err.response?.data?.detail;
@@ -244,6 +250,7 @@ const AdminTecnicos = () => {
     try {
       await api.put(`/users/${tecnico.id_usuario}`, { is_active: true });
       notify(t('adm.tecnicos.habilitadoOk', { nombre: nombreMayus(tecnico) }));
+      notificarCambiosTecnicos();
       await cargar();
     } catch (err: any) {
       const msg = err.response?.data?.detail;
@@ -370,29 +377,45 @@ const AdminTecnicos = () => {
                   </span>
                 )}
               </div>
+              <div className="ap-tec-estrellas" title={tecnico.total_calificaciones ? `${tecnico.calificacion} / 5` : undefined}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <FaStar
+                    key={s}
+                    className={(tecnico.calificacion ?? 0) >= s - 0.25 ? 'on' : ''}
+                  />
+                ))}
+                <span className="ap-tec-estrellas-num">
+                  {tecnico.calificacion != null ? tecnico.calificacion.toFixed(1) : '—'}
+                </span>
+                {tecnico.total_calificaciones ? (
+                  <span className="ap-tec-estrellas-count">({tecnico.total_calificaciones})</span>
+                ) : null}
+              </div>
               <div className="ap-def-list" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.tecnicos.especialidad')}</div>
-                  <div className="ap-def-value">{tecnico.certificacion_t || '—'}</div>
-                </div>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.tecnicos.nivel')}</div>
-                  <div className="ap-def-value ap-tec-nivel">{tecnico.cargo_t || '—'}</div>
-                </div>
                 <div className="ap-def">
                   <div className="ap-def-label">{t('adm.tecnicos.telefono')}</div>
                   <div className="ap-def-value">{tecnico.telefono_usuario ? `+${tecnico.telefono_usuario}` : '—'}</div>
                 </div>
+                <div className="ap-def">
+                  <div className="ap-def-label">{t('adm.tecnicos.citasPendientes')}</div>
+                  <div className="ap-def-value ap-tec-nivel">
+                    <FaCalendarCheck style={{ marginRight: 4, verticalAlign: '-2px' }} />
+                    {tecnico.citas_pendientes ?? 0}
+                    {' · '}
+                    <FaBoxOpen style={{ margin: '0 4px 0 6px', verticalAlign: '-2px' }} />
+                    {tecnico.entregas_pendientes ?? 0}
+                  </div>
+                </div>
               </div>
               <div className="ap-tec-servicios">
-                <span className="ap-def-label">{t('adm.tecnicos.serviciosRealiza')}</span>
+                <span className="ap-def-label">{t('adm.tecnicos.especializaciones')}</span>
                 <div className="ap-tec-servicios-badges">
-                  {(tecnico.servicios || []).map((s) => (
-                    <span key={s} className="ap-badge ok">
-                      {SERVICIOS_LABEL[s] ? t(SERVICIOS_LABEL[s]) : s}
+                  {(tecnico.especializaciones || []).map((e) => (
+                    <span key={e.id_especializacion} className="ap-badge ok">
+                      {e.nombre}
                     </span>
                   ))}
-                  {(!tecnico.servicios || tecnico.servicios.length === 0) && (
+                  {(!tecnico.especializaciones || tecnico.especializaciones.length === 0) && (
                     <span className="ap-tec-servicios-vacio">{t('adm.tecnicos.sinEspecialidad')}</span>
                   )}
                 </div>
@@ -566,30 +589,44 @@ const AdminTecnicos = () => {
                   />
                 </div>
                 <div className="ap-form-group full">
-                  <label className="ap-form-label" htmlFor="tf-cer">{t('adm.tecnicos.especialidadCertificacion')}</label>
-                  <input
-                    id="tf-cer"
-                    className="ap-form-input"
-                    type="text"
-                    value={form.certificacion}
-                    onChange={(e) => setForm({ ...form, certificacion: e.target.value })}
-                    placeholder={t('adm.tecnicos.certificacionPlaceholder')}
-                  />
-                </div>
-                <div className="ap-form-group">
-                  <label className="ap-form-label" htmlFor="tf-cargo">{t('adm.tecnicos.nivelCargo')}</label>
-                  <select
-                    id="tf-cargo"
-                    className="ap-form-select"
-                    value={form.cargo}
-                    onChange={(e) => setForm({ ...form, cargo: e.target.value })}
-                  >
-                    {CARGOS.map((c) => (
-                      <option key={c} value={c}>
-                        {t(CARGOS_LABEL[c])}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="ap-form-label">
+                    {t('adm.tecnicos.especializaciones')}{' '}
+                    <span style={{ color: '#9a8f78', fontWeight: 400 }}>
+                      ({t('adm.tecnicos.especializacionesMultiple')})
+                    </span>
+                  </label>
+                  {catalogo.length === 0 ? (
+                    <span className="ap-form-hint">{t('adm.tecnicos.catalogoNoDisponible')}</span>
+                  ) : (
+                    <div
+                      className="ap-tec-servicios-badges"
+                      role="group"
+                      aria-label={t('adm.tecnicos.especializaciones')}
+                      style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
+                    >
+                      {catalogo.map((esp) => {
+                        const activa = form.especializaciones_ids.includes(esp.id_especializacion);
+                        return (
+                          <button
+                            key={esp.id_especializacion}
+                            type="button"
+                            className={`ap-badge ${activa ? 'ok' : 'pendiente'}`}
+                            style={{
+                              cursor: 'pointer',
+                              border: '1px solid',
+                              opacity: esp.activa ? 1 : 0.55,
+                              background: activa ? undefined : 'transparent',
+                            }}
+                            onClick={() => toggleEspecializacion(esp.id_especializacion)}
+                            title={esp.descripcion || esp.nombre}
+                          >
+                            {esp.nombre}
+                            {!esp.activa && ' (inactiva)'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

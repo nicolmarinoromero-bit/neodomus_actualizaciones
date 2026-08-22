@@ -11,6 +11,8 @@ interface NotifPlataforma {
   fecha_creacion?: string | null;
 }
 
+const TIPOS_PLATAFORMA: TipoNotificacion[] = ['entrega', 'cita', 'reembolso'];
+
 const formatoFecha = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -32,7 +34,7 @@ export const useTecnicoNotificaciones = () => {
       const res = await api.get<NotifPlataforma[]>('/notificaciones/mias');
       const items = (res.data || []).map((n) => ({
         id: String(n.id_notificacion),
-        tipo: (n.tipo === 'entrega' || n.tipo === 'cita' ? n.tipo : 'sistema') as TipoNotificacion,
+        tipo: ((TIPOS_PLATAFORMA as string[]).includes(n.tipo) ? n.tipo : 'sistema') as TipoNotificacion,
         titulo: n.titulo,
         mensaje: n.mensaje,
         fecha: formatoFecha(n.fecha_creacion),

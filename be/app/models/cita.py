@@ -19,6 +19,8 @@ class Cita(Base):
     nombre_tecnico: Mapped[str] = mapped_column(String(150), nullable=True)
     id_tecnico_2: Mapped[int] = mapped_column(Integer, nullable=True)
     nombre_tecnico_2: Mapped[str] = mapped_column(String(150), nullable=True)
+    id_tecnico_3: Mapped[int] = mapped_column(Integer, nullable=True)
+    nombre_tecnico_3: Mapped[str] = mapped_column(String(150), nullable=True)
     tipo_servicio: Mapped[str] = mapped_column(String(30), nullable=False)
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
     hora: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -33,12 +35,17 @@ class Cita(Base):
         ForeignKey("comisiones.id_comision"),
         nullable=True,
     )
+    id_especializacion: Mapped[int] = mapped_column(
+        ForeignKey("especializaciones.id_especializacion", ondelete="SET NULL"),
+        nullable=True,
+    )
     recordatorio_enviado: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("0")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     cliente = relationship("Cliente", foreign_keys=[id_cliente])
+    especializacion = relationship("Especializacion", foreign_keys=[id_especializacion])
     productos_asociados = relationship(
         "CitaProducto",
         back_populates="cita",

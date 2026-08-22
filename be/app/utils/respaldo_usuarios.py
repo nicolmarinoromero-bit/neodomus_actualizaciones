@@ -49,7 +49,7 @@ COLUMNAS_USUARIOS = (
     "created_at",
 )
 
-COLUMNAS_TECNICOS = ("id_tecnico", "id_usuario_t", "certificacion_t", "cargo_t")
+COLUMNAS_TECNICOS = ("id_tecnico", "id_usuario_t", "certificacion_t")
 
 
 def _candidatos_init_db() -> list[Path]:
@@ -115,7 +115,7 @@ def _build_block(db) -> str:
         lineas.append("")
     if tecnicos:
         lineas.append(
-            "INSERT IGNORE INTO tecnicos (id_tecnico, id_usuario_t, certificacion_t, cargo_t) VALUES"
+            "INSERT IGNORE INTO tecnicos (id_tecnico, id_usuario_t, certificacion_t) VALUES"
         )
         lineas.append(",\n".join(_tuple_sql(r) for r in tecnicos) + ";")
         lineas.append("")

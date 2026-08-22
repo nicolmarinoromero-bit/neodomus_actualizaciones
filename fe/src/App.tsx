@@ -25,6 +25,7 @@ import AdminProductoDetalle from '@pages/admin/AdminProductoDetalle';
 import AdminCatalogo from '@pages/admin/AdminCatalogo';
 import AdminTecnicos from '@pages/admin/AdminTecnicos';
 import AdminInstalaciones from '@pages/admin/AdminInstalaciones';
+import AdminPedidos from '@pages/admin/AdminPedidos';
 import AdminConsultas from '@pages/admin/AdminConsultas';
 import AdminClientes from '@pages/admin/AdminClientes';
 import AdminProveedores from '@pages/admin/AdminProveedores';
@@ -34,6 +35,9 @@ import TecnicoCitas from '@pages/tecnico/TecnicoCitas';
 import TecnicoHistorial from '@pages/tecnico/TecnicoHistorial';
 import TecnicoClientes from '@pages/tecnico/TecnicoClientes';
 import TecnicoMensajes from '@pages/tecnico/TecnicoMensajes';
+import Calificaciones from '@pages/tecnico/Calificaciones';
+import TechnicianEntregas from '@pages/tecnico/TechnicianEntregas';
+import AdminDevoluciones from '@pages/admin/AdminDevoluciones';
 import ProductosPublicos from '@pages/public/ProductosPublicos';
 import ProductoDetalle from '@pages/public/ProductoDetalle';
 import CarritoPage from '@pages/public/CarritoPage';
@@ -108,6 +112,8 @@ function App() {
             <Route path="/tecnico/historial" element={<TecnicoHistorial />} />
             <Route path="/tecnico/clientes" element={<TecnicoClientes />} />
             <Route path="/tecnico/mensajes" element={<TecnicoMensajes />} />
+            <Route path="/tecnico/calificaciones" element={<Calificaciones />} />
+            <Route path="/tecnico/entregas" element={<TechnicianEntregas />} />
           </Route>
         </Route>
 
@@ -123,7 +129,9 @@ function App() {
             <Route path="/admin/catalogo" element={<AdminCatalogo />} />
             <Route path="/admin/tecnicos" element={<AdminTecnicos />} />
             <Route path="/admin/instalaciones" element={<AdminInstalaciones />} />
+<Route path="/admin/pedidos" element={<AdminPedidos />} />
             <Route path="/admin/consultas" element={<AdminConsultas />} />
+<Route path="/admin/devoluciones" element={<AdminDevoluciones />} />
             <Route path="/admin/clientes" element={<AdminClientes />} />
             <Route path="/admin/proveedores" element={<AdminProveedores />} />
             <Route path="/admin/reportes" element={<AdminReportes />} />

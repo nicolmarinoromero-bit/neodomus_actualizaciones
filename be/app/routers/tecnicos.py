@@ -20,6 +20,7 @@ from app.models.producto_variante import ProductoVariante
 from app.models.otros import Comision
 from app.models.calificacion import Calificacion
 from app.models.evidencia import Evidencia
+from app.models.especializacion import Especializacion
 from app.models.pedido import Pedido, DetallePedido
 from app.services.especialidades import (
     _dia_es_laboral,
@@ -28,6 +29,7 @@ from app.services.especialidades import (
     tecnico_ocupado,
 )
 from app.services.notificaciones import notificar_cita_reasignada_cliente
+from app.services import minio_service
 from app.utils.security import get_current_employee
 
 ESTADOS_CITA = ("Pendiente", "Confirmada", "Finalizada", "Cancelada")
@@ -37,6 +39,17 @@ ESTADOS_ID = {1: "Pendiente", 2: "Confirmada", 3: "Finalizada", 4: "Cancelada"}
 EVIDENCIAS_DIR = Path(__file__).resolve().parent.parent / "static" / "evidencias"
 
 EXTENSIONES_EVIDENCIA = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def _url_evidencia(url_archivo: str, base_legado: str = "/static/evidencias") -> str:
+    """URL pública de una evidencia.
+
+    Las nuevas se guardan en MinIO con clave 'evidencias/<archivo>' (contiene '/').
+    Las antiguas eran archivos en disco y conservan su ruta relativa original.
+    """
+    if "/" in url_archivo:
+        return minio_service.url_publica(url_archivo)
+    return f"{base_legado}/{url_archivo}"
 
 router = APIRouter(prefix="/tecnicos", tags=["Técnicos"])
 
@@ -50,17 +63,17 @@ class TecnicoAdminResponse(BaseModel):
     telefono_usuario: int | None = None
     documento_usuario: int | None = None
     certificacion_t: str | None = None
-    cargo_t: str | None = None
     is_active: bool
     desactivado_hasta: datetime | None = None
     created_at: datetime | None = None
     password_reset_required: bool = False
     servicios: list[str] = []
+    calificacion: float | None = None
+    total_calificaciones: int = 0
 
 
 class TecnicoUpdate(BaseModel):
     certificacion: str | None = None
-    cargo: str | None = None
 
 
 class EstadoCitaUpdate(BaseModel):
@@ -85,6 +98,10 @@ class TecnicoCitaResponse(BaseModel):
     nombre_tecnico: str | None = None
     id_tecnico_2: int | None = None
     nombre_tecnico_2: str | None = None
+    id_tecnico_3: int | None = None
+    nombre_tecnico_3: str | None = None
+    mi_rol: str | None = None
+    companeros: list[str] = []
     costo_cita: float | None = None
     id_comision_c: int | None = None
     comision_porcentaje: float | None = None
@@ -128,7 +145,6 @@ class TecnicoPublicoResponse(BaseModel):
     first_name: str
     last_name: str
     certificacion_t: str | None = None
-    cargo_t: str | None = None
     is_active: bool
     disponible: bool = True
     telefono: int | None = None
@@ -148,7 +164,6 @@ def _serializar_publico(db: Session, t: Tecnico) -> TecnicoPublicoResponse:
         first_name=u.first_name if u else "",
         last_name=u.last_name if u else "",
         certificacion_t=t.certificacion_t,
-        cargo_t=t.cargo_t,
         is_active=u.is_active if u else False,
         disponible=bool(u and u.is_active),
         telefono=u.telefono_usuario if u else None,
@@ -167,7 +182,11 @@ def _admin(
     return current_user
 
 
-def _serializar(t: Tecnico) -> TecnicoAdminResponse:
+def _serializar(
+    t: Tecnico,
+    calificacion: float | None = None,
+    total_calificaciones: int = 0,
+) -> TecnicoAdminResponse:
     u = t.usuario
     return TecnicoAdminResponse(
         id_tecnico=t.id_tecnico,
@@ -178,12 +197,13 @@ def _serializar(t: Tecnico) -> TecnicoAdminResponse:
         telefono_usuario=u.telefono_usuario if u else None,
         documento_usuario=u.documento_usuario if u else None,
         certificacion_t=t.certificacion_t,
-        cargo_t=t.cargo_t,
         is_active=u.is_active if u else False,
         desactivado_hasta=u.desactivado_hasta if u else None,
         created_at=u.created_at if u else None,
         password_reset_required=bool(u.password_reset_required) if u else False,
         servicios=[],
+        calificacion=calificacion,
+        total_calificaciones=total_calificaciones,
     )
 
 
@@ -233,7 +253,27 @@ def listar_tecnicos(
         .order_by(Tecnico.id_tecnico.asc())
         .all()
     )
-    return [_serializar(t) for t in tecnicos]
+    promedios = {
+        row[0]: (row[1], row[2])
+        for row in db.query(
+            Calificacion.id_tecnico_c,
+            func.avg(Calificacion.calificacion),
+            func.count(Calificacion.id_calificacion),
+        )
+        .group_by(Calificacion.id_tecnico_c)
+        .all()
+    }
+    resultado: list[TecnicoAdminResponse] = []
+    for t in tecnicos:
+        avg, total = promedios.get(t.id_tecnico, (None, 0))
+        resultado.append(
+            _serializar(
+                t,
+                round(float(avg), 2) if avg is not None else None,
+                int(total or 0),
+            )
+        )
+    return resultado
 
 
 @router.get("/unassigned", response_model=List[int])
@@ -258,14 +298,12 @@ def actualizar_tecnico(
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):
-    """Actualiza la ficha técnica (especialidad y cargo) de un técnico (solo admin)"""
+    """Actualiza la ficha técnica (especialidad) de un técnico (solo admin)"""
     tecnico = db.query(Tecnico).filter(Tecnico.id_tecnico == tecnico_id).first()
     if not tecnico:
         raise HTTPException(status_code=404, detail="Técnico no encontrado")
     if data.certificacion is not None:
         tecnico.certificacion_t = data.certificacion
-    if data.cargo is not None:
-        tecnico.cargo_t = data.cargo
     db.commit()
     db.refresh(tecnico)
     return _serializar(tecnico)
@@ -301,9 +339,91 @@ def _ficha_tecnico_actual(db: Session, current_user: User) -> Tecnico:
     return tecnico
 
 
-def _serializar_cita_tecnico(db: Session, cita: Cita) -> TecnicoCitaResponse:
+@router.post("/mis-especializaciones/{id_especializacion}")
+def agregar_mi_especializacion(
+    id_especializacion: int,
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """El técnico se agrega una especialización del catálogo a su ficha."""
+    tecnico = _ficha_tecnico_actual(db, current_user)
+    esp = (
+        db.query(Especializacion)
+        .filter(
+            Especializacion.id_especializacion == id_especializacion,
+            Especializacion.activa == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not esp:
+        raise HTTPException(
+            status_code=404,
+            detail="Especialización no encontrada o inactiva",
+        )
+    ya = any(
+        e.id_especializacion == id_especializacion
+        for e in tecnico.especializaciones
+    )
+    if ya:
+        raise HTTPException(status_code=400, detail="Ya tienes esta especialización")
+    tecnico.especializaciones.append(esp)
+    db.commit()
+    db.refresh(tecnico)
+    return {
+        "mensaje": f"Especialización '{esp.nombre}' agregada a tu ficha",
+        "especializaciones": [
+            {
+                "id_especializacion": e.id_especializacion,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+            }
+            for e in tecnico.especializaciones
+        ],
+    }
+
+
+@router.delete("/mis-especializaciones/{id_especializacion}")
+def quitar_mi_especializacion(
+    id_especializacion: int,
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """El técnico quita una especialización de su ficha."""
+    tecnico = _ficha_tecnico_actual(db, current_user)
+    esp = next(
+        (
+            e
+            for e in tecnico.especializaciones
+            if e.id_especializacion == id_especializacion
+        ),
+        None,
+    )
+    if not esp:
+        raise HTTPException(
+            status_code=404,
+            detail="No tienes esa especialización en tu ficha",
+        )
+    tecnico.especializaciones.remove(esp)
+    db.commit()
+    return {
+        "mensaje": f"Especialización '{esp.nombre}' eliminada de tu ficha",
+        "especializaciones": [
+            {
+                "id_especializacion": e.id_especializacion,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+            }
+            for e in tecnico.especializaciones
+        ],
+    }
+
+
+def _serializar_cita_tecnico(
+    db: Session, cita: Cita, id_tecnico_actual: int | None = None
+) -> TecnicoCitaResponse:
     """Serializa una cita con los datos completos del cliente asociado
-    y los productos vinculados a la cita."""
+    y los productos vinculados a la cita. Cuando se pasa `id_tecnico_actual`
+    indica el rol del técnico (principal/segundo/tercero) y sus compañeros."""
     cliente = (
         db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
     )
@@ -351,6 +471,30 @@ def _serializar_cita_tecnico(db: Session, cita: Cita) -> TecnicoCitaResponse:
 
     productos = _productos_cita(db, cita.id_cita)
 
+    mi_rol = None
+    if id_tecnico_actual is not None:
+        if cita.id_tecnico == id_tecnico_actual:
+            mi_rol = "principal"
+        elif cita.id_tecnico_2 == id_tecnico_actual:
+            mi_rol = "segundo"
+        elif cita.id_tecnico_3 == id_tecnico_actual:
+            mi_rol = "tercero"
+
+    def _nombre_de(id_tecnico: int | None, nombre: str | None) -> str | None:
+        if id_tecnico is None or id_tecnico == id_tecnico_actual:
+            return None
+        return nombre
+
+    companeros = [
+        n
+        for n in (
+            _nombre_de(cita.id_tecnico, cita.nombre_tecnico),
+            _nombre_de(cita.id_tecnico_2, cita.nombre_tecnico_2),
+            _nombre_de(cita.id_tecnico_3, cita.nombre_tecnico_3),
+        )
+        if n
+    ]
+
     return TecnicoCitaResponse(
         id_cita=cita.id_cita,
         fecha=cita.fecha,
@@ -368,6 +512,10 @@ def _serializar_cita_tecnico(db: Session, cita: Cita) -> TecnicoCitaResponse:
         nombre_tecnico=cita.nombre_tecnico,
         id_tecnico_2=cita.id_tecnico_2,
         nombre_tecnico_2=cita.nombre_tecnico_2,
+        id_tecnico_3=cita.id_tecnico_3,
+        nombre_tecnico_3=cita.nombre_tecnico_3,
+        mi_rol=mi_rol,
+        companeros=companeros,
         costo_cita=float(cita.costo_cita) if cita.costo_cita is not None else None,
         id_comision_c=id_comision,
         comision_porcentaje=com_porcentaje,
@@ -390,7 +538,7 @@ def _serializar_evidencias(db: Session, id_cita: int) -> list[dict]:
     return [
         {
             "id_evidencia": e.id_evidencia,
-            "url": f"/evidencias/{e.url_archivo}",
+            "url": _url_evidencia(e.url_archivo, "/evidencias"),
             "descripcion": e.descripcion,
             "fecha_subida": e.fecha_subida.isoformat() if e.fecha_subida else None,
         }
@@ -525,6 +673,7 @@ def citas_cliente_tecnico(
             or_(
                 Cita.id_tecnico == tecnico.id_tecnico,
                 Cita.id_tecnico_2 == tecnico.id_tecnico,
+                Cita.id_tecnico_3 == tecnico.id_tecnico,
             ),
             Cita.id_cliente == cliente_id,
         )
@@ -587,8 +736,8 @@ def mis_citas_tecnico(
     current_user: User = Depends(get_current_employee),
     db: Session = Depends(get_db),
 ):
-    """Citas asignadas al técnico autenticado (como técnico principal o
-    segundo técnico), ordenadas por fecha y hora"""
+    """Citas asignadas al técnico autenticado (principal, segundo o tercer
+    técnico), ordenadas por fecha y hora"""
     tecnico = _ficha_tecnico_actual(db, current_user)
     citas = (
         db.query(Cita)
@@ -596,12 +745,13 @@ def mis_citas_tecnico(
             or_(
                 Cita.id_tecnico == tecnico.id_tecnico,
                 Cita.id_tecnico_2 == tecnico.id_tecnico,
+                Cita.id_tecnico_3 == tecnico.id_tecnico,
             )
         )
         .order_by(Cita.fecha.asc(), Cita.hora.asc())
         .all()
     )
-    return [_serializar_cita_tecnico(db, cita) for cita in citas]
+    return [_serializar_cita_tecnico(db, cita, tecnico.id_tecnico) for cita in citas]
 
 
 @router.put("/citas/{cita_id}/estado", response_model=TecnicoCitaResponse)
@@ -612,22 +762,25 @@ def actualizar_estado_cita_tecnico(
     db: Session = Depends(get_db),
 ):
     """El técnico actualiza el estado de una cita que le fue asignada.
-    Las citas se crean ya Confirmadas y el técnico solo puede marcarlas
-    como Finalizada (las anulaciones las maneja el cliente o el admin)."""
+    Las citas se crean ya Confirmadas y SOLO el técnico encargado (principal)
+    puede marcarlas como Finalizada; los técnicos de apoyo (2 y 3) ven la cita
+    pero no pueden finalizarla."""
     tecnico = _ficha_tecnico_actual(db, current_user)
-    cita = (
-        db.query(Cita)
-        .filter(
-            Cita.id_cita == cita_id,
-            or_(
-                Cita.id_tecnico == tecnico.id_tecnico,
-                Cita.id_tecnico_2 == tecnico.id_tecnico,
+    cita = db.query(Cita).filter(Cita.id_cita == cita_id).first()
+    if (
+        not cita
+        or tecnico.id_tecnico
+        not in (cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3)
+    ):
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.id_tecnico != tecnico.id_tecnico:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Solo el técnico encargado de la cita puede finalizarla. "
+                "Tu rol en esta cita es de apoyo."
             ),
         )
-        .first()
-    )
-    if not cita:
-        raise HTTPException(status_code=404, detail="Cita no encontrada")
     if data.estado is not None:
         nuevo_estado = data.estado
     elif data.estado_id is not None:
@@ -798,6 +951,7 @@ def _cita_asignada_a_mi(db: Session, tecnico: Tecnico, cita_id: int) -> Cita:
             or_(
                 Cita.id_tecnico == tecnico.id_tecnico,
                 Cita.id_tecnico_2 == tecnico.id_tecnico,
+                Cita.id_tecnico_3 == tecnico.id_tecnico,
             ),
         )
         .first()
@@ -805,6 +959,101 @@ def _cita_asignada_a_mi(db: Session, tecnico: Tecnico, cita_id: int) -> Cita:
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
     return cita
+
+
+def _entrega_asignada_a_mi(db: Session, tecnico: Tecnico, pedido_id: int) -> Pedido:
+    pedido = (
+        db.query(Pedido)
+        .filter(
+            Pedido.id_pedido == pedido_id,
+            Pedido.id_tecnico_entrega == tecnico.id_tecnico,
+        )
+        .first()
+    )
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+    return pedido
+
+
+@router.post("/entregas/{pedido_id}/evidencias")
+async def subir_evidencias_entrega(
+    pedido_id: int,
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """El técnico encargado sube UNA O VARIAS fotos de evidencia del pedido
+    entregado. Solo se permiten cuando el estado es 'Entregado'."""
+    from app.models.evidencia import EvidenciaEntrega
+
+    tecnico = _ficha_tecnico_actual(db, current_user)
+    pedido = _entrega_asignada_a_mi(db, tecnico, pedido_id)
+    # Las evidencias se suben ANTES de marcar Entregado (son obligatorias);
+    # también se pueden añadir más fotos después.
+    if not files:
+        raise HTTPException(status_code=400, detail="Selecciona al menos una imagen")
+
+    urls: list[str] = []
+    for file in files:
+        if not file or not file.filename:
+            continue
+        ext = Path(file.filename or "").suffix.lower()
+        if ext not in EXTENSIONES_EVIDENCIA:
+            raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
+        contenido = await file.read()
+        if not contenido:
+            continue
+        if len(contenido) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Una imagen supera los 5 MB")
+        try:
+            import io
+
+            from PIL import Image
+
+            Image.open(io.BytesIO(contenido)).verify()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Un archivo no es una imagen válida")
+        nombre = f"{uuid.uuid4().hex}{ext}"
+        clave = f"evidencias_entrega/{nombre}"
+        minio_service.subir_imagen("evidencias_entrega", nombre, contenido)
+        db.add(
+            EvidenciaEntrega(
+                id_pedido=pedido.id_pedido,
+                id_tecnico=tecnico.id_tecnico,
+                url_archivo=clave,
+            )
+        )
+        urls.append(minio_service.url_publica(clave))
+
+    if not urls:
+        raise HTTPException(status_code=400, detail="No se recibieron imágenes válidas")
+    pedido.entrega_actualizada_en = datetime.now()
+    db.commit()
+    return {
+        "msg": f"{len(urls)} evidencia(s) guardada(s)",
+        "urls": urls,
+    }
+
+
+@router.get("/entregas/{pedido_id}/evidencias", response_model=List[str])
+def listar_evidencias_entrega(
+    pedido_id: int,
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """URLs de las fotos de evidencia de la entrega indicada."""
+    from app.models.evidencia import EvidenciaEntrega
+    from datetime import date as _date
+
+    tecnico = _ficha_tecnico_actual(db, current_user)
+    _entrega_asignada_a_mi(db, tecnico, pedido_id)
+    filas = (
+        db.query(EvidenciaEntrega)
+        .filter(EvidenciaEntrega.id_pedido == pedido_id)
+        .order_by(EvidenciaEntrega.id.desc())
+        .all()
+    )
+    return [_url_evidencia(f.url_archivo) for f in filas]
 
 
 @router.post("/citas/{cita_id}/evidencias")
@@ -820,6 +1069,12 @@ async def subir_evidencia_cita(
     cita asignada. Devuelve la lista actualizada de evidencias."""
     tecnico = _ficha_tecnico_actual(db, current_user)
     cita = _cita_asignada_a_mi(db, tecnico, cita_id)
+    # SOLO el técnico encargado (principal) sube evidencias de la cita.
+    if cita.id_tecnico != tecnico.id_tecnico:
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el técnico encargado de la cita puede subir la evidencia",
+        )
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Selecciona un archivo de imagen")
     ext = Path(file.filename or "").suffix.lower()
@@ -838,14 +1093,14 @@ async def subir_evidencia_cita(
         Image.open(io.BytesIO(contenido)).verify()
     except Exception:
         raise HTTPException(status_code=400, detail="El archivo no es una imagen válida")
-    EVIDENCIAS_DIR.mkdir(parents=True, exist_ok=True)
     nombre = f"{uuid.uuid4().hex}{ext}"
-    (EVIDENCIAS_DIR / nombre).write_bytes(contenido)
+    clave = f"evidencias_citas/{nombre}"
+    minio_service.subir_imagen("evidencias_citas", nombre, contenido)
     db.add(
         Evidencia(
             id_cita=cita.id_cita,
             id_tecnico=tecnico.id_tecnico,
-            url_archivo=nombre,
+            url_archivo=clave,
             descripcion=(descripcion or "").strip()[:255] or None,
         )
     )
@@ -874,10 +1129,13 @@ def eliminar_evidencia_cita(
     )
     if not evidencia:
         raise HTTPException(status_code=404, detail="Evidencia no encontrada")
-    try:
-        (EVIDENCIAS_DIR / evidencia.url_archivo).unlink(missing_ok=True)
-    except OSError:
-        pass
+    if "/" in (evidencia.url_archivo or ""):
+        minio_service.eliminar_objeto(evidencia.url_archivo)
+    else:
+        try:
+            (EVIDENCIAS_DIR / evidencia.url_archivo).unlink(missing_ok=True)
+        except OSError:
+            pass
     db.delete(evidencia)
     db.commit()
     return {"msg": "Evidencia eliminada", "evidencias": _serializar_evidencias(db, cita_id)}
@@ -891,12 +1149,15 @@ class EntregaTecnicoResponse(BaseModel):
     direccion: str | None = None
     fecha_entrega: date | None = None
     hora_entrega: str | None = None
+    hora_entrega_fin: str | None = None
     estado_entrega: str | None = None
+    evidencias_entrega: list[str] = []
     productos: list[dict] = []
 
 
 def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoResponse:
     from app.models.cliente import Cliente
+    from app.models.evidencia import EvidenciaEntrega
 
     cliente = (
         db.query(Cliente).filter(Cliente.id_cliente == pedido.id_cliente_pe).first()
@@ -909,6 +1170,12 @@ def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoRe
         )
         .all()
     )
+    fotos = (
+        db.query(EvidenciaEntrega)
+        .filter(EvidenciaEntrega.id_pedido == pedido.id_pedido)
+        .order_by(EvidenciaEntrega.id.desc())
+        .all()
+    )
     return EntregaTecnicoResponse(
         id_pedido=pedido.id_pedido,
         cliente=f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente",
@@ -917,7 +1184,11 @@ def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoRe
         direccion=(cliente.address or "").strip() if cliente else None,
         fecha_entrega=pedido.fecha_entrega,
         hora_entrega=pedido.hora_entrega,
+        hora_entrega_fin=pedido.hora_entrega_fin,
         estado_entrega=pedido.estado_entrega,
+        evidencias_entrega=[
+            _url_evidencia(f.url_archivo) for f in fotos
+        ],
         productos=[
             {
                 "descripcion": d.descripcion_detalle or f"Producto #{d.id_producto_d}",
@@ -930,12 +1201,15 @@ def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoRe
 
 
 @router.get("/mis-entregas", response_model=List[EntregaTecnicoResponse])
+@router.get("/entregas", response_model=List[EntregaTecnicoResponse])
 def mis_entregas_tecnico(
     current_user: User = Depends(get_current_employee),
     db: Session = Depends(get_db),
 ):
     """Pedidos de entrega asignados al técnico autenticado, con productos y
     datos completos del cliente (dirección, teléfono, correo)."""
+    from app.services.especialidades import auto_en_camino
+
     tecnico = _ficha_tecnico_actual(db, current_user)
     pedidos = (
         db.query(Pedido)
@@ -943,6 +1217,9 @@ def mis_entregas_tecnico(
         .order_by(Pedido.fecha_entrega.asc(), Pedido.hora_entrega.asc())
         .all()
     )
+    # Regla automática: faltan 5 min para cumplirse las 3 h → En camino.
+    for p in pedidos:
+        auto_en_camino(db, p)
     return [_serializar_entrega_tecnico(db, p) for p in pedidos]
 
 
@@ -971,8 +1248,28 @@ def actualizar_estado_entrega_tecnico(
     if not pedido:
         raise HTTPException(status_code=404, detail="Entrega no encontrada")
     estado = data.estado.strip()
-    if estado not in ("En camino", "Entregado"):
-        raise HTTPException(status_code=400, detail="Estado no válido (En camino / Entregado)")
+    if estado not in ("Recogido", "En camino", "Entregado"):
+        raise HTTPException(
+            status_code=400,
+            detail="Estado no válido (Recogido / En camino / Entregado)",
+        )
+    # Las evidencias son OBLIGATORIAS para marcar el pedido como Entregado.
+    from app.models.evidencia import EvidenciaEntrega
+
+    if estado == "Entregado":
+        fotos = (
+            db.query(EvidenciaEntrega)
+            .filter(EvidenciaEntrega.id_pedido == pedido.id_pedido)
+            .count()
+        )
+        if not fotos:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Debes subir al menos una foto de evidencia antes de "
+                    "marcar el pedido como Entregado"
+                ),
+            )
     pedido.estado_entrega = estado
     db.commit()
     db.refresh(pedido)
@@ -995,6 +1292,26 @@ def actualizar_estado_entrega_tecnico(
                     "hora": pedido.hora_entrega or "-",
                     "tecnico": pedido.nombre_tecnico_entrega or "técnico",
                     "telefono_tecnico": tecnico.usuario.telefono_usuario if tecnico.usuario else None,
+                },
+            )
+
+    if estado == "Entregado":
+        from app.models.cliente import Cliente
+        from app.services.notificaciones import notificar_pedido_entregado_cliente
+
+        cliente = (
+            db.query(Cliente).filter(Cliente.id_cliente == pedido.id_cliente_pe).first()
+        )
+        if cliente and cliente.email:
+            notificar_pedido_entregado_cliente(
+                db,
+                cliente_id=cliente.id_cliente,
+                correo=cliente.email,
+                cliente_nombre=f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+                datos={
+                    "pedido": pedido.id_pedido,
+                    "fecha": pedido.fecha_entrega.strftime("%d/%m/%Y") if pedido.fecha_entrega else "",
+                    "tecnico": pedido.nombre_tecnico_entrega or "Técnico",
                 },
             )
 

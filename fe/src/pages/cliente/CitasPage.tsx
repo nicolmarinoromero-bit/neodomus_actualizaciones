@@ -14,6 +14,7 @@ import '@styles/citas.css';
 import api from '@services/api';
 import { tituloNombre } from '@utils/formatoNombre';
 import { PF_REDIRECT_AFTER_LOGIN_KEY } from '@utils/profileStorage';
+import { suscribirCambiosTecnicos } from '@utils/tecnicosSync';
 import { useAuthModal } from '@contexts/AuthModalContext';
 
 const formatoPeso = (value: number) =>
@@ -73,7 +74,6 @@ interface TecnicoPublico {
   first_name: string;
   last_name: string;
   certificacion_t?: string | null;
-  cargo_t?: string | null;
   is_active: boolean;
   disponible: boolean;
   telefono?: number | null;
@@ -208,7 +208,7 @@ const CitasPage = () => {
               nombre: tituloNombre(t.first_name),
               apellido: tituloNombre(t.last_name),
               foto_url: t.foto_url,
-              especialidad: t.certificacion_t || t.cargo_t || '',
+              especialidad: t.certificacion_t || '',
               anios_experiencia: 0,
               calificacion: t.calificacion ?? 0,
               disponible: t.disponible && t.is_active,
@@ -230,9 +230,12 @@ const CitasPage = () => {
     // Tiempo real: si otro usuario reserva a un técnico en la misma hora,
     // deja de aparecer como disponible sin recargar la página.
     const interval = setInterval(fetchTecnicos, 10000);
+    // Cambios del administrador (crear/editar/habilitar/desactivar técnicos).
+    const cancelarSuscripcion = suscribirCambiosTecnicos(() => fetchTecnicos());
     return () => {
       activo = false;
       clearInterval(interval);
+      cancelarSuscripcion();
     };
   }, [form.tipo_servicio, form.fecha, form.hora, vista]);
 
@@ -271,7 +274,8 @@ const CitasPage = () => {
     }
     const [año, mes, dia] = (form.fecha || '').split('-').map(Number);
     const diaSemana = año ? new Date(año, mes - 1, dia).getDay() : -1;
-    if (diaSemana === 0 || diaSemana === 6) {
+    // Solo el domingo está bloqueado: los servicios van de lunes a sábado.
+    if (diaSemana === 0) {
       setHorasDisponibles([]);
       return;
     }
@@ -285,6 +289,9 @@ const CitasPage = () => {
       try {
         const params = new URLSearchParams({ fecha: form.fecha });
         if (tecnicoSel?.id) params.set('tecnico_id', String(tecnicoSel.id));
+        // La duración del servicio (1-2.5 h) depende del tipo: una instalación
+        // de 1.5 h no puede empezar tan tarde como un mantenimiento de 1 h.
+        if (form.tipo_servicio) params.set('tipo_servicio', form.tipo_servicio);
         // Al editar, se excluye la propia cita para que su hora siga visible.
         if (editandoId !== null) params.set('excluir_cita_id', String(editandoId));
         const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
@@ -307,7 +314,7 @@ const CitasPage = () => {
       activo = false;
       clearInterval(interval);
     };
-  }, [form.fecha, tecnicoSel?.id, vista, editandoId]);
+  }, [form.fecha, form.tipo_servicio, tecnicoSel?.id, vista, editandoId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

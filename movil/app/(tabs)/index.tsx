@@ -6,11 +6,6 @@ import {
   View,
 } from "react-native";
 
-import { SafeAreaView } from "react-native-safe-area-context";
-<SafeAreaView style={{ flex: 1 }}>
-  ...
-</SafeAreaView>
-
 import { router } from "expo-router";
 
 export default function HomeScreen() {
@@ -26,7 +21,7 @@ export default function HomeScreen() {
         <Text style={styles.title}>NEODOMUS</Text>
       </View>
         <Text style={styles.slogan}>
-          "NEODOMUS más que tecnología, una evolución."
+          &quot;NEODOMUS más que tecnología, una evolución.&quot;
         </Text>
 
         <Text style={styles.description}>

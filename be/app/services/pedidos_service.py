@@ -27,7 +27,12 @@ from app.models.pedido import DetallePedido, Pedido
 from app.models.producto import Producto
 from app.models.tecnico import Tecnico
 from app.services import pagos_service
-from app.services.especialidades import tecnico_ocupado
+from app.services.inventario_service import descontar_stock
+from app.services.especialidades import (
+    tecnico_ocupado,
+    duracion_desde_items,
+    duracion_base_tipo,
+)
 from app.services.factura_service import (
     enviar_factura_por_correo,
     generar_factura_pdf,
@@ -69,6 +74,7 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
         cantidad = int(item.get("cantidad") or 1)
         metros = item.get("metros")
         color = (item.get("color") or "").strip() or None
+        id_variante = item.get("id_variante")
 
         producto = db.query(Producto).filter(Producto.id_producto == id_producto).first()
         if not producto:
@@ -76,7 +82,33 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
         if producto.estado_producto != "activo":
             raise HTTPException(status_code=400, detail=f"El producto {producto.nombre_producto} no está disponible")
 
-        precio_unitario = producto.precio_venta_producto or 0
+        # Variante elegida (color/tamaño/medida): precio y stock propios.
+        variante = None
+        if id_variante is not None:
+            from app.models.producto_variante import ProductoVariante
+
+            variante = next(
+                (v for v in (producto.variantes or []) if v.id == int(id_variante)),
+                None,
+            )
+            if variante is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="La combinación de color/medida seleccionada ya no existe",
+                )
+            if (variante.stock or 0) <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"'{producto.nombre_producto}' en {variante.nombre}"
+                    + (f" ({variante.tamaño})" if variante.tamaño else "")
+                    + " está agotado",
+                )
+
+        precio_unitario = (
+            (variante.precio if variante and variante.precio is not None else None)
+            or producto.precio_venta_producto
+            or 0
+        )
 
         # Venta por metros: la cantidad ES la longitud en metros.
         if producto.venta_por_metros:
@@ -100,14 +132,24 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             "cantidad": cantidad_linea,
             "metros": metros,
             "color": color,
+            "tamaño": (variante.tamaño if variante else None),
+            "ancho_cm": (variante.ancho_cm if variante else None),
+            "alto_cm": (variante.alto_cm if variante else None),
+            "variante": variante,
             "precio_unitario": precio_unitario,
             "subtotal": round(subtotal, 2),
         })
     return preparados
 
 
-def _preparar_servicios(db: Session, servicios: list[dict]) -> list[dict]:
-    """Prepara las líneas de servicio técnico opcionales (todas generan cita)."""
+def _preparar_servicios(
+    db: Session,
+    servicios: list[dict],
+    duracion_items: float | None = None,
+) -> list[dict]:
+    """Prepara las líneas de servicio técnico opcionales (todas generan cita).
+    `duracion_items` es la duración estimada (1-2.5 h) según los productos
+    del carrito; se usa para validar que la franja elegida alcance."""
     from app.services.especialidades import (
         horas_laborales,
         slot_tomado,
@@ -130,9 +172,11 @@ def _preparar_servicios(db: Session, servicios: list[dict]) -> list[dict]:
         hora = (serv.get("hora") or "").strip() or "08:00"
         direccion = (serv.get("direccion") or "").strip()
         id_tecnico = serv.get("id_tecnico")
+        tipo_servicio = (serv.get("tipo_servicio") or "").strip().lower() or "servicio"
 
-        # Todo servicio agendado en el carrito genera una cita: se valida la
-        # franja de 1 hora, día laboral y que la franja no esté reservada.
+        # Todo servicio agendado en el carrito genera una cita: se valida el
+        # día laboral, que la franja alcance para la duración estimada y que
+        # no esté reservada por otro cliente.
         try:
             f = date.fromisoformat(str(fecha)) if fecha else None
         except (TypeError, ValueError):
@@ -149,12 +193,17 @@ def _preparar_servicios(db: Session, servicios: list[dict]) -> list[dict]:
                 status_code=400,
                 detail="Las citas solo se pueden agendar de lunes a viernes.",
             )
-        if hora not in horas_laborales(f):
+        duracion = (
+            duracion_items
+            if duracion_items is not None and tipo_servicio == "instalacion"
+            else duracion_base_tipo(tipo_servicio)
+        )
+        if hora not in horas_laborales(f, duracion):
             raise HTTPException(
                 status_code=400,
-                detail="La hora debe ser una franja de 1 hora entre 08:00 y 18:00 (por ejemplo 09:00).",
+                detail="La hora debe ser una franja entre 08:00 y 18:00 con tiempo suficiente para el servicio (por ejemplo 09:00).",
             )
-        if slot_tomado(db, f, hora):
+        if slot_tomado(db, f, hora, duracion_horas=duracion):
             raise HTTPException(
                 status_code=400,
                 detail=f"La franja del {f} a las {hora} ya fue reservada por otro cliente. Elige otra.",
@@ -248,9 +297,29 @@ def _es_servicio_instalacion(tipo_servicio: str) -> bool:
     return "instalacion" in s
 
 
-def _asignar_tecnico(db: Session, tipo_servicio: str, fecha: date, hora: str) -> Tecnico | None:
-    """Elige el primer técnico activo que esté libre a esa fecha y hora.
-    Cualquier técnico puede atender cualquier servicio. Devuelve None si no hay."""
+def _asignar_tecnico(
+    db: Session, tipo_servicio: str, fecha: date, hora: str,
+    ids_especializacion: list[int] | None = None,
+    duracion_horas: float = 1.0,
+) -> Tecnico | None:
+    """Elige el mejor técnico activo libre durante toda la duración del
+    servicio a esa fecha y hora.
+
+    Con especializaciones requeridas: solo candidatos que las cubren todas
+    (prioriza cobertura completa). Sin especializaciones: primer activo libre.
+    Devuelve None si no hay."""
+    from app.services.especialidades import candidatos_para_especializaciones
+
+    if ids_especializacion:
+        return next(
+            iter(
+                candidatos_para_especializaciones(
+                    db, ids_especializacion, fecha, hora, duracion_horas=duracion_horas
+                )
+            ),
+            None,
+        )
+
     from app.models.user import User
 
     candidatos = (
@@ -260,7 +329,7 @@ def _asignar_tecnico(db: Session, tipo_servicio: str, fecha: date, hora: str) ->
         .all()
     )
     for t in candidatos:
-        if not tecnico_ocupado(db, t.id_tecnico, fecha, hora):
+        if not tecnico_ocupado(db, t.id_tecnico, fecha, hora, duracion_horas=duracion_horas):
             return t
     return None
 
@@ -285,10 +354,46 @@ def _max_tecnicos_pedido(db: Session, pedido_id: int) -> int:
     return int(maximo or 1)
 
 
+def _duracion_para_pedido(db: Session, pedido_id: int, tipo_servicio: str) -> float:
+    """Duración estimada (1-2.5 h) de la cita según los productos del pedido;
+    sin productos usa la duración base del tipo de servicio."""
+    detalles = (
+        db.query(DetallePedido)
+        .filter(
+            DetallePedido.id_pedido_d == pedido_id,
+            DetallePedido.id_producto_d.isnot(None),
+        )
+        .all()
+    )
+    items = [
+        {"id_producto": d.id_producto_d, "cantidad": d.cantidad_detalle or 1}
+        for d in detalles
+    ]
+    return duracion_desde_items(db, items) or duracion_base_tipo(tipo_servicio)
+
+
 def _asignar_tecnico_extra(
-    db: Session, fecha: date, excluir_id: int | None, hora: str
+    db: Session, fecha: date, excluir_ids: set[int] | None, hora: str,
+    ids_especializacion: list[int] | None = None,
+    duracion_horas: float = 1.0,
 ) -> Tecnico | None:
-    """Elige un técnico activo libre a esa fecha y hora, distinto de `excluir_id`."""
+    """Elige un técnico activo libre durante toda la duración del servicio a
+    esa fecha y hora, distinto de todos los de `excluir_ids`. Con
+    especializaciones requeridas, solo candidatos que las cubran todas."""
+    from app.services.especialidades import candidatos_para_especializaciones
+
+    excluir = set(excluir_ids or set())
+    if ids_especializacion:
+        return next(
+            iter(
+                candidatos_para_especializaciones(
+                    db, ids_especializacion, fecha, hora, excluir,
+                    duracion_horas=duracion_horas,
+                )
+            ),
+            None,
+        )
+
     from app.models.user import User
 
     candidatos = (
@@ -298,9 +403,9 @@ def _asignar_tecnico_extra(
         .all()
     )
     for t in candidatos:
-        if t.id_tecnico == excluir_id:
+        if t.id_tecnico in excluir:
             continue
-        if not tecnico_ocupado(db, t.id_tecnico, fecha, hora):
+        if not tecnico_ocupado(db, t.id_tecnico, fecha, hora, duracion_horas=duracion_horas):
             return t
     return None
 
@@ -319,6 +424,42 @@ def _productos_pedido(db: Session, pedido_id: int) -> list[str]:
         d.descripcion_detalle or f"Producto #{d.id_producto_d}"
         for d in detalles
     ]
+
+
+def _objetos_producto_pedido(db: Session, pedido_id: int) -> list[Producto]:
+    """Objetos Producto de las líneas de producto del pedido."""
+    detalles = (
+        db.query(DetallePedido)
+        .filter(
+            DetallePedido.id_pedido_d == pedido_id,
+            DetallePedido.id_producto_d.isnot(None),
+        )
+        .all()
+    )
+    productos = []
+    for d in detalles:
+        if d.producto is not None:
+            productos.append(d.producto)
+    return productos
+
+
+def _especializaciones_requeridas_pedido(db: Session, pedido_id: int) -> tuple[list[int], list[str]]:
+    """(ids, nombres) de las especializaciones requeridas por los productos
+    del pedido, sin duplicados."""
+    from app.services.especialidades import especializaciones_de_productos
+
+    ids = especializaciones_de_productos(_objetos_producto_pedido(db, pedido_id))
+    if not ids:
+        return [], []
+    from app.models.especializacion import Especializacion
+
+    filas = (
+        db.query(Especializacion)
+        .filter(Especializacion.id_especializacion.in_(ids))
+        .all()
+    )
+    nombres = {e.id_especializacion: e.nombre for e in filas}
+    return ids, [nombres[i] for i in ids if i in nombres]
 
 
 def _plantilla_correo_instalacion(destinatario: str, **datos) -> tuple[str, str]:
@@ -402,6 +543,18 @@ def _crear_orden_instalacion(
         fecha = None
     if fecha is None:
         fecha = (datetime.now() + timedelta(days=1)).date()
+    else:
+        # Regla de negocio: los servicios del carrito se agendan con al
+        # menos 3 días de anticipación.
+        minima = (datetime.now() + timedelta(days=3)).date()
+        if fecha < minima:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Los servicios se agendan con al menos 3 días de "
+                    f"anticipación (mínimo {minima.isoformat()})."
+                ),
+            )
     hora = serv.get("hora") or "08:00"
     direccion = (
         (serv.get("direccion") or "").strip()
@@ -409,8 +562,9 @@ def _crear_orden_instalacion(
         or "Por definir"
     )
     tipo_servicio = serv.get("tipo_servicio") or "servicio"
+    duracion_cita = _duracion_para_pedido(db, pedido.id_pedido, tipo_servicio)
 
-    if slot_tomado(db, fecha, hora):
+    if slot_tomado(db, fecha, hora, duracion_horas=duracion_cita):
         raise HTTPException(
             status_code=400,
             detail=f"La franja del {fecha.isoformat()} a las {hora} ya fue reservada por otro cliente.",
@@ -426,6 +580,11 @@ def _crear_orden_instalacion(
     if tipo_norm == "instalacion":
         tecnicos_necesarios = _max_tecnicos_pedido(db, pedido.id_pedido)
 
+    # Especializaciones requeridas por los productos del pedido (solo
+    # informativas: ya no se exige que el técnico las cubra, se supone que
+    # cualquier técnico sabe de todo).
+    ids_esp, nombres_esp = _especializaciones_requeridas_pedido(db, pedido.id_pedido)
+
     id_tecnico_sel = serv.get("id_tecnico")
     tecnico = None
     if id_tecnico_sel is not None:
@@ -440,73 +599,97 @@ def _crear_orden_instalacion(
                 status_code=400,
                 detail="El técnico seleccionado no existe o no está activo",
             )
-        if tecnico_ocupado(db, tecnico.id_tecnico, fecha, hora):
+        if tecnico_ocupado(db, tecnico.id_tecnico, fecha, hora, duracion_horas=duracion_cita):
             raise HTTPException(
                 status_code=400,
                 detail="El técnico seleccionado ya está ocupado a esa hora. Elige otro técnico u hora.",
             )
     else:
-        tecnico = _asignar_tecnico(db, tipo_servicio, fecha, hora)
+        tecnico = _asignar_tecnico(
+            db, tipo_servicio, fecha, hora,
+            duracion_horas=duracion_cita,
+        )
         if tecnico is None:
             raise HTTPException(
                 status_code=400,
                 detail="No hay técnicos disponibles para esa fecha. Elige otra fecha.",
             )
 
-    tecnico_2 = None
-    if tecnicos_necesarios >= 2:
-        id_tecnico_2_sel = serv.get("id_tecnico_2")
-        if id_tecnico_2_sel is not None:
-            if id_tecnico_2_sel == tecnico.id_tecnico:
+    # Técnicos adicionales (2..N): el cliente pudo elegirlos todos de una vez
+    # (id_tecnico_2, id_tecnico_3) o se asignan automáticamente.
+    tecnicos_extra = []
+    elegidos_previos = {tecnico.id_tecnico if tecnico else None}
+    for slot in range(2, max(tecnicos_necesarios, 1) + 1):
+        extra = None
+        id_sel = serv.get(f"id_tecnico_{slot}")
+        if id_sel is not None:
+            if id_sel in elegidos_previos:
                 raise HTTPException(
                     status_code=400,
-                    detail="El segundo técnico debe ser diferente del primero.",
+                    detail=f"El técnico {slot} debe ser diferente de los ya seleccionados.",
                 )
-            tecnico_2 = (
+            extra = (
                 db.query(Tecnico)
-                .filter(Tecnico.id_tecnico == id_tecnico_2_sel)
+                .filter(Tecnico.id_tecnico == id_sel)
                 .first()
             )
             if (
-                not tecnico_2
-                or not tecnico_2.usuario
-                or not tecnico_2.usuario.is_active
-                or tecnico_2.usuario.id_rol_u != 2
+                not extra
+                or not extra.usuario
+                or not extra.usuario.is_active
+                or extra.usuario.id_rol_u != 2
             ):
                 raise HTTPException(
                     status_code=400,
-                    detail="El segundo técnico seleccionado no existe o no está activo",
+                    detail=f"El técnico {slot} seleccionado no existe o no está activo",
                 )
-            if tecnico_ocupado(db, tecnico_2.id_tecnico, fecha, hora):
+            if tecnico_ocupado(db, extra.id_tecnico, fecha, hora, duracion_horas=duracion_cita):
                 raise HTTPException(
                     status_code=400,
-                    detail="El segundo técnico ya está ocupado a esa hora. Elige otro técnico u hora.",
+                    detail=f"El técnico {slot} ya está ocupado a esa hora. Elige otro técnico u hora.",
                 )
-        else:
-            tecnico_2 = _asignar_tecnico_extra(db, fecha, excluir_id=tecnico.id_tecnico, hora=hora)
-            if tecnico_2 is None:
+        elif slot <= tecnicos_necesarios or id_sel is not None:
+            extra = _asignar_tecnico_extra(
+                db, fecha, excluir_ids=elegidos_previos.copy(), hora=hora,
+                duracion_horas=duracion_cita,
+            )
+            if extra is None:
                 raise HTTPException(
                     status_code=400,
-                    detail="No hay dos técnicos disponibles para esa fecha. Elige otra fecha.",
+                    detail=(
+                        f"No hay {slot} técnicos disponibles para esa fecha y hora. "
+                        "Elige otra fecha u horario."
+                    ),
                 )
+        if extra is None:
+            break
+        tecnicos_extra.append(extra)
+        elegidos_previos.add(extra.id_tecnico)
 
     nombre_tecnico = _nombre_tecnico(tecnico)
-    nombre_tecnico_2 = _nombre_tecnico(tecnico_2)
+    nombre_tecnico_2 = _nombre_tecnico(tecnicos_extra[0]) if len(tecnicos_extra) > 0 else None
+    nombre_tecnico_3 = _nombre_tecnico(tecnicos_extra[1]) if len(tecnicos_extra) > 1 else None
     productos = _productos_pedido(db, pedido.id_pedido)
 
-    cita = Cita(
+    cita_kwargs = dict(
         id_cliente=cliente.id_cliente,
         id_tecnico=tecnico.id_tecnico if tecnico else None,
         nombre_tecnico=nombre_tecnico,
-        id_tecnico_2=tecnico_2.id_tecnico if tecnico_2 else None,
-        nombre_tecnico_2=nombre_tecnico_2,
         tipo_servicio=tipo_servicio,
         fecha=fecha,
         hora=hora,
         direccion=direccion,
         descripcion="; ".join(productos),
         estado="Confirmada",
+        id_especializacion=ids_esp[0] if len(ids_esp) == 1 else None,
     )
+    if len(tecnicos_extra) > 0:
+        cita_kwargs["id_tecnico_2"] = tecnicos_extra[0].id_tecnico
+        cita_kwargs["nombre_tecnico_2"] = nombre_tecnico_2
+    if len(tecnicos_extra) > 1:
+        cita_kwargs["id_tecnico_3"] = tecnicos_extra[1].id_tecnico
+        cita_kwargs["nombre_tecnico_3"] = nombre_tecnico_3
+    cita = Cita(**cita_kwargs)
     db.add(cita)
     db.commit()
     db.refresh(cita)
@@ -514,7 +697,7 @@ def _crear_orden_instalacion(
     nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
     fecha_texto = fecha.strftime("%d/%m/%Y")
 
-    tecnicos_a_notificar = [t for t in (tecnico, tecnico_2) if t is not None]
+    tecnicos_a_notificar = [t for t in (tecnico, *tecnicos_extra) if t is not None]
     for t in tecnicos_a_notificar:
         if t.usuario and t.usuario.email:
             from app.services.notificaciones import notificar_cita_asignada_tecnico
@@ -535,17 +718,66 @@ def _crear_orden_instalacion(
                 },
             )
 
+    # El TÉCNICO 1 queda encargado de despachar también los productos del
+    # pedido: la entrega se agenda el mismo día de la instalación a su nombre.
+    entrega_info: dict | None = None
+    tiene_productos = any(
+        d.id_producto_d is not None for d in (pedido.detalles or [])
+    )
+    if tiene_productos and tecnico is not None:
+        pedido.fecha_entrega = fecha
+        pedido.hora_entrega = hora
+        pedido.hora_entrega_fin = None
+        pedido.id_tecnico_entrega = tecnico.id_tecnico
+        pedido.nombre_tecnico_entrega = nombre_tecnico
+        pedido.estado_entrega = "Asignada"
+        db.commit()
+
+        if tecnico.usuario and tecnico.usuario.email:
+            from app.services.notificaciones import notificar_entrega_asignada_tecnico
+
+            notificar_entrega_asignada_tecnico(
+                db,
+                tecnico.usuario.id_usuario,
+                tecnico.usuario.email,
+                nombre_tecnico or "técnico",
+                {
+                    "pedido": pedido.id_pedido,
+                    "cliente": nombre_cliente,
+                    "direccion": direccion,
+                    "telefono": cliente.telefono_cliente,
+                    "fecha": fecha_texto,
+                    "hora": hora,
+                },
+            )
+
+        entrega_info = {
+            "id_pedido": pedido.id_pedido,
+            "fecha_entrega": fecha.isoformat(),
+            "hora_entrega": hora,
+            "id_tecnico": tecnico.id_tecnico,
+            "nombre_tecnico": nombre_tecnico,
+            "telefono_tecnico": (
+                tecnico.usuario.telefono_usuario if tecnico.usuario else None
+            ),
+            "foto_tecnico": tecnico.usuario.foto_url if tecnico.usuario else None,
+            "estado_entrega": pedido.estado_entrega,
+        }
+
     return {
         "id_cita": cita.id_cita,
         "id_tecnico": cita.id_tecnico,
         "nombre_tecnico": nombre_tecnico,
         "id_tecnico_2": cita.id_tecnico_2,
         "nombre_tecnico_2": nombre_tecnico_2,
+        "id_tecnico_3": cita.id_tecnico_3,
+        "nombre_tecnico_3": nombre_tecnico_3,
         "tipo_servicio": tipo_servicio,
         "fecha": fecha.isoformat(),
         "hora": hora,
         "direccion": direccion,
         "estado": cita.estado,
+        "entrega": entrega_info,
     }
 
 
@@ -857,7 +1089,10 @@ async def crear_pedido(
 ) -> dict:
     """Crea un pedido con sus detalles y procesa el pago simulado."""
     lineas_producto = _validar_y_preparar_items(db, items)
-    lineas_servicio = _preparar_servicios(db, servicios or [])
+    # Duración estimada (1-2.5 h) de la instalación según los productos del
+    # carrito: se usa para validar que las franjas elegidas alcancen.
+    duracion_items = duracion_desde_items(db, items)
+    lineas_servicio = _preparar_servicios(db, servicios or [], duracion_items)
     if lineas_servicio:
         _bloquear_si_cita_sin_calificar(db, cliente)
 
@@ -897,14 +1132,23 @@ async def crear_pedido(
     agotados: list = []
     for linea in lineas_producto:
         producto = linea["producto"]
+        variante = linea.get("variante")
         nombre = normalizar_nombre_producto(producto.nombre_producto)
         descripcion = nombre
         if producto.marca:
             descripcion = f"{nombre} - Marca: {producto.marca}"
         if linea["metros"] is not None:
             descripcion = f"{nombre} - {linea['metros']:g} metros"
+        medida_txt = None
+        if variante is not None and (variante.ancho_cm or variante.alto_cm or variante.tamaño):
+            if variante.ancho_cm and variante.alto_cm:
+                medida_txt = f"{variante.ancho_cm} cm por {variante.alto_cm} cm"
+            else:
+                medida_txt = variante.tamaño
         if linea.get("color"):
             descripcion = f"{descripcion} - Color: {linea['color']}"
+        if linea.get("tamaño") or medida_txt:
+            descripcion = f"{descripcion} - Medida: {linea.get('tamaño') or medida_txt}"
         detalle = DetallePedido(
             id_pedido_d=pedido.id_pedido,
             id_producto_d=producto.id_producto,
@@ -917,11 +1161,13 @@ async def crear_pedido(
         db.add(detalle)
         if estado_pago == "aprobado":
             if producto.venta_por_metros and linea["metros"]:
-                descuento = max(int(linea["metros"]), 1)
+                unidades = linea["metros"]
             else:
-                descuento = max(int(linea["cantidad"]), 1)
-            producto.stock_producto = max((producto.stock_producto or 0) - descuento, 0)
-            if producto.stock_producto == 0:
+                unidades = linea["cantidad"]
+            # El stock se descuenta de la VARIANTE si el item la lleva;
+            # el stock general del producto también baja por control total.
+            resultado = descontar_stock(db, producto, variante, unidades)
+            if resultado["producto_agotado"] or resultado["variante_agotada"]:
                 agotados.append(producto)
 
     # Detalles de servicios.
@@ -982,6 +1228,11 @@ async def crear_pedido(
             ordenes_instalacion = _crear_ordenes_instalacion_pedido(
                 db, pedido, cliente, lineas_servicio
             )
+            # El técnico 1 de la instalación queda encargado del despacho.
+            for orden in ordenes_instalacion:
+                if orden.get("entrega"):
+                    entrega = orden["entrega"]
+                    break
         elif lineas_producto:
             # Pedido de solo productos: se asigna técnico para la entrega con
             # fecha dentro de los próximos 5 días hábiles.
@@ -1028,14 +1279,43 @@ async def confirmar_pago_pendiente(db: Session, pedido_id: int, cliente: Cliente
 
     # Descontar stock de los productos del pedido.
     agotados: list = []
+
+    def _variante_por_descripcion(prod, desc: str | None):
+        """Recupera la variante (color/medida) desde la descripción guardada."""
+        import re as _re
+
+        if not prod or not prod.variantes:
+            return None
+        m_c = _re.search(r"- Color:\s*([^-|]+)", desc or "")
+        m_m = _re.search(r"- Medida:\s*([^-|]+)", desc or "")
+        if not m_c:
+            return None
+        color_txt = m_c.group(1).strip().lower()
+        medida_txt = m_m.group(1).strip().lower() if m_m else None
+        for v in prod.variantes:
+            ok_color = (v.nombre or "").strip().lower() == color_txt
+            if not ok_color:
+                continue
+            if medida_txt is None:
+                return v
+            etiqueta = (
+                f"{v.ancho_cm} cm por {v.alto_cm} cm"
+                if (v.ancho_cm and v.alto_cm)
+                else (v.tamaño or "").strip()
+            ).lower()
+            if medida_txt == etiqueta or (v.tamaño or "").strip().lower() == medida_txt:
+                return v
+        return None
+
     for detalle in db.query(DetallePedido).filter(DetallePedido.id_pedido_d == pedido.id_pedido):
         if detalle.id_producto_d and detalle.producto:
             if detalle.cantidad_metros:
                 descuento = max(int(detalle.cantidad_metros), 1)
             else:
                 descuento = max(int(detalle.cantidad_detalle or 1), 1)
-            detalle.producto.stock_producto = max((detalle.producto.stock_producto or 0) - descuento, 0)
-            if detalle.producto.stock_producto == 0:
+            variante = _variante_por_descripcion(detalle.producto, detalle.descripcion_detalle)
+            resultado = descontar_stock(db, detalle.producto, variante, descuento)
+            if resultado["producto_agotado"]:
                 agotados.append(detalle.producto)
 
     factura = await _crear_factura_y_enviar(db, pedido, pago, cliente)
@@ -1052,6 +1332,11 @@ async def confirmar_pago_pendiente(db: Session, pedido_id: int, cliente: Cliente
         ordenes_instalacion = _crear_ordenes_instalacion_desde_detalles(
             db, pedido, cliente
         )
+        # El técnico 1 de la instalación queda encargado del despacho.
+        for orden in ordenes_instalacion:
+            if orden.get("entrega"):
+                entrega = orden["entrega"]
+                break
     else:
         # Pedido de solo productos confirmado después: asignar entrega.
         ordenes_instalacion = []

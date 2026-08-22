@@ -34,7 +34,9 @@ interface Cita {
   id_tecnico?: number | null;
   nombre_tecnico?: string | null;
   id_tecnico_2?: number | null;
+  id_tecnico_3?: number | null;
   nombre_tecnico_2?: string | null;
+  nombre_tecnico_3?: string | null;
   costo_cita?: number | null;
   id_comision_c?: number | null;
   comision_porcentaje?: number | null;
@@ -268,6 +270,7 @@ const TecnicoCitas = () => {
                     <td>
                       <FaUserTie /> {cita.nombre_tecnico || t('tec.tecnico')}
                       {cita.nombre_tecnico_2 ? <div className="muted"><FaUserTie /> {cita.nombre_tecnico_2}</div> : null}
+                      {cita.nombre_tecnico_3 ? <div className="muted"><FaUserTie /> {cita.nombre_tecnico_3}</div> : null}
                     </td>
                     <td>
                       <span className={`ap-badge ${ESTADO_BADGE[cita.estado] || 'neutral'}`}>

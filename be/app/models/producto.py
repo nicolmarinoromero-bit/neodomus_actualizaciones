@@ -24,8 +24,18 @@ class Producto(Base):
     promocion_hasta = Column(Date, nullable=True)
     es_nuevo_producto = Column(Boolean, nullable=False, default=True)
     tecnicos_requeridos = Column(Integer, nullable=False, default=1)
+    dificultad_instalacion = Column(String(10), nullable=True)  # baja | media | alta
+    tiempo_estimado_horas = Column(Float, nullable=True)
+    # El producto se vende con medidas (ancho × alto) elegibles por variante.
+    tiene_medidas = Column(Boolean, nullable=False, default=False)
     categoria = relationship("Categoria", foreign_keys=[id_cate_pr])
     proveedor = relationship("Proveedor", foreign_keys=[id_proveedor_pr])
+    especializaciones_requeridas = relationship(
+        "Especializacion",
+        secondary="producto_especializacion",
+        lazy="selectin",
+        order_by="Especializacion.nombre",
+    )
     variantes = relationship(
         "ProductoVariante",
         back_populates="producto",
