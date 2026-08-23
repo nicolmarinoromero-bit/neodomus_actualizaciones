@@ -136,15 +136,23 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
     rol ? usarLeidasStorage(rol) : {},
   );
 
-  const marcarLeida = (id: string) => {
-    if (!rol) return;
-    setLeidas((prev) => {
-      if (prev[id]) return prev;
-      const next = { ...prev, [id]: true };
-      localStorage.setItem(claveStorage(rol), JSON.stringify(next));
-      return next;
-    });
-  };
+  const marcarLeida = useCallback(
+    (id: string) => {
+      if (!rol) return;
+      setNotificaciones((prev) =>
+        prev.some((n) => n.id === id && !n.leida)
+          ? prev.map((n) => (n.id === id ? { ...n, leida: true } : n))
+          : prev,
+      );
+      setLeidas((prev) => {
+        if (prev[id]) return prev;
+        const next = { ...prev, [id]: true };
+        localStorage.setItem(claveStorage(rol), JSON.stringify(next));
+        return next;
+      });
+    },
+    [rol],
+  );
 
   const recargar = useCallback(async (opciones?: { silencioso?: boolean }) => {
     if (!rol) {

@@ -53,7 +53,7 @@ const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
 
 const AdminNotificaciones = () => {
   const { t } = useIdioma();
-  const { notificaciones, cargando, noLeidas, recargar } = useAdminNotificaciones();
+  const { notificaciones, cargando, noLeidas, recargar, marcarLeida } = useAdminNotificaciones();
   const [filtro, setFiltro] = useState<'todas' | TipoNotificacion>('todas');
 
   const visibles = useMemo(
@@ -133,6 +133,10 @@ const AdminNotificaciones = () => {
               <article
                 key={notificacion.id}
                 className={`an-item ${notificacion.tipo} ${notificacion.leida ? '' : 'unread'}`}
+                onClick={() => {
+                  if (!notificacion.leida) marcarLeida(notificacion.id);
+                }}
+                style={{ cursor: 'pointer' }}
               >
                 <div className={`an-icon ${notificacion.tipo}`}>{ICONO_TIPO[notificacion.tipo]}</div>
                 <div className="an-body">
@@ -145,7 +149,13 @@ const AdminNotificaciones = () => {
                   <p className="an-msg">{notificacion.mensaje}</p>
                   {notificacion.accion && (
                     <div className="an-actions">
-                      <Link to={notificacion.accion.to} className="ap-btn ap-btn-ghost">
+                      <Link
+                        to={notificacion.accion.to}
+                        className="ap-btn ap-btn-ghost"
+                        onClick={() => {
+                          if (!notificacion.leida) marcarLeida(notificacion.id);
+                        }}
+                      >
                         {notificacion.accion.label} <FaArrowRight />
                       </Link>
                     </div>

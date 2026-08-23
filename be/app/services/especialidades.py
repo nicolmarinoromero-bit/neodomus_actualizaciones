@@ -9,7 +9,7 @@ Centraliza las reglas:
   3) Exclusividad de franja horaria: una fecha + hora solo puede ser
      reservada por un cliente a la vez.
 """
-from datetime import date
+from datetime import date, timedelta
 from typing import Iterable, Optional
 
 from sqlalchemy import or_
@@ -230,8 +230,17 @@ def especializaciones_de_productos(productos: Iterable) -> list[int]:
 
 
 def _dia_es_laboral(fecha: date) -> bool:
-    """True solo de lunes a viernes."""
+    """True solo de lunes a sábado: los domingos no se presta servicio."""
     return fecha.weekday() in DIAS_LABORALES
+
+
+def siguiente_dia_laboral(fecha: date) -> date:
+    """Devuelve la misma fecha si es día laboral (lunes a sábado) o la
+    siguiente hábil si cayó en domingo: el servicio nunca se agenda en
+    domingo, así que un cálculo automático que caiga ahí salta al lunes."""
+    while not _dia_es_laboral(fecha):
+        fecha += timedelta(days=1)
+    return fecha
 
 
 def horas_laborales(fecha: date, duracion_horas: float = DURACION_MIN) -> list[str]:

@@ -130,81 +130,135 @@
 .checkout-servicios-lista {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .checkout-servicio {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 14px;
+  padding: 16px 18px;
 }
 
 .checkout-servicio-fila {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.checkout-servicio-detalles {
-  display: grid;
-  grid-template-columns: 1fr 130px 1.6fr;
-  gap: 8px;
-  padding-left: 4px;
+/* Cuerpo por pasos: fecha/hora → técnico → dirección */
+.checkout-servicio-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.checkout-tecnicos-aviso {
-  grid-column: 1 / -1;
+.cs-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cs-bloque-titulo {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  color: #c9b78f;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cs-bloque-titulo svg {
+  font-size: 13px;
+  color: #d3ac4d;
+}
+
+.cs-grid-fechas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cs-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cs-campo > span {
+  color: #9c9c9c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Inputs de fecha/hora del servicio: misma apariencia que el resto
+   del checkout (checkout-field) para una jerarquía tipográfica única */
+.cs-campo input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #181818;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.25s;
+  box-sizing: border-box;
+}
+
+.cs-campo input:focus {
+  border-color: #d3ac4d;
+}
+
+.cs-campo input[type='date'],
+.cs-campo input[type='time'] {
+  color-scheme: dark;
+}
+
+/* Navegadores sin soporte de color-scheme: aclara el indicador nativo */
+@supports not (color-scheme: dark) {
+  .cs-campo input[type='date']::-webkit-calendar-picker-indicator,
+  .cs-campo input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+}
+
+.cs-campo input[type='date']::-webkit-calendar-picker-indicator,
+.cs-campo input[type='time']::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.cs-campo input::-webkit-datetime-edit {
+  color: #ffffff;
+}
+
+.cs-campo input[type='date']::-webkit-calendar-picker-indicator:hover,
+.cs-campo input[type='time']::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+}
+
+.checkout-tecnicos-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: rgba(212, 165, 75, 0.1);
   border: 1px solid rgba(212, 165, 75, 0.3);
   color: #ffd98a;
   font-size: 13px;
   font-weight: 600;
-}
-
-.checkout-servicio-detalles input {
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: #181818;
-  color: #ffffff;
-  font-size: 13px;
-}
-
-.checkout-servicio-detalles input[type='date'],
-.checkout-servicio-detalles input[type='time'] {
-  color-scheme: dark;
-}
-
-/* Navegadores sin soporte de color-scheme: aclara el indicador nativo */
-@supports not (color-scheme: dark) {
-  .checkout-servicio-detalles input[type='date']::-webkit-calendar-picker-indicator,
-  .checkout-servicio-detalles input[type='time']::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-  }
-}
-
-.checkout-servicio-detalles input[type='date']::-webkit-calendar-picker-indicator,
-.checkout-servicio-detalles input[type='time']::-webkit-calendar-picker-indicator {
-  opacity: 1;
-  cursor: pointer;
-}
-
-.checkout-servicio-detalles input::-webkit-datetime-edit {
-  color: #ffffff;
-}
-
-.checkout-servicio-detalles input[type='date']::-webkit-calendar-picker-indicator:hover,
-.checkout-servicio-detalles input[type='time']::-webkit-calendar-picker-indicator:hover {
-  opacity: 0.85;
+  line-height: 1.45;
 }
 
 .checkout-servicio-direccion {
@@ -230,12 +284,18 @@
 
 .checkout-servicio select {
   flex: 1;
-  padding: 9px 12px;
+  padding: 11px 14px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: #181818;
   color: #ffffff;
   font-size: 14px;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.checkout-servicio select:focus {
+  border-color: #d3ac4d;
 }
 
 .checkout-servicio-precio {
@@ -355,6 +415,16 @@
 .checkout-field input:focus,
 .checkout-field select:focus {
   border-color: #d3ac4d;
+}
+
+/* Opciones del desplegable con contraste garantizado sobre tema oscuro:
+   sin esto algunos navegadores las pintan con fondo claro y texto ilegible */
+.checkout-field select option,
+.checkout-servicio select option,
+.checkout-tecnico-select option,
+.checkout-tecnico-modo option {
+  background: #181818;
+  color: #ffffff;
 }
 
 .checkout-nota {
@@ -950,6 +1020,9 @@
   .checkout-main {
     padding: 24px 18px 60px;
   }
+  .cs-grid-fechas {
+    grid-template-columns: 1fr;
+  }
   .checkout-header h1 {
     font-size: 28px;
   }
@@ -983,21 +1056,27 @@
   }
 }
 
-/* Selector de t�cnico y entrega */
+/* Selector de técnico: misma apariencia que los demás inputs del checkout */
 .checkout-tecnico-select,
 .checkout-tecnico-modo {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(212, 165, 75, 0.3);
-  background: #141210;
-  color: #f4e9d5;
-  flex: 1 1 220px;
-  min-width: 0;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #181818;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.checkout-tecnico-select:focus,
+.checkout-tecnico-modo:focus {
+  border-color: #d3ac4d;
 }
 
 .checkout-tecnico-modo {
-  color: #c9b78f;
-  font-size: 0.85rem;
+  color: #e6dcc3;
 }
 
 .checkout-entrega-tecnico {

@@ -32,12 +32,13 @@ from app.services.especialidades import (
     tecnico_ocupado,
     duracion_desde_items,
     duracion_base_tipo,
+    siguiente_dia_laboral,
 )
 from app.services.factura_service import (
     enviar_factura_por_correo,
     generar_factura_pdf,
 )
-from app.utils.fechas import fecha_bogota
+from app.utils.fechas import fecha_bogota, hoy_bogota
 
 # Precios de demostración para servicios técnicos comprados en el checkout.
 PRECIOS_SERVICIOS_DEMO = {
@@ -155,7 +156,7 @@ def _preparar_servicios(
         slot_tomado,
         _dia_es_laboral,
     )
-    from datetime import datetime as _dt
+    from app.utils.fechas import hoy_bogota
 
     preparados = []
     for serv in servicios or []:
@@ -182,8 +183,10 @@ def _preparar_servicios(
         except (TypeError, ValueError):
             f = None
         if f is None:
-            f = (datetime.now() + timedelta(days=1)).date()
-        if f < date.today():
+            # Sin fecha elegida se agenda lo antes posible: si el cálculo
+            # cae en domingo (día no laboral) salta al lunes.
+            f = siguiente_dia_laboral(fecha_bogota().date() + timedelta(days=1))
+        if f < hoy_bogota():
             raise HTTPException(
                 status_code=400,
                 detail="La fecha del servicio no puede ser anterior a hoy.",
@@ -191,7 +194,7 @@ def _preparar_servicios(
         if not _dia_es_laboral(f):
             raise HTTPException(
                 status_code=400,
-                detail="Las citas solo se pueden agendar de lunes a viernes.",
+                detail="Las citas solo se pueden agendar de lunes a sábado (los domingos no se presta servicio).",
             )
         duracion = (
             duracion_items
@@ -208,11 +211,12 @@ def _preparar_servicios(
                 status_code=400,
                 detail=f"La franja del {f} a las {hora} ya fue reservada por otro cliente. Elige otra.",
             )
-        if f == date.today():
+        if f == hoy_bogota():
             try:
                 hh, mm = hora.split(":")[:2]
                 seleccion = (int(hh), int(mm))
-                actual = (_dt.now().hour, _dt.now().minute)
+                ahora_bog = fecha_bogota()
+                actual = (ahora_bog.hour, ahora_bog.minute)
             except (TypeError, ValueError):
                 seleccion, actual = None, None
             if seleccion is not None and seleccion <= actual:
@@ -236,8 +240,8 @@ def _preparar_servicios(
 
 def _validar_fecha_instalacion(fecha: str | None, hora: str) -> None:
     """Rechaza instalaciones agendadas en una fecha pasada o, si es hoy,
-    en una hora que ya pasó."""
-    hoy = date.today()
+    en una hora que ya pasó (hora de Bogotá, no UTC del contenedor)."""
+    hoy = hoy_bogota()
     if not fecha:
         return
     try:
@@ -253,7 +257,8 @@ def _validar_fecha_instalacion(fecha: str | None, hora: str) -> None:
         try:
             hh, mm = (hora or "").split(":")[:2]
             seleccion = (int(hh), int(mm))
-            actual = (datetime.now().hour, datetime.now().minute)
+            ahora_bog = fecha_bogota()
+            actual = (ahora_bog.hour, ahora_bog.minute)
         except (TypeError, ValueError):
             return
         if seleccion <= actual:
@@ -542,11 +547,13 @@ def _crear_orden_instalacion(
     except (TypeError, ValueError):
         fecha = None
     if fecha is None:
-        fecha = (datetime.now() + timedelta(days=1)).date()
+        # Sin fecha elegida se agenda lo antes posible; si el cálculo cae en
+        # domingo (no laboral) salta automáticamente al lunes.
+        fecha = siguiente_dia_laboral(fecha_bogota().date() + timedelta(days=1))
     else:
         # Regla de negocio: los servicios del carrito se agendan con al
-        # menos 3 días de anticipación.
-        minima = (datetime.now() + timedelta(days=3)).date()
+        # menos 3 días de anticipación (contados desde Bogotá).
+        minima = fecha_bogota().date() + timedelta(days=3)
         if fecha < minima:
             raise HTTPException(
                 status_code=400,
@@ -555,6 +562,9 @@ def _crear_orden_instalacion(
                     f"anticipación (mínimo {minima.isoformat()})."
                 ),
             )
+    # El servicio y la entrega solo operan de lunes a sábado: una fecha que
+    # caiga en domingo se pasa al día hábil siguiente (lunes).
+    fecha = siguiente_dia_laboral(fecha)
     hora = serv.get("hora") or "08:00"
     direccion = (
         (serv.get("direccion") or "").strip()
@@ -1017,8 +1027,9 @@ def _asignar_entrega(db: Session, pedido: Pedido, cliente: Cliente) -> dict | No
     de entrega queda entre 1 y 5 días hábiles, en franja de 1 hora, y el día
     del técnico queda ocupado para otros clientes. Notifica al técnico."""
     from app.models.user import User
-    from app.services.especialidades import _dia_es_laboral
+    from app.services.especialidades import _dia_es_laboral, siguiente_dia_laboral
     from app.services.notificaciones import notificar_entrega_asignada_tecnico
+    from app.utils.fechas import hoy_bogota
 
     candidatos = (
         db.query(Tecnico)
@@ -1026,13 +1037,18 @@ def _asignar_entrega(db: Session, pedido: Pedido, cliente: Cliente) -> dict | No
         .filter(User.is_active == True, User.id_rol_u == 2)  # noqa: E712
         .all()
     )
-    hoy = date.today()
+    # 'Hoy' según Bogotá: con UTC el servidor adelanta la fecha desde las
+    # 7 p.m. colombianas y calculaba entregas como si ya fuera otro día.
+    hoy = hoy_bogota()
     fecha = None
     tecnico = None
-    for delta in range(1, 6):
-        f = hoy + timedelta(days=delta)
-        if not _dia_es_laboral(f):
+    probada = None
+    for delta in range(1, 9):
+        # Si el día cae en domingo se pasa automáticamente al lunes.
+        f = siguiente_dia_laboral(hoy + timedelta(days=delta))
+        if f == probada:
             continue
+        probada = f
         libre = next(
             (t for t in candidatos if not tecnico_ocupado(db, t.id_tecnico, f, "10:00")),
             None,

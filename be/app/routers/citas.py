@@ -46,6 +46,7 @@ from app.services import pagos_service
 from app.services.notificaciones import crear_notificacion, notificar_cita_asignada_tecnico, notificar_recordatorio_cita, notificar_cita_reasignada_cliente
 from app.models.calificacion import Calificacion
 from app.utils.security import get_current_client, get_current_employee
+from app.utils.fechas import hoy_bogota
 
 router = APIRouter(prefix="/citas", tags=["Citas"])
 
@@ -320,7 +321,7 @@ def _validar_franja_cita(
     if not _dia_es_laboral(fecha):
         raise HTTPException(
             status_code=400,
-            detail="Las citas solo se pueden agendar de lunes a viernes.",
+            detail="Las citas solo se pueden agendar de lunes a sábado (los domingos no se presta servicio).",
         )
     if hora not in horas_laborales(fecha, duracion_horas):
         raise HTTPException(
@@ -383,7 +384,9 @@ def crear_cita(
 
     El costo se toma de la tarifa fija del servicio y se paga al agendar
     con el simulador académico local."""
-    if data.fecha < datetime.now().date():
+    # 'Hoy' según Bogotá: con UTC el servidor adelanta el día desde las
+    # 7 p.m. colombianas y rechazaba citas de hoy por considerarlas pasadas.
+    if data.fecha < hoy_bogota():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
     duracion = duracion_base_tipo(data.tipo_servicio)
     _validar_franja_cita(data.fecha, data.hora, duracion_horas=duracion)
@@ -508,7 +511,7 @@ def horas_disponibles_cita(
     real según los productos (máx. 2.5 h por desplazamiento); sin items se
     usa la duración base del tipo de servicio. Vacío si la fecha es fin de
     semana o pasada."""
-    if not _dia_es_laboral(fecha) or fecha < date.today():
+    if not _dia_es_laboral(fecha) or fecha < hoy_bogota():
         return []
     duracion = DURACION_MIN
     if items:
@@ -1310,7 +1313,7 @@ def editar_cita(
     if cita.estado not in ESTADOS_EDITABLES:
         raise HTTPException(status_code=400, detail="No se puede modificar una cita finalizada o cancelada")
     update_data = data.model_dump(exclude_unset=True)
-    if "fecha" in update_data and update_data["fecha"] < datetime.now().date():
+    if "fecha" in update_data and update_data["fecha"] < hoy_bogota():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
     nueva_fecha = update_data.get("fecha", cita.fecha)
     nueva_hora = update_data.get("hora", cita.hora)

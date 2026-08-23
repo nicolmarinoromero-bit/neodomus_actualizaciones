@@ -394,7 +394,11 @@ const AdminTecnicos = () => {
               <div className="ap-def-list" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
                 <div className="ap-def">
                   <div className="ap-def-label">{t('adm.tecnicos.telefono')}</div>
-                  <div className="ap-def-value">{tecnico.telefono_usuario ? `+${tecnico.telefono_usuario}` : '—'}</div>
+                  <div className="ap-def-value">
+                    {tecnico.telefono_usuario
+                      ? String(tecnico.telefono_usuario).replace(/^\+/, '')
+                      : '—'}
+                  </div>
                 </div>
                 <div className="ap-def">
                   <div className="ap-def-label">{t('adm.tecnicos.citasPendientes')}</div>
