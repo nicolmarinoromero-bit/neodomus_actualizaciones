@@ -17,6 +17,7 @@ import {
   FaXmark,
   FaFilePdf,
   FaUsers,
+  FaCalendarCheck,
 } from 'react-icons/fa6';
 import api, { descargarFactura } from '@services/api';
 import { useCart } from '@contexts/CartContext';
@@ -243,6 +244,15 @@ const CheckoutPage = () => {
   };
 
   const actualizarServicio = (id: number, campo: keyof LineaServicio, valor: string) => {
+    // El servicio y la entrega operan de lunes a sábado: si la fecha elegida
+    // cae en domingo (getDay() === 0) se rechaza con un aviso claro.
+    if (campo === 'fecha' && valor) {
+      const [año, mes, dia] = valor.split('-').map(Number);
+      if (año && new Date(año, mes - 1, dia).getDay() === 0) {
+        setError('Los domingos no se presta servicio. Elige una fecha de lunes a sábado.');
+        return;
+      }
+    }
     setServicios((prev) =>
       prev.map((s) => (s.id === id ? { ...s, [campo]: valor } : s))
     );
@@ -307,6 +317,11 @@ const CheckoutPage = () => {
     for (const s of servicios) {
       if (!s.fecha) {
         setError('Selecciona la fecha en que deseas el servicio técnico.');
+        return;
+      }
+      const [añoSel, mesSel, diaSel] = s.fecha.split('-').map(Number);
+      if (añoSel && new Date(añoSel, mesSel - 1, diaSel).getDay() === 0) {
+        setError('Los domingos no se presta servicio. Elige una fecha de lunes a sábado.');
         return;
       }
       if (s.fecha < fechaMinimaServicioISO) {
@@ -761,7 +776,12 @@ const CheckoutPage = () => {
                           <FaTrashCan />
                         </button>
                       </div>
-                      <div className="checkout-servicio-detalles">
+                      <div className="checkout-servicio-cuerpo">
+                        {/* Paso 1 · Fecha y hora */}
+                        <div className="cs-bloque">
+                          <span className="cs-bloque-titulo">
+                            <FaCalendarCheck /> Fecha y hora del servicio
+                          </span>
                           {s.tipo === 'Instalación' && (
                             <>
                               <span className="checkout-tecnicos-aviso">
@@ -780,19 +800,34 @@ const CheckoutPage = () => {
                               )}
                             </>
                           )}
-                          <input
-                            type="date"
-                            value={s.fecha || ''}
-                            min={fechaMinimaServicioISO}
-                            onChange={(e) => actualizarServicio(s.id, 'fecha', e.target.value)}
-                          />
-                          <input
-                            type="time"
-                            value={s.hora || '08:00'}
-                            min={s.fecha === hoyISO ? horaActual : undefined}
-                            step={3600}
-                            onChange={(e) => actualizarServicio(s.id, 'hora', e.target.value)}
-                          />
+                          <div className="cs-grid-fechas">
+                            <label className="cs-campo">
+                              <span>Fecha</span>
+                              <input
+                                type="date"
+                                value={s.fecha || ''}
+                                min={fechaMinimaServicioISO}
+                                onChange={(e) => actualizarServicio(s.id, 'fecha', e.target.value)}
+                              />
+                            </label>
+                            <label className="cs-campo">
+                              <span>Hora</span>
+                              <input
+                                type="time"
+                                value={s.hora || '08:00'}
+                                min={s.fecha === hoyISO ? horaActual : undefined}
+                                step={3600}
+                                onChange={(e) => actualizarServicio(s.id, 'hora', e.target.value)}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Paso 2 · Técnico */}
+                        <div className="cs-bloque">
+                          <span className="cs-bloque-titulo">
+                            <FaUsers /> Técnico asignado
+                          </span>
                           {(() => {
                             const esInstalacion = s.tipo === 'Instalación';
                             const totalTecnicos = esInstalacion ? Math.max(1, Math.min(tecnicosNecesarios, 3)) : 1;
@@ -814,53 +849,58 @@ const CheckoutPage = () => {
                             );
                             return (
                               <>
-                                <select
-                                  className="checkout-tecnico-modo"
-                                  value={s.modo_tecnico || 'auto'}
-                                  onChange={(e) => actualizarServicio(s.id, 'modo_tecnico', e.target.value)}
-                                >
-                                  {esInstalacion && totalTecnicos > 1 ? (
-                                    <>
-                                      <option value="auto">Asignación automática de los {totalTecnicos} técnicos</option>
-                                      <option value="lista">Elegir mis {totalTecnicos} técnicos</option>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <option value="auto">Técnico: asignación automática</option>
-                                      <option value="lista">Técnico: elegir de la lista</option>
-                                    </>
-                                  )}
-                                </select>
+                                <label className="cs-campo">
+                                  <span>Preferencia</span>
+                                  <select
+                                    className="checkout-tecnico-modo"
+                                    value={s.modo_tecnico || 'auto'}
+                                    onChange={(e) => actualizarServicio(s.id, 'modo_tecnico', e.target.value)}
+                                  >
+                                    {esInstalacion && totalTecnicos > 1 ? (
+                                      <>
+                                        <option value="auto">Asignación automática de los {totalTecnicos} técnicos</option>
+                                        <option value="lista">Elegir mis {totalTecnicos} técnicos</option>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <option value="auto">Asignación automática</option>
+                                        <option value="lista">Elegir de la lista</option>
+                                      </>
+                                    )}
+                                  </select>
+                                </label>
                                 {s.modo_tecnico === 'lista' &&
                                   Array.from({ length: totalTecnicos }).map((_, i) => {
                                     const campo = campos[i];
                                     return (
-                                      <select
-                                        key={campo}
-                                        className="checkout-tecnico-select"
-                                        value={(s[campo] as number | null | undefined) ?? ''}
-                                        onChange={(e) =>
-                                          actualizarServicio(s.id, campo, e.target.value)
-                                        }
-                                      >
-                                        <option value="">Técnico {i + 1}: selecciona uno</option>
-                                        {opciones.map((t) => {
-                                          const tomadoPorOtro = elegidos.some(
-                                            (v, j) => j !== i && Number(v) === t.id_tecnico,
-                                          );
-                                          return (
-                                            <option
-                                              key={t.id_tecnico}
-                                              value={t.id_tecnico}
-                                              disabled={t.disponible === false || tomadoPorOtro}
-                                            >
-                                              {t.first_name || ''} {t.last_name || ''}
-                                              {t.calificacion ? ` (★ ${Number(t.calificacion).toFixed(1)})` : ''}
-                                              {t.disponible === false ? ' — ocupado ese día' : ''}
-                                            </option>
-                                          );
-                                        })}
-                                      </select>
+                                      <label className="cs-campo" key={campo}>
+                                        <span>Técnico {i + 1}</span>
+                                        <select
+                                          className="checkout-tecnico-select"
+                                          value={(s[campo] as number | null | undefined) ?? ''}
+                                          onChange={(e) =>
+                                            actualizarServicio(s.id, campo, e.target.value)
+                                          }
+                                        >
+                                          <option value="">Selecciona un técnico</option>
+                                          {opciones.map((t) => {
+                                            const tomadoPorOtro = elegidos.some(
+                                              (v, j) => j !== i && Number(v) === t.id_tecnico,
+                                            );
+                                            return (
+                                              <option
+                                                key={t.id_tecnico}
+                                                value={t.id_tecnico}
+                                                disabled={t.disponible === false || tomadoPorOtro}
+                                              >
+                                                {t.first_name || ''} {t.last_name || ''}
+                                                {t.calificacion ? ` (★ ${Number(t.calificacion).toFixed(1)})` : ''}
+                                                {t.disponible === false ? ' — ocupado ese día' : ''}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      </label>
                                     );
                                   })}
                                 {!(s.modo_tecnico === 'lista') && esInstalacion && totalTecnicos > 1 && (
@@ -872,6 +912,13 @@ const CheckoutPage = () => {
                               </>
                             );
                           })()}
+                        </div>
+
+                        {/* Paso 3 · Dirección */}
+                        <div className="cs-bloque">
+                          <span className="cs-bloque-titulo">
+                            <FaLocationDot /> Dirección del servicio
+                          </span>
                           {direccionCliente ? (
                             <span className="checkout-servicio-direccion">
                               <FaLocationDot /> {direccionCliente}
@@ -882,6 +929,7 @@ const CheckoutPage = () => {
                             </span>
                           )}
                         </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -957,16 +1005,19 @@ const CheckoutPage = () => {
                     <p className="checkout-nota">
                       Prueba: 4242 4242 4242 4242 (aprobada) · 4242 4242 4242 0001 (rechazada)
                     </p>
-                    <label>Cuotas</label>
-                    <select
-                      value={pago.cuotas}
-                      onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
-                    >
-                      <option value={1}>1 cuota</option>
-                      <option value={3}>3 cuotas</option>
-                      <option value={6}>6 cuotas</option>
-                      <option value={12}>12 cuotas</option>
-                    </select>
+                    <div className="checkout-field">
+                      <label htmlFor="cuotas-select">Cuotas</label>
+                      <select
+                        id="cuotas-select"
+                        value={pago.cuotas}
+                        onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
+                      >
+                        <option value={1}>1 cuota</option>
+                        <option value={3}>3 cuotas</option>
+                        <option value={6}>6 cuotas</option>
+                        <option value={12}>12 cuotas</option>
+                      </select>
+                    </div>
                   </>
                 )}
 

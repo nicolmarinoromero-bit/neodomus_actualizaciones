@@ -321,6 +321,23 @@ const CitasPage = () => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // El servicio opera de lunes a sábado: el picker rechaza los domingos
+  // (getDay() === 0) y avisa al cliente en lugar de dejar elegir la fecha.
+  const handleFechaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!value) {
+      setForm(prev => ({ ...prev, fecha: '', hora: '' }));
+      return;
+    }
+    const [año, mes, dia] = value.split('-').map(Number);
+    if (año && new Date(año, mes - 1, dia).getDay() === 0) {
+      setToast({ msg: t('citas.domingoBloqueado'), tipo: 'error' });
+      setForm(prev => ({ ...prev, fecha: '', hora: '' }));
+      return;
+    }
+    setForm(prev => ({ ...prev, fecha: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
@@ -330,6 +347,11 @@ const CitasPage = () => {
     }
     if (!form.tipo_servicio || !form.fecha || !form.hora || !form.direccion.trim() || !form.descripcion.trim()) {
       setToast({ msg: t('citas.errorCampos'), tipo: 'error' });
+      return;
+    }
+    const [añoF, mesF, diaF] = form.fecha.split('-').map(Number);
+    if (añoF && new Date(añoF, mesF - 1, diaF).getDay() === 0) {
+      setToast({ msg: t('citas.domingoBloqueado'), tipo: 'error' });
       return;
     }
     const datosPago: any = {};
@@ -864,7 +886,7 @@ const CitasPage = () => {
                     id="citas-fecha"
                     name="fecha"
                     value={form.fecha}
-                    onChange={handleChange}
+                    onChange={handleFechaChange}
                     min={hoy}
                     className="citas-input"
                     required

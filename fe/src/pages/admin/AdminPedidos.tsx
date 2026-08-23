@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaBoxOpen } from 'react-icons/fa6';
+import {
+  FaBoxOpen,
+  FaMagnifyingGlass,
+  FaCircleCheck,
+  FaTriangleExclamation,
+  FaRegClock,
+  FaCalendarCheck,
+  FaXmark,
+} from 'react-icons/fa6';
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import '@styles/admin-panel.css';
@@ -28,10 +36,12 @@ interface TecnicoSimple {
 
 const ESTADO_CLASE: Record<string, string> = {
   Asignada: 'warn',
-  'En camino': 'warn',
+  'En camino': 'info',
   Entregado: 'ok',
   Cancelada: 'err',
 };
+
+const POR_PAGINA = 10;
 
 const AdminPedidos = () => {
   const { t } = useIdioma();
@@ -40,6 +50,8 @@ const AdminPedidos = () => {
   const [cargando, setCargando] = useState(true);
   const [guardandoId, setGuardandoId] = useState<number | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
   const cargar = async () => {
@@ -71,15 +83,55 @@ const AdminPedidos = () => {
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return pedidos;
     return pedidos.filter(
-      (p) =>
-        String(p.id_pedido).includes(q) ||
-        (p.cliente || '').toLowerCase().includes(q) ||
-        p.productos.some((prod) => prod.toLowerCase().includes(q)) ||
-        (p.nombre_tecnico || '').toLowerCase().includes(q),
+      (p) => {
+        if (filtroFecha && p.fecha_entrega !== filtroFecha) return false;
+        if (!q) return true;
+        return (
+          String(p.id_pedido).includes(q) ||
+          (p.cliente || '').toLowerCase().includes(q) ||
+          p.productos.some((prod) => prod.toLowerCase().includes(q)) ||
+          (p.nombre_tecnico || '').toLowerCase().includes(q)
+        );
+      },
     );
-  }, [pedidos, busqueda]);
+  }, [pedidos, busqueda, filtroFecha]);
+
+  // Filtro por fecha restringido a días hábiles: los domingos no hay
+  // entregas, así que la selección se rechaza con un aviso.
+  const aplicarFiltroFecha = (valor: string) => {
+    if (!valor) {
+      setFiltroFecha('');
+      setPagina(1);
+      return;
+    }
+    const [año, mes, dia] = valor.split('-').map(Number);
+    if (año && new Date(año, mes - 1, dia).getDay() === 0) {
+      setToast({ msg: t('adm.pedidos.domingoBloqueado'), tipo: 'err' });
+      return;
+    }
+    setFiltroFecha(valor);
+    setPagina(1);
+  };
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const paginaItems = filtrados.slice(
+    (paginaActual - 1) * POR_PAGINA,
+    paginaActual * POR_PAGINA,
+  );
+
+  const formatFechaEntrega = (f: string) => {
+    try {
+      return new Date(`${f}T00:00:00`).toLocaleDateString('es-CO', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      });
+    } catch {
+      return f;
+    }
+  };
 
   const cambiarEncargado = async (pedido: PedidoEntrega, valor: string) => {
     setGuardandoId(pedido.id_pedido);
@@ -104,84 +156,190 @@ const AdminPedidos = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="ap-card">
-        <div className="ap-card-head">
-          <h3>
-            <FaBoxOpen /> {t('adm.pedidos.titulo')}
-          </h3>
-          <p>{t('adm.pedidos.desc')}</p>
+      <div className="ap-header">
+        <div>
+          <h1 className="ap-title">{t('adm.pedidos.titulo')}</h1>
+          <p className="ap-subtitle">{t('adm.pedidos.desc')}</p>
         </div>
+      </div>
 
-        <div className="ap-form-group" style={{ maxWidth: 360 }}>
+      <div className="ap-toolbar">
+        <form className="ap-search" onSubmit={(e) => e.preventDefault()}>
+          <FaMagnifyingGlass />
           <input
             type="text"
-            className="ap-form-input"
             placeholder={t('adm.pedidos.buscar')}
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              setPagina(1);
+            }}
           />
+        </form>
+        <span className="ap-contador-suave">
+          {t('adm.pedidos.total', { n: filtrados.length })}
+        </span>
+        <div className="ap-filter-date ap-filter-date-derecha">
+          <FaCalendarCheck />
+          <input
+            type="date"
+            aria-label={t('adm.pedidos.filtroFecha')}
+            title={t('adm.pedidos.filtroFecha')}
+            value={filtroFecha}
+            onChange={(e) => aplicarFiltroFecha(e.target.value)}
+          />
+          {filtroFecha && (
+            <button
+              type="button"
+              className="ap-filter-clear"
+              aria-label={t('adm.pedidos.limpiarFiltroFecha')}
+              onClick={() => aplicarFiltroFecha('')}
+            >
+              <FaXmark />
+            </button>
+          )}
         </div>
-
-        {toast && (
-          <p style={{ color: toast.tipo === 'ok' ? '#3d7a3d' : '#a33', fontWeight: 600 }}>
-            {toast.msg}
-          </p>
-        )}
-
-        {cargando ? (
-          <p style={{ color: '#9a8f78' }}>{t('adm.pedidos.cargando')}</p>
-        ) : filtrados.length === 0 ? (
-          <p style={{ color: '#9a8f78' }}>{t('adm.pedidos.sinPedidos')}</p>
-        ) : (
-          <div className="ap-tarifas-grid">
-            {filtrados.map((p) => (
-              <div className="ap-tarifa-item" key={p.id_pedido} style={{ alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 0 }}>
-                  <span className="ap-tarifa-nombre" style={{ display: 'block' }}>
-                    #{p.id_pedido} · {p.cliente || '—'}
-                  </span>
-                  <span style={{ fontSize: '0.82rem', color: '#9a8f78', display: 'block' }}>
-                    {p.productos.length > 0 ? p.productos.join(', ') : t('adm.pedidos.sinProductos')}
-                  </span>
-                  <span style={{ fontSize: '0.82rem', color: '#9a8f78', display: 'block' }}>
-                    {p.fecha_entrega
-                      ? `${p.fecha_entrega} ${p.hora_entrega || ''}${p.direccion ? ` · ${p.direccion}` : ''}`
-                      : t('adm.pedidos.sinFecha')}
-                  </span>
-                </div>
-                <div className="ap-tarifa-valor" style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <span className={`ap-badge ${ESTADO_CLASE[p.estado_entrega || ''] || 'neutral'}`}>
-                    {p.estado_entrega || t('adm.pedidos.sinEstado')}
-                  </span>
-                  <label
-                    className="ap-form-label"
-                    htmlFor={`encargado-${p.id_pedido}`}
-                    style={{ fontSize: '0.75rem' }}
-                  >
-                    {t('adm.pedidos.tecnicoEncargado')}
-                  </label>
-                  <select
-                    id={`encargado-${p.id_pedido}`}
-                    className="ap-form-select"
-                    value={p.id_tecnico_entrega?.toString() || ''}
-                    disabled={guardandoId === p.id_pedido}
-                    onChange={(e) => cambiarEncargado(p, e.target.value)}
-                    style={{ minWidth: 180 }}
-                  >
-                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
-                    {tecnicos.map((tec) => (
-                      <option key={tec.id_tecnico} value={tec.id_tecnico}>
-                        {[tec.first_name, tec.last_name].filter(Boolean).join(' ').trim() ||
-                          `Técnico #${tec.id_tecnico}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      {cargando ? (
+        <div className="ap-card">
+          <div className="ap-states">
+            <span className="ap-loader" />
+            <h3>{t('adm.pedidos.cargando')}</h3>
+          </div>
+        </div>
+      ) : filtrados.length === 0 ? (
+        <div className="ap-card">
+          <div className="ap-states">
+            <div className="ap-states-icon">
+              <FaBoxOpen />
+            </div>
+            <h3>
+              {busqueda.trim() || filtroFecha
+                ? t('adm.pedidos.sinResultados')
+                : t('adm.pedidos.sinPedidos')}
+            </h3>
+          </div>
+        </div>
+      ) : (
+        <div className="ap-card">
+          <div className="ap-table-wrap">
+            <table className="ap-table ap-table-citas">
+              <thead>
+                <tr>
+                  <th>{t('adm.pedidos.colPedido')}</th>
+                  <th>{t('adm.pedidos.colCliente')}</th>
+                  <th>{t('adm.pedidos.colProductos')}</th>
+                  <th>{t('adm.pedidos.colDireccion')}</th>
+                  <th>{t('adm.pedidos.colEstado')}</th>
+                  <th>{t('adm.pedidos.tecnicoEncargado')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginaItems.map((p) => {
+                  const productosTexto =
+                    p.productos.length > 0 ? p.productos.join(', ') : t('adm.pedidos.sinProductos');
+                  const direccionTexto = p.direccion || '—';
+                  return (
+                    <tr key={p.id_pedido}>
+                      <td>
+                        <strong>#{p.id_pedido}</strong>
+                        <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <FaRegClock />
+                          {p.fecha_entrega
+                            ? `${formatFechaEntrega(p.fecha_entrega)} · ${p.hora_entrega || '--:--'}`
+                            : t('adm.pedidos.sinFecha')}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="ap-cell-truncado" title={p.cliente || undefined}>
+                          <strong>{p.cliente || '—'}</strong>
+                        </div>
+                        {p.telefono && (
+                          <div className="muted" style={{ fontSize: 12 }}>{p.telefono}</div>
+                        )}
+                      </td>
+                      <td className="ap-col-truncado">
+                        <span className="ap-cell-truncado" title={productosTexto}>
+                          {productosTexto}
+                        </span>
+                      </td>
+                      <td className="ap-col-truncado">
+                        <span className="ap-cell-truncado" title={direccionTexto}>
+                          {direccionTexto}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`ap-badge ${ESTADO_CLASE[p.estado_entrega || ''] || 'neutral'}`}>
+                          {p.estado_entrega || t('adm.pedidos.sinEstado')}
+                        </span>
+                      </td>
+                      <td>
+                        <select
+                          aria-label={t('adm.pedidos.tecnicoEncargado')}
+                          className="ap-form-select"
+                          value={p.id_tecnico_entrega?.toString() || ''}
+                          disabled={guardandoId === p.id_pedido}
+                          onChange={(e) => cambiarEncargado(p, e.target.value)}
+                          style={{ minWidth: 170, width: '100%' }}
+                        >
+                          <option value="">{t('adm.instalaciones.sinAsignar')}</option>
+                          {tecnicos.map((tec) => (
+                            <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                              {[tec.first_name, tec.last_name].filter(Boolean).join(' ').trim() ||
+                                `Técnico #${tec.id_tecnico}`}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPaginas > 1 && (
+            <div className="ap-paginacion" style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={paginaActual === 1}
+                onClick={() => setPagina(paginaActual - 1)}
+              >
+                {t('adm.pedidos.paginaAnterior')}
+              </button>
+              <div className="ap-page-nums">
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`ap-page-btn ${n === paginaActual ? 'active' : ''}`}
+                    onClick={() => setPagina(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={paginaActual === totalPaginas}
+                onClick={() => setPagina(paginaActual + 1)}
+              >
+                {t('adm.pedidos.paginaSiguiente')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {toast && (
+        <div className={`ap-toast ${toast.tipo}`}>
+          {toast.tipo === 'ok' ? <FaCircleCheck /> : <FaTriangleExclamation />}
+          {toast.msg}
+        </div>
+      )}
     </motion.section>
   );
 };

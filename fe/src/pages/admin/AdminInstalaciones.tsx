@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { Fragment, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   FaCalendarCheck,
@@ -9,6 +9,11 @@ import {
   FaMagnifyingGlass,
   FaClockRotateLeft,
   FaCalendarPlus,
+  FaEllipsisVertical,
+  FaEye,
+  FaBan,
+  FaXmark,
+  FaRegClock,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
@@ -113,6 +118,9 @@ const AdminInstalaciones = () => {
   const [guardandoTarifa, setGuardandoTarifa] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [detalleId, setDetalleId] = useState<number | null>(null);
+  const [menuAbiertoId, setMenuAbiertoId] = useState<number | null>(null);
   const [pagina, setPagina] = useState(1);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
@@ -124,7 +132,7 @@ const AdminInstalaciones = () => {
   const [sugerencia, setSugerencia] = useState<SugerenciaAplazar | null>(null);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
 
-  const POR_PAGINA = 6;
+  const POR_PAGINA = 8;
 
   const cargar = async () => {
     setCargando(true);
@@ -319,6 +327,7 @@ const AdminInstalaciones = () => {
   const visibles = citas.filter((c) => c.estado !== 'Cancelada');
   const filtradas = visibles.filter((c) => {
     if (filtro !== 'todas' && c.estado !== filtro) return false;
+    if (filtroFecha && c.fecha !== filtroFecha) return false;
     if (!q) return true;
     return `${c.cliente_nombre || ''} ${c.cliente_email || ''} ${c.tipo_servicio || ''} ${c.nombre_tecnico || ''} ${c.nombre_tecnico_2 || ''} ${c.direccion || ''} ${c.descripcion || ''} ${c.estado_pago || ''} ${c.metodo_pago || ''} ${c.numero_transaccion || ''}`
       .toLowerCase()
@@ -349,6 +358,23 @@ const AdminInstalaciones = () => {
     } catch {
       return f;
     }
+  };
+
+  // Filtro por fecha restringido a días hábiles: los domingos no se presta
+  // servicio, así que la selección se rechaza con un aviso.
+  const aplicarFiltroFecha = (valor: string) => {
+    if (!valor) {
+      setFiltroFecha('');
+      setPagina(1);
+      return;
+    }
+    const [año, mes, dia] = valor.split('-').map(Number);
+    if (año && new Date(año, mes - 1, dia).getDay() === 0) {
+      notify(t('adm.instalaciones.domingoBloqueado'), 'err');
+      return;
+    }
+    setFiltroFecha(valor);
+    setPagina(1);
   };
 
   return (
@@ -408,6 +434,26 @@ const AdminInstalaciones = () => {
             }}
           />
         </form>
+        <div className="ap-filter-date">
+          <FaCalendarCheck />
+          <input
+            type="date"
+            aria-label={t('adm.instalaciones.filtroFecha')}
+            title={t('adm.instalaciones.filtroFecha')}
+            value={filtroFecha}
+            onChange={(e) => aplicarFiltroFecha(e.target.value)}
+          />
+          {filtroFecha && (
+            <button
+              type="button"
+              className="ap-filter-clear"
+              aria-label={t('adm.instalaciones.limpiarFiltroFecha')}
+              onClick={() => aplicarFiltroFecha('')}
+            >
+              <FaXmark />
+            </button>
+          )}
+        </div>
       </div>
 
       {cargando ? (
@@ -534,14 +580,14 @@ const AdminInstalaciones = () => {
               <FaCalendarCheck />
             </div>
             <h3>
-              {q
+              {q || filtroFecha
                 ? t('adm.instalaciones.sinResultados')
                 : filtro === 'todas'
                   ? t('adm.instalaciones.noHayCitas')
                   : t('adm.instalaciones.sinCitasEstado', { estado: t(ESTADO_TRAD[filtro] || filtro) })}
             </h3>
             <p>
-              {q
+              {q || filtroFecha
                 ? t('adm.instalaciones.sinResultadosDetalle')
                 : filtro === 'todas'
                   ? t('adm.instalaciones.noHayCitasDetalle')
@@ -550,372 +596,452 @@ const AdminInstalaciones = () => {
           </div>
         </div>
       ) : (
-        <div className="ap-grid">
-          {citasPagina.map((cita) => (
-            <div className="ap-grid-item" key={cita.id_cita}>
-              <div className="ap-grid-item-top">
-                <span className="ap-initials">
-                  {(cita.cliente_nombre || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
-                </span>
-                <span className={`ap-badge ${CLASE_ESTADO[cita.estado] || 'neutral'}`}>{t(ESTADO_TRAD[cita.estado] || cita.estado)}</span>
-              </div>
-              <div>
-                <h3>{cita.cliente_nombre || t('adm.instalaciones.cliente')}</h3>
-                <p>{cita.cliente_email}</p>
-              </div>
+        <div className="ap-card">
+          <div className="ap-table-wrap">
+            <table className="ap-table ap-table-citas">
+              <thead>
+                <tr>
+                  <th>{t('adm.instalaciones.cliente')}</th>
+                  <th>{t('adm.instalaciones.colFechaHora')}</th>
+                  <th>{t('adm.instalaciones.colServicio')}</th>
+                  <th>{t('adm.instalaciones.estadoLabel')}</th>
+                  <th>{t('adm.instalaciones.colPago')}</th>
+                  <th className="ap-col-acciones">{t('adm.instalaciones.colAcciones')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {citasPagina.map((cita) => {
+                  const detalleAbierto = detalleId === cita.id_cita;
+                  const agendaActiva = cita.estado === 'Pendiente' || cita.estado === 'Confirmada';
+                  return (
+                    <Fragment key={cita.id_cita}>
+                      <tr>
+                        <td>
+                          <div className="ap-cell-user">
+                            <span className="ap-initials" style={{ width: 38, height: 38, fontSize: 14 }}>
+                              {(cita.cliente_nombre || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
+                            </span>
+                            <div>
+                              <strong>{cita.cliente_nombre || t('adm.instalaciones.cliente')}</strong>
+                              <span>{cita.cliente_email}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ whiteSpace: 'nowrap' }}>{formatFecha(cita.fecha)}</div>
+                          <div className="ap-subtexto">
+                            <FaRegClock /> {cita.hora}
+                          </div>
+                        </td>
+                        <td>
+                          <div>{t(NOMBRE_SERVICIO[cita.tipo_servicio] || cita.tipo_servicio)}</div>
+                          {cita.especializacion_requerida && (
+                            <span className="ap-badge info" style={{ marginTop: 4 }}>
+                              {cita.especializacion_requerida.nombre}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`ap-badge ${CLASE_ESTADO[cita.estado] || 'neutral'}`}>
+                            {t(ESTADO_TRAD[cita.estado] || cita.estado)}
+                          </span>
+                          {estaInactivo(cita) && (
+                            <div className="ap-subtexto" style={{ marginTop: 4 }}>
+                              {t('adm.instalaciones.tecnicoInhabilitado')}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ whiteSpace: 'nowrap' }}>
+                            {cita.costo_cita != null ? formatoPeso(cita.costo_cita) : '—'}
+                          </div>
+                          {cita.estado_pago && (
+                            <span
+                              className={`ap-badge ${CLASE_PAGO[cita.estado_pago] || 'neutral'}`}
+                              style={{ marginTop: 4 }}
+                            >
+                              {t(ESTADO_PAGO_TRAD[cita.estado_pago] || cita.estado_pago)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="ap-col-acciones">
+                          <div className="ap-menu-wrap">
+                            <button
+                              type="button"
+                              className={`ap-menu-btn ${menuAbiertoId === cita.id_cita ? 'active' : ''}`}
+                              aria-label={t('adm.instalaciones.accionGestionar')}
+                              title={t('adm.instalaciones.accionGestionar')}
+                              disabled={guardandoId === cita.id_cita}
+                              onClick={() =>
+                                setMenuAbiertoId(menuAbiertoId === cita.id_cita ? null : cita.id_cita)
+                              }
+                            >
+                              {guardandoId === cita.id_cita ? <span className="ap-loader" /> : <FaEllipsisVertical />}
+                            </button>
+                            {menuAbiertoId === cita.id_cita && (
+                              <>
+                                <div className="ap-menu-backdrop" onClick={() => setMenuAbiertoId(null)} />
+                                <div className="ap-menu">
+                                  <button
+                                    type="button"
+                                    className="ap-menu-item"
+                                    onClick={() => {
+                                      setMenuAbiertoId(null);
+                                      setDetalleId(detalleAbierto ? null : cita.id_cita);
+                                    }}
+                                  >
+                                    <FaEye /> {detalleAbierto ? t('adm.instalaciones.ocultarDetalles') : t('adm.instalaciones.verDetalles')}
+                                  </button>
+                                  {cita.estado === 'Pendiente' && (
+                                    <button
+                                      type="button"
+                                      className="ap-menu-item ok"
+                                      onClick={() => {
+                                        setMenuAbiertoId(null);
+                                        actualizar(cita, { estado: 'Confirmada' });
+                                      }}
+                                    >
+                                      <FaCircleCheck /> {t('adm.instalaciones.accionConfirmar')}
+                                    </button>
+                                  )}
+                                  {cita.estado === 'Confirmada' && (
+                                    <button
+                                      type="button"
+                                      className="ap-menu-item ok"
+                                      onClick={() => {
+                                        setMenuAbiertoId(null);
+                                        actualizar(cita, { estado: 'Finalizada' });
+                                      }}
+                                    >
+                                      <FaCalendarCheck /> {t('adm.instalaciones.accionFinalizar')}
+                                    </button>
+                                  )}
+                                  {agendaActiva && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="ap-menu-item"
+                                        disabled={aplazandoId === cita.id_cita}
+                                        onClick={() => {
+                                          setMenuAbiertoId(null);
+                                          sugerirAplazamiento(cita);
+                                        }}
+                                      >
+                                        <FaClockRotateLeft /> {t('adm.instalaciones.aplazar')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="ap-menu-item danger"
+                                        onClick={() => {
+                                          setMenuAbiertoId(null);
+                                          if (window.confirm(t('adm.instalaciones.confirmarCancelacion'))) {
+                                            actualizar(cita, { estado: 'Cancelada' });
+                                          }
+                                        }}
+                                      >
+                                        <FaBan /> {t('adm.instalaciones.accionCancelarCita')}
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
 
-              <div className="ap-def-list" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.instalaciones.colServicio')}</div>
-                  <div className="ap-def-value">{t(NOMBRE_SERVICIO[cita.tipo_servicio] || cita.tipo_servicio)}</div>
-                </div>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.instalaciones.colFecha')}</div>
-                  <div className="ap-def-value">{formatFecha(cita.fecha)}</div>
-                </div>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.instalaciones.colHora')}</div>
-                  <div className="ap-def-value">{cita.hora}</div>
-                </div>
-                {cita.especializacion_requerida && (
-                  <div className="ap-def">
-                    <div className="ap-def-label">{t('adm.instalaciones.colEspecializacion')}</div>
-                    <div className="ap-def-value">
-                      <span className="ap-badge info">{cita.especializacion_requerida.nombre}</span>
-                    </div>
-                  </div>
-                )}
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.instalaciones.colPago')}</div>
-                  <div className="ap-def-value">
-                    {cita.costo_cita != null ? formatoPeso(cita.costo_cita) : '—'}
-                    {cita.estado_pago && (
-                      <span
-                        className={`ap-badge ${CLASE_PAGO[cita.estado_pago] || 'neutral'}`}
-                        style={{ marginLeft: 8 }}
-                      >
-                        {t(ESTADO_PAGO_TRAD[cita.estado_pago] || cita.estado_pago)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="ap-def">
-                  <div className="ap-def-label">{t('adm.instalaciones.colComision')}</div>
-                  <div className="ap-def-value">
-                    {cita.comision_valor != null ? (
-                      <>
-                        <span className="ap-badge ok">
-                          {cita.comision_porcentaje != null ? `${cita.comision_porcentaje}%` : t('adm.instalaciones.comision')}
-                        </span>
-                        <span style={{ marginLeft: 6 }}>
-                          {formatoPeso(cita.comision_valor)}
-                        </span>
-                      </>
-                    ) : (
-                      '—'
-                    )}
-                  </div>
-                </div>
-                {cita.metodo_pago && (
-                  <div className="ap-def">
-                    <div className="ap-def-label">{t('adm.instalaciones.colMetodo')}</div>
-                    <div className="ap-def-value" style={{ fontSize: '0.8rem' }}>
-                      {cita.metodo_pago.replace(/_/g, ' ')}
-                    </div>
-                  </div>
-                )}
-                {cita.numero_transaccion && (
-                  <div className="ap-def">
-                    <div className="ap-def-label">{t('adm.instalaciones.colTransaccion')}</div>
-                    <div className="ap-def-value" style={{ fontSize: '0.78rem' }}>
-                      {cita.numero_transaccion}
-                    </div>
-                  </div>
-                )}
-                <div className="ap-def full">
-                  <div className="ap-def-label">{t('adm.instalaciones.colDireccion')}</div>
-                  <div className="ap-def-value" style={{ fontSize: '0.82rem' }}>
-                    {cita.direccion}
-                  </div>
-                </div>
-                {cita.descripcion && (
-                  <div className="ap-def full">
-                    <div className="ap-def-label">{t('adm.instalaciones.colDescripcion')}</div>
-                    <div className="ap-def-value" style={{ fontSize: '0.82rem' }}>
-                      {cita.descripcion}
-                    </div>
-                  </div>
-                )}
-              </div>
+                      {detalleAbierto && (
+                        <tr className="ap-detalle-row">
+                          <td colSpan={6}>
+                            <div className="ap-detalle-panel">
+                              <div className="ap-def-list">
+                                <div className="ap-def full">
+                                  <div className="ap-def-label">{t('adm.instalaciones.colDireccion')}</div>
+                                  <div className="ap-def-value">{cita.direccion}</div>
+                                </div>
+                                {cita.descripcion && (
+                                  <div className="ap-def full">
+                                    <div className="ap-def-label">{t('adm.instalaciones.colDescripcion')}</div>
+                                    <div className="ap-def-value">{cita.descripcion}</div>
+                                  </div>
+                                )}
+                                {cita.metodo_pago && (
+                                  <div className="ap-def">
+                                    <div className="ap-def-label">{t('adm.instalaciones.colMetodo')}</div>
+                                    <div className="ap-def-value">{cita.metodo_pago.replace(/_/g, ' ')}</div>
+                                  </div>
+                                )}
+                                {cita.numero_transaccion && (
+                                  <div className="ap-def">
+                                    <div className="ap-def-label">{t('adm.instalaciones.colTransaccion')}</div>
+                                    <div className="ap-def-value">{cita.numero_transaccion}</div>
+                                  </div>
+                                )}
+                                <div className="ap-def">
+                                  <div className="ap-def-label">{t('adm.instalaciones.estadoLabel')}</div>
+                                  <select
+                                    className="ap-form-select"
+                                    value={cita.estado}
+                                    disabled={guardandoId === cita.id_cita}
+                                    onChange={(e) => actualizar(cita, { estado: e.target.value })}
+                                  >
+                                    {ESTADOS.map((e) => (
+                                      <option key={e} value={e}>
+                                        {t(ESTADO_TRAD[e] || e)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="ap-def">
+                                  <div className="ap-def-label">{t('adm.instalaciones.tecnicoLabel')}</div>
+                                  <select
+                                    className="ap-form-select"
+                                    value={cita.id_tecnico?.toString() || ''}
+                                    disabled={guardandoId === cita.id_cita}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v) reasignar(cita, parseInt(v, 10));
+                                    }}
+                                  >
+                                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
+                                    {estaInactivo(cita) && (
+                                      <option value={cita.id_tecnico?.toString()} disabled>
+                                        {cita.nombre_tecnico || 'Técnico'} ({t('adm.instalaciones.inhabilitado')})
+                                      </option>
+                                    )}
+                                    {disponibles[cita.id_cita] === undefined
+                                      ? tecnicos.map((tec) => (
+                                          <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                                            {formatTecnico(tec)}
+                                          </option>
+                                        ))
+                                      : disponibles[cita.id_cita].length === 0
+                                        ? (
+                                          <option value="" disabled>
+                                            {t('adm.instalaciones.sinTecnicosDia')}
+                                          </option>
+                                        )
+                                        : disponibles[cita.id_cita].map((tec) => (
+                                            <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                                              {tec.nombre.toUpperCase()}
+                                              {cita.especializacion_requerida
+                                                ? tec.cubre_especializacion
+                                                  ? ` ✓ ${t('adm.instalaciones.cubreEspecializacion')}`
+                                                  : ` ✕ ${t('adm.instalaciones.sinEspecialidad')}`
+                                                : ''}
+                                            </option>
+                                          ))}
+                                  </select>
+                                </div>
+                                <div className="ap-def">
+                                  <div className="ap-def-label">{t('adm.instalaciones.tecnicoLabel2')}</div>
+                                  <select
+                                    className="ap-form-select"
+                                    value={cita.id_tecnico_2?.toString() || ''}
+                                    disabled={guardandoId === cita.id_cita}
+                                    onChange={(e) =>
+                                      actualizar(cita, { id_tecnico_2: e.target.value ? parseInt(e.target.value, 10) : null })
+                                    }
+                                  >
+                                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
+                                    {tecnicos
+                                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_3)
+                                      .map((tec) => (
+                                        <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                                          {formatTecnico(tec)}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                                <div className="ap-def">
+                                  <div className="ap-def-label">{t('adm.instalaciones.tecnicoLabel3')}</div>
+                                  <select
+                                    className="ap-form-select"
+                                    value={cita.id_tecnico_3?.toString() || ''}
+                                    disabled={guardandoId === cita.id_cita}
+                                    onChange={(e) =>
+                                      actualizar(cita, { id_tecnico_3: e.target.value ? parseInt(e.target.value, 10) : null })
+                                    }
+                                  >
+                                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
+                                    {tecnicos
+                                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_2)
+                                      .map((tec) => (
+                                        <option key={tec.id_tecnico} value={tec.id_tecnico}>
+                                          {formatTecnico(tec)}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                                <div className="ap-def">
+                                  <div className="ap-def-label">{t('adm.instalaciones.colComision')}</div>
+                                  <div className="ap-comision">
+                                    {cita.comision_valor != null && edicionComision[cita.id_cita] === undefined ? (
+                                      <>
+                                        <span className="ap-badge ok">
+                                          {cita.comision_porcentaje != null
+                                            ? `${cita.comision_porcentaje}%`
+                                            : t('adm.instalaciones.comision')}{' '}
+                                          · {formatoPeso(cita.comision_valor)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="ap-btn ap-btn-ghost"
+                                          disabled={guardandoId === cita.id_cita}
+                                          onClick={() =>
+                                            setEdicionComision((prev) => ({
+                                              ...prev,
+                                              [cita.id_cita]: String(cita.comision_porcentaje ?? 5),
+                                            }))
+                                          }
+                                        >
+                                          {t('adm.instalaciones.cambiarPorcentaje')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ap-btn ap-btn-ghost"
+                                          disabled={guardandoId === cita.id_cita}
+                                          onClick={() => actualizar(cita, { id_comision_c: null })}
+                                        >
+                                          {t('adm.instalaciones.quitar')}
+                                        </button>
+                                      </>
+                                    ) : edicionComision[cita.id_cita] !== undefined ? (
+                                      <>
+                                        <input
+                                          type="text"
+                                          inputMode="decimal"
+                                          className="ap-form-input"
+                                          style={{ width: 90 }}
+                                          placeholder="%"
+                                          value={edicionComision[cita.id_cita]}
+                                          disabled={guardandoId === cita.id_cita}
+                                          onChange={(e) =>
+                                            setEdicionComision((prev) => ({ ...prev, [cita.id_cita]: e.target.value }))
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') guardarComision(cita);
+                                            if (e.key === 'Escape') {
+                                              setEdicionComision((prev) => {
+                                                const copia = { ...prev };
+                                                delete copia[cita.id_cita];
+                                                return copia;
+                                              });
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="ap-btn ap-btn-primary"
+                                          disabled={guardandoId === cita.id_cita}
+                                          onClick={() => guardarComision(cita)}
+                                        >
+                                          {t('adm.instalaciones.aplicar')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ap-btn ap-btn-ghost"
+                                          disabled={guardandoId === cita.id_cita}
+                                          onClick={() =>
+                                            setEdicionComision((prev) => {
+                                              const copia = { ...prev };
+                                              delete copia[cita.id_cita];
+                                              return copia;
+                                            })
+                                          }
+                                        >
+                                          {t('adm.instalaciones.cancelar')}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="ap-btn ap-btn-primary"
+                                        disabled={guardandoId === cita.id_cita}
+                                        onClick={() =>
+                                          setEdicionComision((prev) => ({ ...prev, [cita.id_cita]: '5' }))
+                                        }
+                                      >
+                                        {t('adm.instalaciones.agregarComision')}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
 
-              {estaInactivo(cita) && (
-                <div className="ap-reasignar-aviso" style={{ marginTop: 12 }}>
-                  <FaTriangleExclamation />
-                  <div>
-                    <strong>{t('adm.instalaciones.reasignarAvisoTitulo')}</strong>
-                    <span>
-                      {t('adm.instalaciones.reasignarAviso', {
-                        tecnico: cita.nombre_tecnico || 'Técnico',
-                      })}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="ap-btn ap-btn-ghost"
-                    disabled={aplazandoId === cita.id_cita || guardandoId === cita.id_cita}
-                    onClick={() => sugerirAplazamiento(cita)}
-                  >
-                    <FaClockRotateLeft /> {t('adm.instalaciones.aplazar')}
-                  </button>
-                </div>
-              )}
+                              {estaInactivo(cita) && (
+                                <div className="ap-reasignar-aviso" style={{ marginTop: 12 }}>
+                                  <FaTriangleExclamation />
+                                  <div>
+                                    <strong>{t('adm.instalaciones.reasignarAvisoTitulo')}</strong>
+                                    <span>
+                                      {t('adm.instalaciones.reasignarAviso', {
+                                        tecnico: cita.nombre_tecnico || 'Técnico',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="ap-btn ap-btn-ghost"
+                                    disabled={aplazandoId === cita.id_cita || guardandoId === cita.id_cita}
+                                    onClick={() => sugerirAplazamiento(cita)}
+                                  >
+                                    <FaClockRotateLeft /> {t('adm.instalaciones.aplazar')}
+                                  </button>
+                                </div>
+                              )}
 
-              {sugerencia && sugerencia.id_cita === cita.id_cita && (
-                <div className="ap-reasignar-sugerencia" style={{ marginTop: 12 }}>
-                  <FaCalendarPlus />
-                  <div>
-                    <strong>{t('adm.instalaciones.sugerenciaTitulo')}</strong>
-                    <span>
-                      {t('adm.instalaciones.sugerencia', {
-                        fecha: formatFecha(sugerencia.fecha),
-                        hora: sugerencia.hora,
-                        tecnico: sugerencia.nombre_tecnico,
-                      })}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-primary"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={confirmarAplazamiento}
-                    >
-                      {guardandoId === cita.id_cita
-                        ? t('adm.instalaciones.aplicando')
-                        : t('adm.instalaciones.confirmarAplazar')}
-                    </button>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ghost"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={() => setSugerencia(null)}
-                    >
-                      {t('adm.instalaciones.cancelar')}
-                    </button>
-                  </div>
-                </div>
-              )}
+                              {sugerencia && sugerencia.id_cita === cita.id_cita && (
+                                <div className="ap-reasignar-sugerencia" style={{ marginTop: 12 }}>
+                                  <FaCalendarPlus />
+                                  <div>
+                                    <strong>{t('adm.instalaciones.sugerenciaTitulo')}</strong>
+                                    <span>
+                                      {t('adm.instalaciones.sugerencia', {
+                                        fecha: formatFecha(sugerencia.fecha),
+                                        hora: sugerencia.hora,
+                                        tecnico: sugerencia.nombre_tecnico,
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                      type="button"
+                                      className="ap-btn ap-btn-primary"
+                                      disabled={guardandoId === cita.id_cita}
+                                      onClick={confirmarAplazamiento}
+                                    >
+                                      {guardandoId === cita.id_cita
+                                        ? t('adm.instalaciones.aplicando')
+                                        : t('adm.instalaciones.confirmarAplazar')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ap-btn ap-btn-ghost"
+                                      disabled={guardandoId === cita.id_cita}
+                                      onClick={() => setSugerencia(null)}
+                                    >
+                                      {t('adm.instalaciones.cancelar')}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
 
-              <div className="ap-form-grid" style={{ marginTop: 8 }}>
-                <div className="ap-form-group">
-                  <label className="ap-form-label">{t('adm.instalaciones.estadoLabel')}</label>
-                  <select
-                    className="ap-form-select"
-                    value={cita.estado}
-                    disabled={guardandoId === cita.id_cita}
-                    onChange={(e) => actualizar(cita, { estado: e.target.value })}
-                  >
-                    {ESTADOS.map((e) => (
-                      <option key={e} value={e}>
-                        {t(ESTADO_TRAD[e] || e)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="ap-form-group">
-                  <label className="ap-form-label">{t('adm.instalaciones.tecnicoLabel')}</label>
-                  <select
-                    className="ap-form-select"
-                    value={cita.id_tecnico?.toString() || ''}
-                    disabled={guardandoId === cita.id_cita}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v) reasignar(cita, parseInt(v, 10));
-                    }}
-                  >
-                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
-                    {estaInactivo(cita) && (
-                      <option value={cita.id_tecnico?.toString()} disabled>
-                        {cita.nombre_tecnico || 'Técnico'} ({t('adm.instalaciones.inhabilitado')})
-                      </option>
-                    )}
-                    {disponibles[cita.id_cita] === undefined
-                      ? tecnicos.map((tec) => (
-                          <option key={tec.id_tecnico} value={tec.id_tecnico}>
-                            {formatTecnico(tec)}
-                          </option>
-                        ))
-                      : disponibles[cita.id_cita].length === 0
-                        ? (
-                          <option value="" disabled>
-                            {t('adm.instalaciones.sinTecnicosDia')}
-                          </option>
-                        )
-                        : disponibles[cita.id_cita].map((tec) => (
-                            <option key={tec.id_tecnico} value={tec.id_tecnico}>
-                              {tec.nombre.toUpperCase()}
-                              {cita.especializacion_requerida
-                                ? tec.cubre_especializacion
-                                  ? ` ✓ ${t('adm.instalaciones.cubreEspecializacion')}`
-                                  : ` ✕ ${t('adm.instalaciones.sinEspecialidad')}`
-                                : ''}
-                            </option>
-                          ))}
-                  </select>
-                </div>
-                <div className="ap-form-group">
-                  <label className="ap-form-label">{t('adm.instalaciones.tecnicoLabel2')}</label>
-                  <select
-                    className="ap-form-select"
-                    value={cita.id_tecnico_2?.toString() || ''}
-                    disabled={guardandoId === cita.id_cita}
-                    onChange={(e) =>
-                      actualizar(cita, { id_tecnico_2: e.target.value ? parseInt(e.target.value, 10) : null })
-                    }
-                  >
-                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
-                    {tecnicos
-                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_3)
-                      .map((tec) => (
-                        <option key={tec.id_tecnico} value={tec.id_tecnico}>
-                          {formatTecnico(tec)}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="ap-form-group">
-                  <label className="ap-form-label">{t('adm.instalaciones.tecnicoLabel3')}</label>
-                  <select
-                    className="ap-form-select"
-                    value={cita.id_tecnico_3?.toString() || ''}
-                    disabled={guardandoId === cita.id_cita}
-                    onChange={(e) =>
-                      actualizar(cita, { id_tecnico_3: e.target.value ? parseInt(e.target.value, 10) : null })
-                    }
-                  >
-                    <option value="">{t('adm.instalaciones.sinAsignar')}</option>
-                    {tecnicos
-                      .filter((tec) => tec.id_tecnico !== cita.id_tecnico && tec.id_tecnico !== cita.id_tecnico_2)
-                      .map((tec) => (
-                        <option key={tec.id_tecnico} value={tec.id_tecnico}>
-                          {formatTecnico(tec)}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                {!estaInactivo(cita) && (
-                  <div className="ap-form-group">
-                    <label className="ap-form-label">&nbsp;</label>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ghost ap-aplazar-btn"
-                      disabled={aplazandoId === cita.id_cita || guardandoId === cita.id_cita}
-                      onClick={() => sugerirAplazamiento(cita)}
-                    >
-                      {aplazandoId === cita.id_cita ? (
-                        <span className="ap-loader" />
-                      ) : (
-                        <FaClockRotateLeft />
+                              {!agendaActiva && (
+                                <p className="ap-subtexto" style={{ margin: '10px 0 0' }}>
+                                  {t('adm.instalaciones.detalleSoloLectura')}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                      {t('adm.instalaciones.aplazar')}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="ap-comision" style={{ marginTop: 12 }}>
-                {cita.comision_valor != null && edicionComision[cita.id_cita] === undefined ? (
-                  <>
-                    <span className="ap-badge ok">
-                      {cita.comision_porcentaje != null
-                        ? `${cita.comision_porcentaje}%`
-                        : t('adm.instalaciones.comision')}{' '}
-                      · {formatoPeso(cita.comision_valor)}
-                    </span>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ghost"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={() =>
-                        setEdicionComision((prev) => ({
-                          ...prev,
-                          [cita.id_cita]: String(cita.comision_porcentaje ?? 5),
-                        }))
-                      }
-                    >
-                      {t('adm.instalaciones.cambiarPorcentaje')}
-                    </button>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ghost"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={() => actualizar(cita, { id_comision_c: null })}
-                    >
-                      {t('adm.instalaciones.quitar')}
-                    </button>
-                  </>
-                ) : edicionComision[cita.id_cita] !== undefined ? (
-                  <>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="ap-form-input"
-                      style={{ width: 90 }}
-                      placeholder="%"
-                      value={edicionComision[cita.id_cita]}
-                      disabled={guardandoId === cita.id_cita}
-                      onChange={(e) =>
-                        setEdicionComision((prev) => ({ ...prev, [cita.id_cita]: e.target.value }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') guardarComision(cita);
-                        if (e.key === 'Escape') {
-                          setEdicionComision((prev) => {
-                            const copia = { ...prev };
-                            delete copia[cita.id_cita];
-                            return copia;
-                          });
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-primary"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={() => guardarComision(cita)}
-                    >
-                      {t('adm.instalaciones.aplicar')}
-                    </button>
-                    <button
-                      type="button"
-                      className="ap-btn ap-btn-ghost"
-                      disabled={guardandoId === cita.id_cita}
-                      onClick={() =>
-                        setEdicionComision((prev) => {
-                          const copia = { ...prev };
-                          delete copia[cita.id_cita];
-                          return copia;
-                        })
-                      }
-                    >
-                      {t('adm.instalaciones.cancelar')}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="ap-btn ap-btn-primary"
-                    disabled={guardandoId === cita.id_cita}
-                    onClick={() =>
-                      setEdicionComision((prev) => ({ ...prev, [cita.id_cita]: '5' }))
-                    }
-                  >
-                    {t('adm.instalaciones.agregarComision')}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
