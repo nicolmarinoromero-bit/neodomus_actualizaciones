@@ -400,6 +400,19 @@
   font-weight: 600;
 }
 
+/* Cantidad de unidades (tramos) para productos por metro */
+.detalle-cantidad-unidades {
+  margin-top: 2px;
+}
+
+.detalle-cantidad-unidades .detalle-metros-titulo {
+  color: #c9c9c9;
+}
+
+.detalle-cantidad-unidades .detalle-cantidad {
+  align-self: flex-start;
+}
+
 .detalle-metros-opciones {
   display: flex;
   flex-wrap: wrap;

@@ -150,6 +150,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: linear-gradient(180deg, rgba(24, 24, 24, 0.9), rgba(12, 12, 12, 0.95));
   border: 1px solid rgba(211, 172, 77, 0.25);
   border-radius: 20px;
@@ -353,7 +354,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 2px;
   padding-top: 12px;
 }
 
@@ -389,94 +390,129 @@
   margin-left: auto;
 }
 
-.precio-metro-hint {
-  display: block;
-  color: #9c9c9c;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  margin-top: -6px;
-}
-
 /* ============================================================
    ACCIONES: cantidad + agregar al carrito
    ============================================================ */
 
-.acciones-producto {
+/* ============================================================
+   BLOQUE INFERIOR DE LA TARJETA (opciones + total + botón)
+   Anclado con margin-top:auto: todas las tarjetas terminan en
+   la misma línea base, sin importar su contenido intermedio.
+   ============================================================ */
+
+.tarjeta-inferior {
+  margin-top: auto;
+  padding-top: 14px;
   display: flex;
-  gap: 12px;
-  align-items: stretch;
-  margin-top: 14px;
+  flex-direction: column;
+}
+
+/* Fila única de opciones: metros por unidad + cantidad (gap 6px) */
+.producto-opciones {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px; /* reserva uniforme aunque no haya grupo de metros */
+}
+
+.opcion-grupo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.opcion-etiqueta {
+  color: #9c9c9c;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .cantidad-control {
   display: flex;
   align-items: center;
   border: 1px solid #3a3a3a;
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.35);
 }
 
-.cantidad-control button {
-  width: 36px;
-  height: 42px;
+/* Variante compacta dentro de las tarjetas: pequeña y discreta.
+   Debe redefinir TODO (fondo transparente, texto blanco y centrado
+   flex) porque es la única regla que aplican estos botones/spans:
+   sin ella el navegador pinta su estilo nativo (fondo blanco, texto negro). */
+.cantidad-control.mini button {
+  width: 26px;
+  height: 30px;
+  padding: 0;
   border: none;
   background: transparent;
   color: #ffffff;
   cursor: pointer;
-  font-size: 16px;
-  transition: background 0.2s, color 0.2s;
-}
-
-.cantidad-control button:hover {
-  background: rgba(211, 172, 77, 0.25);
-  color: #ffd700;
-}
-
-.cantidad-control span {
-  width: 36px;
-  height: 42px;
+  font-size: 13px;
+  line-height: 1;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+}
+
+.cantidad-control.mini span {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 0.82rem;
   color: #ffffff;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-left: 1px solid #2e2e2e;
   border-right: 1px solid #2e2e2e;
 }
 
-.metros-select {
-  min-width: 78px;
-  height: 42px;
-  padding: 0 10px;
-  border: 1px solid #3a3a3a;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.35);
+/* El tramo "20 m" necesita más ancho que una cifra corta */
+.cantidad-control.mini.metros span {
+  min-width: 48px;
+}
+
+.cantidad-control.mini button:hover {
+  background: rgba(211, 172, 77, 0.25);
   color: #ffd700;
-  font-weight: 700;
-  font-size: 13.5px;
-  cursor: pointer;
-  outline: none;
 }
 
-.metros-select:hover {
-  border-color: rgba(211, 172, 77, 0.6);
+.cantidad-control button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
-.metros-select:focus {
-  border-color: #d4a54b;
-  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.12);
-}
-
-.metros-select option {
-  background: #1a1a1a;
+.cantidad-control button:disabled:hover {
+  background: transparent;
   color: #ffffff;
 }
 
+/* Total dinámico de productos vendidos por metro:
+   tono secundario para no competir con el precio amarillo */
+.total-por-metros {
+  display: block;
+  margin-top: 8px;
+  color: #a89f8d;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.total-por-metros strong {
+  color: #ffd700;
+  font-weight: 600;
+}
+
 .btn-agregar {
-  flex: 1;
+  width: 100%;
   height: 44px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
