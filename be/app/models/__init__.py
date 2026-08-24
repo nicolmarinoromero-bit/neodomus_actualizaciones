@@ -17,6 +17,7 @@ from .calificacion_producto import CalificacionProducto
 from .ubicacion_tecnico import UbicacionTecnico
 from .devolucion import Devolucion
 from .tecnico import Tecnico
+from .tecnico_favorito import TecnicoFavorito
 from .contacto import Contacto
 from .pago import Pago
 from .factura import Factura

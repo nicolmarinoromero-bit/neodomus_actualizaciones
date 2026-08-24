@@ -20,7 +20,9 @@ class CitaBase(BaseModel):
 
 
 class CitaCreate(CitaBase):
-    id_tecnico: int
+    # Opcional: None = asignación automática de técnico por el sistema
+    # (el endpoint ya contempla id_tecnico=None al crear la cita).
+    id_tecnico: Optional[int] = None
     metodo_pago: str
     datos_pago: Optional[dict[str, Any]] = None
 
