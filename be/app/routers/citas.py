@@ -308,6 +308,12 @@ def listar_citas_admin(
     return respuesta
 
 
+def _dia_es_laboral_cita(fecha: date) -> bool:
+    """Citas de cliente: SOLO lunes a viernes. Sábado y domingo NO están
+    disponibles (regla validada también en el backend, no solo en la UI)."""
+    return fecha.weekday() < 5
+
+
 def _validar_franja_cita(
     fecha: date,
     hora: str,
@@ -317,10 +323,10 @@ def _validar_franja_cita(
     """Valida que la cita sea en día laboral, que la hora sea un inicio
     válido (08:00-18:00, dejando terminar el servicio dentro de la jornada)
     y que la franja no esté reservada por otro cliente."""
-    if not _dia_es_laboral(fecha):
+    if not _dia_es_laboral_cita(fecha):
         raise HTTPException(
             status_code=400,
-            detail="Las citas solo se pueden agendar de lunes a viernes.",
+            detail="Las citas solo se pueden agendar de lunes a viernes (sábados y domingos no disponibles).",
         )
     if hora not in horas_laborales(fecha, duracion_horas):
         raise HTTPException(
@@ -508,7 +514,7 @@ def horas_disponibles_cita(
     real según los productos (máx. 2.5 h por desplazamiento); sin items se
     usa la duración base del tipo de servicio. Vacío si la fecha es fin de
     semana o pasada."""
-    if not _dia_es_laboral(fecha) or fecha < date.today():
+    if not _dia_es_laboral_cita(fecha) or fecha < date.today():
         return []
     duracion = DURACION_MIN
     if items:

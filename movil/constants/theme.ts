@@ -1,12 +1,37 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Identidad visual de NEODOMUS (fuente de verdad: estilos globales de la WEB).
+ * - Dorado principal #caa24d · variantes #c9a24c / #c9a227
+ * - Negros: fondo #000, cards #161616/#1c1c1c, inputs #0f0f0f
+ * - Éxito #7ee29a / online #46d06f · Error #f0858a
+ * - Tipografías web: Inter (texto) y Montserrat (botones/etiquetas)
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+/** Paleta Neodomus usada por las pantallas públicas. */
+export const NeodomusColors = {
+  oro: '#caa24d',
+  oroClaro: '#d4a54b',
+  oroSuave: '#f0c96f',
+  oroFooter: '#c9a227',
+  negro: '#000000',
+  cardOscura: '#161616',
+  cardOscuraAlt: '#1c1c1c',
+  inputFondo: '#0f0f0f',
+  textoSobreOro: '#141414',
+  blanco: '#ffffff',
+  grisTexto: '#bdbdbd',
+  grisBorde: 'rgba(255,255,255,0.09)',
+  bordeOro: 'rgba(212,165,75,0.28)',
+  verdeExito: '#7ee29a',
+  verdeOnline: '#46d06f',
+  rojoError: '#f0858a',
+  overlayHero: 'rgba(0,0,0,0.60)',
+} as const;
+
+/** Colores del tema claro/oscuro (plantilla Expo; usados por componentes themed). */
+const tintColorLight = '#caa24d';
+const tintColorDark = '#caa24d';
 
 export const Colors = {
   light: {
@@ -29,13 +54,9 @@ export const Colors = {
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -48,6 +69,15 @@ export const Fonts = Platform.select({
     sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
     rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    mono: 'SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
   },
 });
+
+/** Familias cargadas con expo-font (@expo-google-fonts) — mismas de la WEB. */
+export const FontFamilies = {
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodyBold: 'Inter_700Bold',
+  bodyBlack: 'Inter_900Black',
+  button: 'Montserrat_600SemiBold',
+};

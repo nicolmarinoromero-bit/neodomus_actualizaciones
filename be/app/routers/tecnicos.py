@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.tecnico import Tecnico
+from app.models.tecnico_favorito import TecnicoFavorito
 from app.models.cliente import Cliente
 from app.models.roles_usuario import RolesUsuario
 from app.models.user import User
@@ -30,7 +31,7 @@ from app.services.especialidades import (
 )
 from app.services.notificaciones import notificar_cita_reasignada_cliente
 from app.services import minio_service
-from app.utils.security import get_current_employee
+from app.utils.security import get_current_client, get_current_employee
 
 ESTADOS_CITA = ("Pendiente", "Confirmada", "Finalizada", "Cancelada")
 
@@ -238,6 +239,91 @@ def listar_tecnicos_publicos(
             item.disponible = item.is_active and not ocupado
         resultado.append(item)
     return resultado
+
+
+# ── Favoritos de técnicos (solo cliente autenticado) ────────────
+
+def _tecnico_favoritable(db: Session, id_tecnico: int) -> Tecnico | None:
+    """Técnico real y activo (rol técnico), candidato a ser favorito."""
+    return (
+        db.query(Tecnico)
+        .join(User, User.id_usuario == Tecnico.id_usuario_t)
+        .filter(
+            Tecnico.id_tecnico == id_tecnico,
+            User.id_rol_u == 2,
+            User.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+
+
+@router.get("/favoritos", response_model=List[TecnicoPublicoResponse])
+def listar_tecnicos_favoritos(
+    db: Session = Depends(get_db),
+    cliente: Cliente = Depends(get_current_client),
+):
+    """Técnicos favoritos del CLIENTE autenticado (persistidos en BD)."""
+    favoritos = (
+        db.query(TecnicoFavorito)
+        .filter(TecnicoFavorito.id_cliente == cliente.id_cliente)
+        .order_by(TecnicoFavorito.created_at.asc())
+        .all()
+    )
+    ids = [f.id_tecnico for f in favoritos]
+    if not ids:
+        return []
+    tecnicos = (
+        db.query(Tecnico)
+        .join(User, User.id_usuario == Tecnico.id_usuario_t)
+        .filter(Tecnico.id_tecnico.in_(ids), User.is_active == True)  # noqa: E712
+        .all()
+    )
+    orden = {id_tecnico: i for i, id_tecnico in enumerate(ids)}
+    tecnicos.sort(key=lambda t: orden.get(t.id_tecnico, 10**9))
+    return [_serializar_publico(db, t) for t in tecnicos]
+
+
+@router.post("/favoritos/{id_tecnico}")
+def agregar_tecnico_favorito(
+    id_tecnico: int,
+    db: Session = Depends(get_db),
+    cliente: Cliente = Depends(get_current_client),
+):
+    """Marca un técnico como favorito del cliente autenticado (idempotente)."""
+    if _tecnico_favoritable(db, id_tecnico) is None:
+        raise HTTPException(status_code=404, detail="Técnico no encontrado")
+    existe = (
+        db.query(TecnicoFavorito)
+        .filter(
+            TecnicoFavorito.id_cliente == cliente.id_cliente,
+            TecnicoFavorito.id_tecnico == id_tecnico,
+        )
+        .first()
+    )
+    if existe is None:
+        db.add(TecnicoFavorito(id_cliente=cliente.id_cliente, id_tecnico=id_tecnico))
+        db.commit()
+    return {"favorito": True}
+
+
+@router.delete("/favoritos/{id_tecnico}")
+def quitar_tecnico_favorito(
+    id_tecnico: int,
+    db: Session = Depends(get_db),
+    cliente: Cliente = Depends(get_current_client),
+):
+    """Quita un técnico de los favoritos del cliente autenticado."""
+    borrados = (
+        db.query(TecnicoFavorito)
+        .filter(
+            TecnicoFavorito.id_cliente == cliente.id_cliente,
+            TecnicoFavorito.id_tecnico == id_tecnico,
+        )
+        .delete(synchronize_session=False)
+    )
+    if borrados:
+        db.commit()
+    return {"favorito": False}
 
 
 @router.get("", response_model=List[TecnicoAdminResponse])
