@@ -230,7 +230,7 @@ def especializaciones_de_productos(productos: Iterable) -> list[int]:
 
 
 def _dia_es_laboral(fecha: date) -> bool:
-    """True solo de lunes a viernes."""
+    """True solo de lunes a sábado (el domingo queda bloqueado)."""
     return fecha.weekday() in DIAS_LABORALES
 
 

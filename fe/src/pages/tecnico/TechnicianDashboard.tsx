@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   FaBell,
+  FaBoxOpen,
   FaCalendarCheck,
   FaCalendarDays,
   FaCalendarWeek,
@@ -123,11 +124,25 @@ const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 const urlEvidencia = (url: string) => (url.startsWith('http') ? url : `${API_HOST}${url}`);
 
+interface RecogidaDev {
+  id_devolucion: number;
+  id_pedido: number | null;
+  producto: string;
+  cliente: string;
+  direccion: string;
+  telefono?: number | null;
+  estado_devolucion: string;
+  preferencia?: string | null;
+  recogida_estado: string;
+  motivo?: string | null;
+}
+
 const TechnicianDashboard = () => {
   const { user } = useAuth();
   const { idioma, t } = useIdioma();
   const [citas, setCitas] = useState<Cita[]>([]);
   const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [recogidas, setRecogidas] = useState<RecogidaDev[]>([]);
   const [calificaciones, setCalificaciones] = useState<ResumenCalificaciones>({});
   const [loading, setLoading] = useState(true);
   const [selectedCita, setSelectedCita] = useState<Cita | null>(null);
@@ -175,6 +190,13 @@ const TechnicianDashboard = () => {
       setCalificaciones(resC.data || {});
     } catch (err) {
       console.error('Error al cargar calificaciones:', err);
+    }
+    // Recogidas por devolución asignadas a este técnico.
+    try {
+      const resRg = await api.get('/devoluciones/mis-recogidas');
+      setRecogidas(resRg.data || []);
+    } catch {
+      setRecogidas([]);
     }
   };
 
@@ -292,6 +314,20 @@ const TechnicianDashboard = () => {
       notificar(err.response?.data?.detail || 'No se pudieron guardar las evidencias', 'error');
     } finally {
       setSubiendoEvidenciaId(null);
+    }
+  };
+
+  const marcarRecogida = async (idDevolucion: number) => {
+    try {
+      await api.put(`/devoluciones/${idDevolucion}/recogida`, { recogida: true });
+      setRecogidas((prev) =>
+        prev.map((r) =>
+          r.id_devolucion === idDevolucion ? { ...r, recogida_estado: 'Recogida' } : r,
+        ),
+      );
+      notificar('Producto marcado como recogido');
+    } catch (err: any) {
+      notificar(err.response?.data?.detail || 'No se pudo actualizar la recogida', 'error');
     }
   };
 
@@ -749,6 +785,70 @@ const TechnicianDashboard = () => {
                     ev.target.value = '';
                   }}
                 />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="ap-card" style={{ marginTop: 20 }}>
+        <div className="ap-card-head">
+          <h2><FaBoxOpen /> Recogidas por devolución</h2>
+          {recogidas.length > 0 && (
+            <span className="ap-badge info">{recogidas.length}</span>
+          )}
+        </div>
+        {recogidas.length === 0 ? (
+          <p style={{ margin: '8px 0', color: '#bdbdbd' }}>
+            No tienes recogidas por devolución asignadas.
+          </p>
+        ) : (
+          recogidas.map((r) => (
+            <div key={r.id_devolucion} className="novedad-item">
+              <div className="novedad-left">
+                <div className="icon-circle"><FaTruckFast /></div>
+                <div>
+                  <h3>
+                    {r.producto}
+                    <span className="muted" style={{ fontWeight: 'normal', marginLeft: 8 }}>
+                      Devolución #{r.id_devolucion}
+                      {r.id_pedido ? ` · Pedido #${r.id_pedido}` : ''}
+                    </span>
+                  </h3>
+                  <p>
+                    <FaUserTie style={{ marginRight: 6 }} />{r.cliente}
+                    {r.telefono ? ` · ${r.telefono}` : ''}
+                  </p>
+                  <p><FaLocationDot style={{ marginRight: 6 }} />{r.direccion}</p>
+                  <p className="muted">
+                    Preferencia del cliente:{' '}
+                    <strong style={{ color: '#ffd98a' }}>
+                      {r.preferencia === 'producto' ? 'Cambio de producto' : 'Devolución de dinero'}
+                    </strong>
+                    {' · '}Devolución: {r.estado_devolucion}
+                    {r.motivo ? ` · “${r.motivo}”` : ''}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <span
+                  className={`ap-badge ${r.recogida_estado === 'Recogida' ? 'ok' : r.estado_devolucion === 'Aprobada' ? 'info' : 'pendiente'}`}
+                >
+                  {r.recogida_estado === 'Recogida'
+                    ? 'Recogida'
+                    : r.estado_devolucion === 'Pendiente'
+                      ? 'Esperando aprobación del admin'
+                      : r.recogida_estado || 'Asignada'}
+                </span>
+                {r.recogida_estado !== 'Recogida' && r.estado_devolucion !== 'Pendiente' && (
+                  <button
+                    type="button"
+                    className="ap-btn ap-btn-primary"
+                    onClick={() => marcarRecogida(r.id_devolucion)}
+                  >
+                    <FaCircleCheck /> Marcar como recogida
+                  </button>
+                )}
               </div>
             </div>
           ))

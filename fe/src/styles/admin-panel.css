@@ -2492,3 +2492,55 @@
     font-size: 1.2rem;
   }
 }
+
+/* -- Formulario de producto: secciones visuales -------------- */
+.apf-seccion {
+  padding: 18px 18px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 22px;
+}
+.apf-seccion-titulo {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #d4a54b;
+  letter-spacing: 0.3px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(212, 165, 75, 0.25);
+}
+
+/* Franja de medidas al pie de cada variante */
+.ap-variante-medidas {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(212, 165, 75, 0.25);
+}
+.ap-variante-medidas-label {
+  color: #9f9f9f;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.ap-variante-medidas .ap-form-input {
+  height: 36px;
+}
+.ap-variante-medidas .ap-med-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 90px;
+}
+.ap-variante-medidas .ap-med-campo label {
+  font-size: 0.7rem;
+  color: #9f9f9f;
+  font-weight: 600;
+}

@@ -20,6 +20,9 @@ interface DevolucionItem {
   motivo: string | null;
   estado: string;
   resolucion?: string | null;
+  preferencia?: string | null;
+  id_tecnico_recogida?: number | null;
+  recogida_estado?: string | null;
   created_at: string | null;
   resuelta_at: string | null;
 }
@@ -69,6 +72,9 @@ const AdminDevoluciones = () => {
   const [motivoReembolso, setMotivoReembolso] = useState('');
   const [creandoReembolso, setCreandoReembolso] = useState(false);
   const [procesandoReembolso, setProcesandoReembolso] = useState<number | null>(null);
+  const [porcentajes, setPorcentajes] = useState<Record<number, string>>({});
+  const [tecnicos, setTecnicos] = useState<{ id: number; nombre: string; is_active: boolean }[]>([]);
+  const [reasignandoDev, setReasignandoDev] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
   const notify = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
@@ -80,14 +86,24 @@ const AdminDevoluciones = () => {
     setCargando(true);
     setError(false);
     try {
-      const [resD, resR, resE] = await Promise.all([
+      const [resD, resR, resE, resT] = await Promise.all([
         api.get<DevolucionItem[]>('/devoluciones'),
         api.get<ReembolsoItem[]>('/reembolsos').catch(() => ({ data: [] as ReembolsoItem[] })),
         api.get<CitaElegible[]>('/reembolsos/elegibles').catch(() => ({ data: [] as CitaElegible[] })),
+        api.get<{ id_tecnico: number; first_name: string; last_name: string; is_active: boolean }[]>(
+          '/tecnicos',
+        ).catch(() => ({ data: [] })),
       ]);
       setDevoluciones(resD.data || []);
       setReembolsos(resR.data || []);
       setElegibles(resE.data || []);
+      setTecnicos(
+        (resT.data || []).map((x) => ({
+          id: x.id_tecnico,
+          nombre: `${x.first_name} ${x.last_name}`.trim(),
+          is_active: !!x.is_active,
+        })),
+      );
     } catch {
       setError(true);
     } finally {
@@ -98,6 +114,23 @@ const AdminDevoluciones = () => {
   useEffect(() => {
     cargar();
   }, []);
+
+  const reasignarTecnico = async (idDevolucion: number, idTecnico: number) => {
+    if (!idTecnico) return;
+    setReasignandoDev(idDevolucion);
+    try {
+      const res = await api.put(`/devoluciones/admin/${idDevolucion}/reasignar-tecnico`, {
+        id_tecnico: idTecnico,
+      });
+      notify(res.data?.mensaje || 'Técnico reasignado');
+      await cargar();
+    } catch (err: any) {
+      const msg = err.response?.data?.detail;
+      notify(typeof msg === 'string' ? msg : 'No se pudo reasignar el técnico', 'err');
+    } finally {
+      setReasignandoDev(null);
+    }
+  };
 
   const resolverDevolucion = async (
     id: number,
@@ -156,7 +189,10 @@ const AdminDevoluciones = () => {
   const reprocesarReembolso = async (id: number) => {
     setProcesandoReembolso(id);
     try {
-      await api.post(`/reembolsos/${id}/procesar`);
+      const pct = porcentajes[id];
+      await api.post(`/reembolsos/${id}/procesar`, {
+        porcentaje_cliente: pct ? parseFloat(pct) : null,
+      });
       notify(t('adm.instalaciones.reembolsoExito'));
       await cargar();
     } catch (err: any) {
@@ -257,16 +293,49 @@ const AdminDevoluciones = () => {
                     {d.estado}
                   </span>
                 </div>
+                {d.preferencia && (
+                  <span className="ap-badge pendiente" style={{ marginLeft: 8 }}>
+                    Prefiere: {d.preferencia === 'producto' ? 'Cambio de producto' : 'Devolución de dinero'}
+                  </span>
+                )}
                 <h4 style={{ margin: '10px 0 2px', fontSize: '0.95rem' }}>
                   #{d.id_pedido} · {d.producto || `Producto #${d.id_producto ?? '—'}`}
                 </h4>
                 <p style={{ margin: 0, color: '#9a8f78', fontSize: '0.8rem' }}>
                   {d.cliente || '—'} · {formatFecha(d.created_at || '')}
                 </p>
+                {d.recogida_estado && (
+                  <p style={{ margin: '4px 0 0', fontSize: '0.78rem' }}>
+                    Recogida:{' '}
+                    <span className={`ap-badge ${d.recogida_estado === 'Recogida' ? 'ok' : 'pendiente'}`}>
+                      {d.recogida_estado}
+                    </span>
+                  </p>
+                )}
                 {d.motivo && (
                   <p style={{ margin: '8px 0 0', fontSize: '0.82rem', color: '#e8e8e8', overflowWrap: 'anywhere' }}>
                     “{d.motivo}”
                   </p>
+                )}
+                {d.estado !== 'Rechazada' && (
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#9a8f78' }}>Técnico recogida:</span>
+                    <select
+                      className="ap-form-select"
+                      style={{ maxWidth: 220, fontSize: '0.8rem' }}
+                      value={String(d.id_tecnico_recogida ?? '')}
+                      disabled={reasignandoDev === d.id_devolucion}
+                      onChange={(e) => reasignarTecnico(d.id_devolucion, Number(e.target.value))}
+                    >
+                      <option value="">Sin asignar — elige uno</option>
+                      {tecnicos.map((tc) => (
+                        <option key={tc.id} value={tc.id}>
+                          {tc.nombre}
+                          {tc.is_active ? '' : ' (inactivo)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
                 {d.estado === 'Pendiente' && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -379,14 +448,40 @@ const AdminDevoluciones = () => {
                         {r.estado}
                       </span>
                       {(r.estado === 'Pendiente' || r.estado === 'Rechazado') && (
-                        <button
-                          type="button"
-                          className="ap-btn ap-btn-ghost"
-                          disabled={procesandoReembolso === r.id_reembolso}
-                          onClick={() => reprocesarReembolso(r.id_reembolso)}
-                        >
-                          {t('adm.instalaciones.reprocesar')}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <label
+                            className="ap-form-label"
+                            htmlFor={`pct-${r.id_reembolso}`}
+                            style={{ margin: 0, fontSize: '0.72rem', color: '#9f9f9f' }}
+                          >
+                            % a devolver:
+                          </label>
+                          <input
+                            id={`pct-${r.id_reembolso}`}
+                            type="number"
+                            min="1"
+                            max="100"
+                            placeholder="85"
+                            value={porcentajes[r.id_reembolso] ?? ''}
+                            onChange={(e) =>
+                              setPorcentajes((prev) => ({
+                                ...prev,
+                                [r.id_reembolso]: e.target.value,
+                              }))
+                            }
+                            className="ap-form-input"
+                            style={{ width: 70, height: 32, fontSize: '0.8rem' }}
+                          />
+                          <span style={{ color: '#9f9f9f', fontSize: '0.78rem' }}>%</span>
+                          <button
+                            type="button"
+                            className="ap-btn ap-btn-ghost"
+                            disabled={procesandoReembolso === r.id_reembolso}
+                            onClick={() => reprocesarReembolso(r.id_reembolso)}
+                          >
+                            {t('adm.instalaciones.reprocesar')}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -431,8 +431,31 @@ def notificar_pedido_entregado_cliente(
     db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
 ) -> None:
     """Correo + notificación de plataforma al cliente cuando su pedido quedó
-    Entregado: invita a calificar los productos y explica la devolución.
-    ``datos`` debe contener: pedido, fecha, tecnico."""
+    Entregado: invita a calificar LOS PRODUCTOS del pedido y explica la
+    devolución. ``datos`` debe contener: pedido, fecha, tecnico."""
+    from app.models.pedido import DetallePedido
+
+    productos_txt = ""
+    try:
+        nombres = [
+            d.producto.nombre_producto
+            for d in (
+                db.query(DetallePedido)
+                .filter(
+                    DetallePedido.id_pedido_d == datos["pedido"],
+                    DetallePedido.id_producto_d.isnot(None),
+                )
+                .all()
+            )
+            if d.producto is not None
+        ]
+        if nombres:
+            productos_txt = f" Productos: {', '.join(nombres)}."
+            if "productos" in datos:
+                pass
+    except Exception:
+        productos_txt = ""
+
     if cliente_id is not None:
         crear_notificacion(
             db,
@@ -441,8 +464,9 @@ def notificar_pedido_entregado_cliente(
             tipo="entrega",
             titulo="¡Tu pedido fue entregado!",
             mensaje=(
-                f"Tu pedido #{datos['pedido']} fue entregado correctamente. "
-                "Califica tus productos desde Mis pedidos; ahí mismo puedes solicitar una devolución."
+                f"Tu pedido #{datos['pedido']} fue entregado correctamente."
+                f"{productos_txt} Entra a Mis pedidos y califica cada producto; "
+                "ahí mismo puedes solicitar una devolución si algo no está bien."
             ),
         )
     subject = "Tu pedido Neodomus fue entregado"

@@ -632,3 +632,40 @@
     height: 210px;
   }
 }
+/* ── Mini-chips de combinaciones (color + medida) en la tarjeta ── */
+.combos-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.combo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 165, 75, 0.35);
+  background: rgba(212, 165, 75, 0.07);
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.combo-chip b { font-weight: 700; }
+.combo-chip .combo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+.combo-chip.agotado {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.combo-chip.mas {
+  background: transparent;
+  color: #d4a54b;
+  border-style: dashed;
+}

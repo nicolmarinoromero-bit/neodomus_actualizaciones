@@ -3313,3 +3313,214 @@
     max-width: none;
   }
 }
+
+/* -- Botón de favorito en tarjetas de técnicos --------------- */
+.tecnicos-fav-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.tecnicos-fav-btn:hover {
+  background: rgba(0, 0, 0, 0.75);
+  transform: scale(1.1);
+}
+.tecnicos-fav-btn.activo {
+  color: #d4a54b;
+}
+
+/* -- Favoritos en Mis técnicos del perfil ------------------- */
+.pf-tec-favorito-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 165, 75, 0.45);
+  background: rgba(212, 165, 75, 0.1);
+  color: var(--pf-oro);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* Posicionamiento del badge de favorito dentro de la tarjeta */
+.pf-tech-card { position: relative; }
+.pf-tec-favorito-badge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 165, 75, 0.45);
+  background: rgba(212, 165, 75, 0.12);
+  color: var(--pf-oro);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.pf-tec-favorito-badge svg { font-size: 0.7rem; }
+
+/* -- Tarjetas de técnicos en el perfil (catálogo completo) --- */
+.pf-tech-card.pf-tec-favorito {
+  border-color: rgba(212, 165, 75, 0.5);
+  background: rgba(212, 165, 75, 0.04);
+}
+.pf-fav-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.pf-fav-toggle:hover {
+  transform: scale(1.15);
+}
+.pf-fav-toggle.on {
+  color: var(--pf-oro);
+}
+.pf-tech-nombre {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: inherit;
+}
+.pf-tech-especialidad {
+  display: block;
+  color: #9a8f78;
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+.pf-tech-calif {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--pf-oro);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+/* -- Espaciado mejorado en tarjetas de técnicos -------------- */
+.pf-tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.pf-tech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: #1a1a1a;
+  border: 1px solid var(--pf-borde);
+  border-radius: 16px;
+  transition: border-color 0.2s ease;
+}
+.pf-tech-card:hover {
+  border-color: rgba(212, 165, 75, 0.4);
+}
+.pf-tech-card.pf-tec-favorito {
+  border-color: rgba(212, 165, 75, 0.5);
+  background: rgba(212, 165, 75, 0.03);
+}
+.pf-tech-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pf-tech-avatar {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--pf-oro);
+  font-size: 1rem;
+  border: 2px solid rgba(212, 165, 75, 0.3);
+}
+.pf-fav-toggle {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(229, 72, 77, 0.15);
+  color: #e5484d;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.pf-fav-toggle:hover {
+  transform: scale(1.15);
+  background: rgba(229, 72, 77, 0.25);
+}
+.pf-fav-toggle.on {
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.12);
+}
+.pf-tech-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-tech-nombre {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pf-texto);
+  overflow-wrap: break-word;
+}
+.pf-tech-especialidad {
+  display: block;
+  color: var(--pf-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+.pf-tech-calif {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--pf-oro);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.pf-tech-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}

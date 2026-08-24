@@ -580,6 +580,52 @@ const ProductoDetalle = () => {
               </p>
             </div>
 
+            {variantes.length > 0 && (
+              <div className="detalle-combos">
+                <span className="detalle-label">
+                  Combinaciones disponibles ({variantes.filter(v => (v.stock || 0) > 0).length}):
+                </span>
+                <div className="detalle-combos-grid">
+                  {variantes.map((v) => {
+                    const medida = medidaDe(v);
+                    const activa =
+                      v.nombre === color && (!usaTamanos || medida === tamano);
+                    const agotada = (v.stock || 0) <= 0;
+                    const fondo = (v.hex || COLOR_HEX[v.nombre] || '#ccc').trim();
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className={`detalle-combo ${activa ? 'activo' : ''}`}
+                        disabled={agotada}
+                        onClick={() => {
+                          setColor(v.nombre);
+                          if (usaTamanos) setTamano(medida);
+                        }}
+                        title={agotada ? 'Sin stock' : 'Elegir esta combinación'}
+                      >
+                        <span
+                          className="detalle-combo-color"
+                          style={{ background: fondo }}
+                        />
+                        <span className="detalle-combo-info">
+                          <strong>{v.nombre}</strong>
+                          {medida && <em>{medida}</em>}
+                          <small>
+                            {agotada
+                              ? 'Agotado'
+                              : `${v.stock} u. · $${Number(
+                                  v.precio ?? precioBase,
+                                ).toLocaleString()}`}
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="detalle-beneficios">
               <div className="detalle-beneficio">
                 <FaTruckFast />

@@ -5,13 +5,14 @@ import { useIdioma } from '@i18n/IdiomaContext';
 import {
   FaScrewdriverWrench, FaComment, FaCircleCheck, FaArrowLeft,
   FaExclamation, FaCheck, FaChevronDown, FaCalendarDays, FaList,
-  FaClock, FaLocationDot, FaPenToSquare, FaXmark, FaCircleXmark,
+  FaClock, FaLocationDot, FaXmark, FaCircleXmark,
   FaUserTie, FaCircleCheck as FaCircleCheckFilled, FaPhone, FaEnvelope,
   FaCreditCard, FaBuildingColumns, FaPaypal, FaMoneyBill, FaMoneyBillWave,
   FaFlask, FaStar, FaMagnifyingGlass,
 } from 'react-icons/fa6';
 import '@styles/citas.css';
 import api from '@services/api';
+import { useTecnicosFavoritos } from '@utils/tecnicosFavoritos';
 import { tituloNombre } from '@utils/formatoNombre';
 import { PF_REDIRECT_AFTER_LOGIN_KEY } from '@utils/profileStorage';
 import { suscribirCambiosTecnicos } from '@utils/tecnicosSync';
@@ -97,7 +98,7 @@ const FORM_VACIO: CitaForm = {
   descripcion: '',
 };
 
-const HORAS_48 = 48 * 60 * 60 * 1000;
+const HORAS_LIMITE = 5 * 60 * 60 * 1000; // bloqueo solo en las últimas 5 horas
 
 const CitasPage = () => {
   const { isAuthenticated } = useAuth();
@@ -114,12 +115,15 @@ const CitasPage = () => {
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
   const [citasLoading, setCitasLoading] = useState(false);
-  const [confirmarCancelarId, setConfirmarCancelarId] = useState<number | null>(null);
+  const [citaACancelar, setCitaACancelar] = useState<Cita | null>(null);
+  const [cancelandoId, setCancelandoId] = useState<number | null>(null);
   const [busquedaCitas, setBusquedaCitas] = useState('');
   const [calificandoCita, setCalificandoCita] = useState<Cita | null>(null);
   const [ratingEstrellas, setRatingEstrellas] = useState(0);
   const [ratingComentario, setRatingComentario] = useState('');
   const [enviandoRating, setEnviandoRating] = useState(false);
+  const [marcarFavorito, setMarcarFavorito] = useState(false);
+  const { toggleFavorito: toggleTecnicoFav } = useTecnicosFavoritos();
 
   const [tecnicoSel, setTecnicoSel] = useState<{ id: number; nombre: string } | null>(null);
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
@@ -248,7 +252,8 @@ const CitasPage = () => {
     setCitasLoading(true);
     try {
       const res = await api.get<Cita[]>('/citas/mis-citas');
-      setCitas(res.data);
+      // Las citas canceladas no se muestran al cliente.
+      setCitas((res.data || []).filter((c) => c.estado !== 'Cancelada'));
     } catch (err) {
       console.error('Error cargando citas:', err);
     } finally {
@@ -417,37 +422,59 @@ const CitasPage = () => {
     }
   };
 
-  const iniciarEdicion = (cita: Cita) => {
-    setEditandoId(cita.id_cita);
-    if (cita.nombre_tecnico) {
-      setTecnicoSel({ id: cita.id_tecnico ?? -1, nombre: cita.nombre_tecnico });
-    }
-    setForm({
-      tipo_servicio: cita.tipo_servicio as TipoServicio,
-      fecha: cita.fecha,
-      hora: cita.hora,
-      direccion: cita.direccion,
-      descripcion: cita.descripcion || '',
-    });
-    setVista('agendar');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const [aplazandoId, setAplazandoId] = useState<number | null>(null);
+  const [aplazandoFecha, setAplazandoFecha] = useState('');
+  const [aplazandoHora, setAplazandoHora] = useState('');
+  const [aplazando, setAplazando] = useState(false);
+
+  const iniciarAplazo = (cita: Cita) => {
+    setAplazandoId(cita.id_cita);
+    setAplazandoFecha(cita.fecha);
+    setAplazandoHora(cita.hora);
   };
 
-  const cancelarEdicion = () => {
-    setEditandoId(null);
-    setForm(FORM_VACIO);
+  const cancelarAplazo = () => {
+    setAplazandoId(null);
+    setAplazandoFecha('');
+    setAplazandoHora('');
   };
 
-  const cancelarCita = async (id: number) => {
+  const confirmarAplazo = async (id: number) => {
+    if (!aplazandoFecha || !aplazandoHora) return;
+    setAplazando(true);
     try {
-      await api.delete(`/citas/${id}`);
-      setToast({ msg: t('citas.exitoCancelada'), tipo: 'success' });
+      await api.put(`/citas/${id}`, {
+        fecha: aplazandoFecha,
+        hora: aplazandoHora,
+      });
+      setToast({ msg: t('citas.exitoReagendada'), tipo: 'success' });
       cargarCitas();
     } catch (err: any) {
       console.error(err);
       setToast({ msg: err.response?.data?.detail || t('citas.errorGenerico'), tipo: 'error' });
     }
-    setConfirmarCancelarId(null);
+    cancelarAplazo();
+    setAplazando(false);
+  };
+
+  const cancelarCita = async (id: number) => {
+    setCancelandoId(id);
+    try {
+      const res = await api.delete(`/citas/${id}`);
+      const reembolso = res.data?.reembolso;
+      setToast({
+        msg: reembolso
+          ? `Cita cancelada. Quedó registrado un reembolso de ${formatoPeso(reembolso.monto)} (85% del servicio) pendiente de confirmación.`
+          : t('citas.exitoCancelada'),
+        tipo: 'success',
+      });
+      cargarCitas();
+    } catch (err: any) {
+      console.error(err);
+      setToast({ msg: err.response?.data?.detail || t('citas.errorGenerico'), tipo: 'error' });
+    }
+    setCitaACancelar(null);
+    setCancelandoId(null);
   };
 
   const enviarCalificacion = async () => {
@@ -464,6 +491,10 @@ const CitasPage = () => {
         comentario: ratingComentario.trim() || undefined,
       });
       setToast({ msg: '¡Gracias por calificar al técnico!', tipo: 'success' });
+      if (marcarFavorito && calificandoCita.id_tecnico) {
+        toggleTecnicoFav(calificandoCita.id_tecnico);
+      }
+      setMarcarFavorito(false);
       setCalificandoCita(null);
       setRatingEstrellas(0);
       setRatingComentario('');
@@ -479,7 +510,8 @@ const CitasPage = () => {
   const esEditable = (cita: Cita): boolean => {
     if (cita.estado === 'Finalizada' || cita.estado === 'Cancelada') return false;
     const momento = new Date(`${cita.fecha}T${cita.hora}:00`).getTime();
-    return momento - Date.now() >= HORAS_48;
+    // Solo se bloquea cuando faltan MENOS de 5 horas para la cita.
+    return momento - Date.now() >= HORAS_LIMITE;
   };
 
   const tiposServicio: { value: TipoServicio; label: string }[] = [
@@ -668,24 +700,60 @@ const CitasPage = () => {
                   )}
                   {editable ? (
                     <>
-                      <button type="button" className="citas-btn citas-btn-ghost" onClick={() => iniciarEdicion(cita)}>
-                        <FaPenToSquare /> {t('citas.editar')}
-                      </button>
-                      {confirmarCancelarId === cita.id_cita ? (
-                        <button type="button" className="citas-btn citas-btn-danger" onClick={() => cancelarCita(cita.id_cita)}>
-                          <FaCheck /> {t('citas.preguntaCancelar')}
-                        </button>
+                      {aplazandoId === cita.id_cita ? (
+                        <div className="citas-aplazo-inline">
+                          <span className="citas-aplazo-titulo">Nueva fecha y hora:</span>
+                          <input
+                            type="date"
+                            value={aplazandoFecha}
+                            min={(() => {
+                              const h = new Date();
+                              return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+                            })()}
+                            onChange={(e) => setAplazandoFecha(e.target.value)}
+                            aria-label={t('tec.fecha')}
+                          />
+                          <input
+                            type="time"
+                            value={aplazandoHora}
+                            step={1800}
+                            onChange={(e) => setAplazandoHora(e.target.value)}
+                            aria-label={t('tec.hora')}
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              type="button"
+                              className="citas-btn citas-btn-primary"
+                              disabled={!aplazandoFecha || !aplazandoHora || aplazando}
+                              onClick={() => confirmarAplazo(cita.id_cita)}
+                            >
+                              {aplazando ? t('citas.guardando') : t('citas.confirmar')}
+                            </button>
+                            <button
+                              type="button"
+                              className="citas-btn citas-btn-ghost"
+                              onClick={cancelarAplazo}
+                            >
+                              {t('common.cancelar')}
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <button
-                          type="button"
-                          className="citas-btn citas-btn-danger"
-                          onClick={() => {
-                            setConfirmarCancelarId(cita.id_cita);
-                            setToast(null);
-                          }}
-                        >
-                          <FaXmark /> {t('citas.cancelar')}
-                        </button>
+                        <>
+                          <button type="button" className="citas-btn citas-btn-ghost" onClick={() => iniciarAplazo(cita)}>
+                            <FaCalendarDays /> Aplazar
+                          </button>
+                          <button
+                            type="button"
+                            className="citas-btn citas-btn-danger"
+                            onClick={() => {
+                              setCitaACancelar(cita);
+                              setToast(null);
+                            }}
+                          >
+                            <FaXmark /> {t('citas.cancelar')}
+                          </button>
+                        </>
                       )}
                     </>
                   ) : (
@@ -808,15 +876,6 @@ const CitasPage = () => {
           renderMisCitas()
         ) : (
           <form onSubmit={handleSubmit} className="citas-form" noValidate>
-            {editandoId !== null && (
-              <div className="citas-editando">
-                <FaPenToSquare />
-                <span>{t('citas.editandoCita', { id: editandoId })}</span>
-                <button type="button" className="citas-btn citas-btn-ghost" onClick={cancelarEdicion}>
-                  <FaXmark /> {t('citas.cancelarEdicion')}
-                </button>
-              </div>
-            )}
 
             {tecnicoSel !== null && renderBarraTecnico()}
 
@@ -1154,6 +1213,14 @@ const CitasPage = () => {
         {calificandoCita && (
           <div className="citas-modal-overlay">
             <div className="citas-modal" onClick={(e) => e.stopPropagation()}>
+              {calificandoCita.tecnico_foto_url && (
+                <img
+                  src={calificandoCita.tecnico_foto_url}
+                  alt={calificandoCita.nombre_tecnico || 'Técnico'}
+                  className="citas-modal-foto"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              )}
               <h3><FaStar /> Califica al técnico</h3>
               <p className="citas-modal-sub">
                 {calificandoCita.nombre_tecnico || 'Técnico'} · {calificandoCita.tipo_servicio}
@@ -1172,6 +1239,24 @@ const CitasPage = () => {
                 ))}
               </div>
               <p className="citas-hint">Esta calificación es obligatoria para poder agendar una nueva cita.</p>
+              {calificandoCita.tecnico_foto_url && (
+                <img
+                  src={calificandoCita.tecnico_foto_url}
+                  alt={calificandoCita.nombre_tecnico || 'Técnico'}
+                  className="citas-modal-foto"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              )}
+              {calificandoCita.id_tecnico && (
+                <button
+                  type="button"
+                  className={`citas-btn ${marcarFavorito ? 'citas-btn-primary' : 'citas-btn-ghost'}`}
+                  style={{ width: '100%', marginBottom: 8 }}
+                  onClick={() => setMarcarFavorito(!marcarFavorito)}
+                >
+                  {marcarFavorito ? '★ Es tu favorito' : '☆ Marcar como favorito'}
+                </button>
+              )}
               <textarea
                 className="citas-textarea"
                 rows={4}
@@ -1196,6 +1281,45 @@ const CitasPage = () => {
                   onClick={enviarCalificacion}
                 >
                   {enviandoRating ? <><FaCircleCheck style={{ animation: 'spin 1s linear infinite' }} /> Enviando...</> : <><FaStar /> Enviar calificación</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {citaACancelar && (
+          <div className="citas-modal-overlay">
+            <div className="citas-modal" role="dialog" aria-modal="true">
+              <button
+                type="button"
+                className="citas-modal-close-x"
+                aria-label="Cerrar"
+                onClick={() => setCitaACancelar(null)}
+              >
+                <FaXmark />
+              </button>
+              <h3 style={{ color: '#e5484d' }}>
+                <FaExclamation /> ¿Seguro que deseas cancelar esta cita?
+              </h3>
+              <p className="citas-hint" style={{ marginTop: 8 }}>
+                Ten en cuenta que <strong>no se devolverá todo el dinero</strong>: nos
+                quedaremos con un <strong>15% del servicio pagado</strong>.
+              </p>
+              {citaACancelar.costo_cita != null && citaACancelar.estado_pago === 'aprobado' && (
+                <div className="citas-cancel-montos">
+                  <div><span>Pagaste:</span><strong>{formatoPeso(citaACancelar.costo_cita)}</strong></div>
+                  <div><span>Te reembolsamos (85%):</span><strong className="ok">{formatoPeso(Math.round(citaACancelar.costo_cita * 0.85))}</strong></div>
+                  <div><span>Retención (15%):</span><strong className="ret">{formatoPeso(citaACancelar.costo_cita - Math.round(citaACancelar.costo_cita * 0.85))}</strong></div>
+                </div>
+              )}
+              <div className="citas-modal-actions">
+                <button
+                  type="button"
+                  className="citas-btn citas-btn-danger"
+                  disabled={cancelandoId !== null}
+                  onClick={() => cancelarCita(citaACancelar.id_cita)}
+                >
+                  <FaXmark /> {cancelandoId === citaACancelar.id_cita ? 'Cancelando...' : 'Sí, cancelar cita'}
                 </button>
               </div>
             </div>

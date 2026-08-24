@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import { useAuthModal } from '@contexts/AuthModalContext';
 import { useIdioma } from '@i18n/IdiomaContext';
-import { FaUserTie, FaCheck, FaArrowLeft } from 'react-icons/fa6';
+import { FaUserTie, FaCheck, FaArrowLeft, FaHeart } from 'react-icons/fa6';
 import '@styles/perfil-cliente.css';
 import api from '@services/api';
 import { tituloNombre } from '@utils/formatoNombre';
 import { suscribirCambiosTecnicos } from '@utils/tecnicosSync';
+import { useTecnicosFavoritos } from '@utils/tecnicosFavoritos';
 
 interface Tecnico {
   id: number;
@@ -36,6 +37,7 @@ const TecnicosPage = () => {
   const navigate = useNavigate();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [loading, setLoading] = useState(true);
+  const { esFavorito: esTecFavorito, toggleFavorito: toggleFavTecnico } = useTecnicosFavoritos();
 
   useEffect(() => {
     let activo = true;
@@ -126,6 +128,15 @@ const TecnicosPage = () => {
                   {tecnico.disponible && <span className="tecnico-badge disponible">{t('citas.tecnicoDisponible')}</span>}
                   {!tecnico.disponible && <span className="tecnico-badge ocupado">{t('citas.tecnicoOcupado')}</span>}
                 </div>
+                <button
+                  type="button"
+                  className={`tecnicos-fav-btn ${esTecFavorito(tecnico.id) ? 'activo' : ''}`}
+                  onClick={() => toggleFavTecnico(tecnico.id)}
+                  aria-label={esTecFavorito(tecnico.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                  title={esTecFavorito(tecnico.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                >
+                  <FaHeart />
+                </button>
               </div>
               <div className="tecnico-card-body">
                 <h3 className="tecnico-nombre">{tecnico.nombre} {tecnico.apellido}</h3>

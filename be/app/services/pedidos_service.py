@@ -191,7 +191,7 @@ def _preparar_servicios(
         if not _dia_es_laboral(f):
             raise HTTPException(
                 status_code=400,
-                detail="Las citas solo se pueden agendar de lunes a viernes.",
+                detail="Las citas solo se pueden agendar de lunes a sábado.",
             )
         duracion = (
             duracion_items
@@ -564,6 +564,17 @@ def _crear_orden_instalacion(
     tipo_servicio = serv.get("tipo_servicio") or "servicio"
     duracion_cita = _duracion_para_pedido(db, pedido.id_pedido, tipo_servicio)
 
+    # Costo del servicio según la tarifa vigente (visible para el admin y
+    # base del reembolso si se cancela).
+    from app.models.tarifa_servicio import TarifaServicio
+
+    tarifa = (
+        db.query(TarifaServicio)
+        .filter(TarifaServicio.tipo_servicio == tipo_servicio)
+        .first()
+    )
+    costo_cita = float(tarifa.costo) if tarifa else None
+
     if slot_tomado(db, fecha, hora, duracion_horas=duracion_cita):
         raise HTTPException(
             status_code=400,
@@ -681,6 +692,10 @@ def _crear_orden_instalacion(
         direccion=direccion,
         descripcion="; ".join(productos),
         estado="Confirmada",
+        costo_cita=costo_cita,
+        metodo_pago="checkout",
+        estado_pago=pedido.estado_pedido or "Pagado",
+        numero_transaccion=f"PEDIDO-{pedido.id_pedido}",
         id_especializacion=ids_esp[0] if len(ids_esp) == 1 else None,
     )
     if len(tecnicos_extra) > 0:

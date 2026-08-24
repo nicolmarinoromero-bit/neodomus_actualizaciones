@@ -11,6 +11,8 @@ Estados: Pendiente → Aprobada | Rechazada.
 from datetime import datetime
 from typing import List, Optional
 
+import random
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -45,6 +47,7 @@ class DevolucionCreate(BaseModel):
     id_pedido: int
     id_producto: int = Field(gt=0)
     motivo: Optional[str] = None
+    preferencia: Optional[str] = None  # 'producto' | 'dinero'
 
 
 def _serializar_devolucion(d: Devolucion, cliente=None, producto=None) -> dict:
@@ -57,6 +60,9 @@ def _serializar_devolucion(d: Devolucion, cliente=None, producto=None) -> dict:
             if producto is not None
             else (f"Producto #{d.id_producto_d}" if d.id_producto_d else None)
         ),
+        "preferencia": d.preferencia,
+        "id_tecnico_recogida": d.id_tecnico_recogida,
+        "recogida_estado": d.recogida_estado,
         "cliente": (
             f"{cliente.first_name} {cliente.last_name}".strip()
             if cliente is not None
@@ -127,8 +133,28 @@ def solicitar_devolucion(
         id_producto_d=data.id_producto,
         motivo=(data.motivo or "").strip() or None,
         estado="Pendiente",
+        preferencia=(
+            data.preferencia.strip().lower()
+            if (data.preferencia or "").strip().lower() in ("producto", "dinero")
+            else None
+        ),
     )
     db.add(devolucion)
+    db.flush()
+
+    # Asignar un técnico ALEATORIO para que vaya a recoger el producto.
+    from app.models.tecnico import Tecnico as TecnicoModel
+
+    tecnicos_activos = (
+        db.query(TecnicoModel)
+        .join(User, User.id_usuario == TecnicoModel.id_usuario_t)
+        .filter(User.is_active == True, User.id_rol_u == 2)  # noqa: E712
+        .all()
+    )
+    tecnico_recogida = random.choice(tecnicos_activos) if tecnicos_activos else None
+    if tecnico_recogida is not None:
+        devolucion.id_tecnico_recogida = tecnico_recogida.id_tecnico
+        devolucion.recogida_estado = "Asignada"
     db.commit()
     db.refresh(devolucion)
 
@@ -147,6 +173,57 @@ def solicitar_devolucion(
         nombre_producto,
         devolucion.motivo,
     )
+
+    # ── Notificar al técnico de recogida y al cliente ────────────
+    if tecnico_recogida is not None:
+        from app.services.notificaciones import crear_notificacion, programar_correo
+
+        direccion_cliente = (client.address or "").strip() or "Por definir"
+        nombre_tecnico = (
+            f"{tecnico_recogida.usuario.first_name} {tecnico_recogida.usuario.last_name}".strip()
+            if tecnico_recogida.usuario
+            else "Técnico"
+        )
+        direccion_cliente = (cliente_direccion or "").strip() or "Por definir"
+
+        # Técnico: plataforma + correo con la dirección.
+        if tecnico_recogida.usuario:
+            crear_notificacion(
+                db,
+                id_usuario=tecnico_recogida.usuario.id_usuario,
+                id_cliente=None,
+                tipo="recogida",
+                titulo="Recogida por devolución asignada",
+                mensaje=(
+                    f"Debes recoger el producto '{nombre_producto}' del pedido "
+                    f"#{pedido.id_pedido} en: {direccion_cliente}."
+                ),
+            )
+            if tecnico_recogida.usuario.email:
+                programar_correo(
+                    tecnico_recogida.usuario.email,
+                    "Recogida por devolución asignada - Neodomus",
+                    "<div style='font-family:Arial,sans-serif;max-width:560px;margin:auto'>"
+                    "<h2 style='color:#1f1a12'>Recogida asignada</h2>"
+                    f"<p>Hola <strong>{nombre_tecnico}</strong>, te asignamos recoger el "
+                    f"<strong>{nombre_producto}</strong> del pedido #{pedido.id_pedido}.</p>"
+                    f"<p><strong>Dirección:</strong> {direccion_cliente}<br/>"
+                    f"<strong>Cliente:</strong> {client.first_name} {client.last_name}</p>"
+                    "</div>",
+                )
+
+        # Cliente: plataforma.
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=client.id_cliente,
+            tipo="recogida",
+            titulo="Técnico asignado para tu devolución",
+            mensaje=(
+                f"{nombre_tecnico} pasará a recoger el producto '{nombre_producto}' "
+                f"de tu pedido #{pedido.id_pedido}."
+            ),
+        )
 
     return _serializar_devolucion(devolucion, producto=producto)
 
@@ -199,6 +276,191 @@ def listar_devoluciones_admin(
         )
         for f in filas
     ]
+
+
+@router.get("/mis-recogidas")
+def mis_recogidas(
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """Devoluciones donde el técnico autenticado fue asignado a recoger
+    el producto del cliente."""
+    from app.models.tecnico import Tecnico
+
+    ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
+    if not ficha:
+        return []
+
+    filas = (
+        db.query(Devolucion)
+        .filter(
+            Devolucion.id_tecnico_recogida == ficha.id_tecnico,
+            Devolucion.recogida_estado.in_(("Asignada", "Recogida")),
+        )
+        .order_by(Devolucion.created_at.desc())
+        .all()
+    )
+
+    resultado = []
+    for d in filas:
+        cliente = db.query(Cliente).filter(Cliente.id_cliente == d.id_cliente_d).first()
+        pedido = db.query(Pedido).filter(Pedido.id_pedido == d.id_pedido_d).first()
+        producto = (
+            db.query(Producto).filter(Producto.id_producto == d.id_producto_d).first()
+            if d.id_producto_d
+            else None
+        )
+        resultado.append({
+            "id_devolucion": d.id_devolucion,
+            "id_pedido": d.id_pedido_d,
+            "producto": (
+                producto.nombre_producto if producto else f"Producto #{d.id_producto_d}"
+            ),
+            "cliente": (
+                f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
+            ),
+            "direccion": (cliente.address or "").strip() if cliente else "Por definir",
+            "telefono": cliente.telefono_cliente if cliente else None,
+            "estado_devolucion": d.estado,
+            "preferencia": d.preferencia or "dinero",
+            "recogida_estado": d.recogida_estado,
+            "motivo": d.motivo,
+        })
+    return resultado
+
+
+class RecogidaUpdate(BaseModel):
+    recogida: bool = True
+
+
+@router.put("/{id_devolucion}/recogida")
+def marcar_recogida(
+    id_devolucion: int,
+    data: RecogidaUpdate,
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """El técnico asignado confirma que recogió el producto."""
+    from app.models.tecnico import Tecnico
+
+    ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
+    devolucion = (
+        db.query(Devolucion)
+        .filter(
+            Devolucion.id_devolucion == id_devolucion,
+            Devolucion.id_tecnico_recogida == (ficha.id_tecnico if ficha else -1),
+        )
+        .first()
+    )
+    if not devolucion:
+        raise HTTPException(status_code=404, detail="Recogida no encontrada")
+
+    devolucion.recogida_estado = "Recogida" if data.recogida else "Asignada"
+    db.commit()
+    return {
+        "id_devolucion": devolucion.id_devolucion,
+        "recogida_estado": devolucion.recogida_estado,
+    }
+
+
+class ReasignarTecnicoIn(BaseModel):
+    id_tecnico: int
+
+
+@router.put("/admin/{id_devolucion}/reasignar-tecnico")
+def reasignar_tecnico_recogida(
+    id_devolucion: int,
+    data: ReasignarTecnicoIn,
+    admin: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """El administrador cambia el técnico asignado para recoger la devolución
+    (por ejemplo, si la cuenta del técnico anterior fue inhabilitada).
+    Notifica al nuevo técnico y al cliente."""
+    from app.models.tecnico import Tecnico as TecnicoModel
+    from app.services.notificaciones import crear_notificacion, programar_correo
+
+    devolucion = (
+        db.query(Devolucion).filter(Devolucion.id_devolucion == id_devolucion).first()
+    )
+    if not devolucion:
+        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+
+    nuevo = (
+        db.query(TecnicoModel)
+        .join(User, User.id_usuario == TecnicoModel.id_usuario_t)
+        .filter(
+            TecnicoModel.id_tecnico == data.id_tecnico,
+            User.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not nuevo:
+        raise HTTPException(status_code=404, detail="Técnico no encontrado o inactivo")
+
+    anterior_id = devolucion.id_tecnico_recogida
+    if anterior_id == nuevo.id_tecnico:
+        raise HTTPException(status_code=400, detail="Ese técnico ya está asignado")
+
+    devolucion.id_tecnico_recogida = nuevo.id_tecnico
+    devolucion.recogida_estado = "Asignada"
+    db.commit()
+
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == devolucion.id_cliente_d).first()
+    nombre_cliente = (
+        f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
+    )
+    nombre_nuevo = (
+        f"{nuevo.usuario.first_name} {nuevo.usuario.last_name}".strip()
+        if nuevo.usuario
+        else "Técnico"
+    )
+    direccion = ((cliente.address or "").strip() if cliente else "") or "Por definir"
+
+    # Notificar al NUEVO técnico (plataforma + correo).
+    if nuevo.usuario:
+        crear_notificacion(
+            db,
+            id_usuario=nuevo.usuario.id_usuario,
+            id_cliente=None,
+            tipo="recogida",
+            titulo="Nueva recogida por devolución reasignada",
+            mensaje=(
+                f"Te asignaron recoger el producto de la devolución "
+                f"#{id_devolucion} en: {direccion}."
+            ),
+        )
+        if nuevo.usuario.email:
+            programar_correo(
+                nuevo.usuario.email,
+                "Recogida por devolución - Neodomus",
+                "<div style='font-family:Arial,sans-serif;max-width:560px;margin:auto'>"
+                "<h2 style='color:#1f1a12'>Recogida por devolución</h2>"
+                f"<p>Hola <strong>{nombre_nuevo}</strong>, se te reasignó la recogida "
+                f"de la devolución #{id_devolucion}.</p>"
+                f"<p><strong>Dirección:</strong> {direccion}</p></div>",
+            )
+
+    # Notificar al CLIENTE sobre el cambio de técnico.
+    crear_notificacion(
+        db,
+        id_usuario=None,
+        id_cliente=devolucion.id_cliente_d,
+        tipo="recogida",
+        titulo="Cambio de técnico para tu devolución",
+        mensaje=(
+            f"{nombre_nuevo} será el nuevo técnico encargado de recoger tu "
+            f"devolución #{id_devolucion}."
+        ),
+    )
+
+    return {
+        "id_devolucion": id_devolucion,
+        "id_tecnico_anterior": anterior_id,
+        "id_tecnico_nuevo": nuevo.id_tecnico,
+        "nombre_tecnico": nombre_nuevo,
+        "mensaje": "Técnico reasignado y notificado",
+    }
 
 
 class EstadoDevolucionUpdate(BaseModel):

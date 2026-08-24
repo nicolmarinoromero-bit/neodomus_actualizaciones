@@ -35,3 +35,10 @@ class Devolucion(Base):
         DateTime, server_default=func.now()
     )
     resuelta_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    # Preferencia del cliente: 'producto' (cambio) o 'dinero' (reembolso).
+    preferencia: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # Recogida del producto: técnico asignado aleatoriamente por el sistema.
+    id_tecnico_recogida: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    recogida_estado: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, server_default="Asignada"
+    )
