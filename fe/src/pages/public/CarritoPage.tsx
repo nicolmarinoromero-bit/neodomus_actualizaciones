@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaArrowLeft, FaTrashCan, FaCartShopping, FaCircleCheck, FaExclamation, FaPen } from 'react-icons/fa6';
-import { useCart, type CartItem } from '@contexts/CartContext';
+import { useCart, type CartItem, claveCarrito } from '@contexts/CartContext';
 import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { PF_REDIRECT_AFTER_LOGIN_KEY } from '@utils/profileStorage';
@@ -25,8 +25,8 @@ const CarritoPage = () => {
     const params = new URLSearchParams();
     params.set('editar', key);
     if (item.color) params.set('color', item.color);
-    if (item.metros != null) params.set('metros', String(item.metros));
-    if (!item.venta_por_metros) params.set('cantidad', String(item.cantidad));
+    if (item.metros != null && item.venta_por_metros) params.set('metros', String(item.metros));
+    params.set('cantidad', String(item.cantidad));
     navigate(`/producto/${item.id_producto}?${params.toString()}`);
   };
 
@@ -80,7 +80,7 @@ const CarritoPage = () => {
           <div className="carrito-layout">
             <div className="carrito-items">
               {items.map(item => {
-                const key = item.color ? `${item.id_producto}-${item.color.toLowerCase()}` : `${item.id_producto}`;
+                const key = claveCarrito(item);
                 return (
                   <article key={key} className="carrito-item">
                     <Link to={`/producto/${item.id_producto}`} className="carrito-item-img">
@@ -103,7 +103,9 @@ const CarritoPage = () => {
                         ${item.precio_venta_producto.toLocaleString()} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
                       </span>
                       {item.venta_por_metros && item.metros != null && (
-                        <span className="carrito-item-metros">{item.metros} m</span>
+                        <span className="carrito-item-metros">
+                          {item.cantidad} × {item.metros} m
+                        </span>
                       )}
                       {item.tecnicos_requeridos != null && (
                         <span className="carrito-item-tecnicos">
@@ -113,27 +115,52 @@ const CarritoPage = () => {
                     </div>
 
                     <div className="carrito-item-controls">
-                    <div className="carrito-cantidad">
+                    <div className={`carrito-cantidad${item.venta_por_metros ? ' doble' : ''}`}>
                       {item.venta_por_metros ? (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => updateMetros(key, Math.max(0.5, Number(((item.metros || 1) - 1).toFixed(1))))}
-                            aria-label="Reducir metros"
-                          >
-                            −
-                          </button>
-                          <span>{item.metros} m</span>
-                          <button
-                            type="button"
-                            onClick={() => updateMetros(key, Number(((item.metros || 1) + 1).toFixed(1)))}
-                            aria-label="Aumentar metros"
-                          >
-                            +
-                          </button>
+                          <div className="carrito-control-grupo">
+                            <span className="carrito-control-label">Unidades</span>
+                            <div className="carrito-stepper">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(key, item.cantidad - 1)}
+                                aria-label="Reducir cantidad de unidades"
+                              >
+                                −
+                              </button>
+                              <span>{item.cantidad}</span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(key, item.cantidad + 1)}
+                                aria-label="Aumentar cantidad de unidades"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <div className="carrito-control-grupo">
+                            <span className="carrito-control-label">Metros c/u</span>
+                            <div className="carrito-stepper">
+                              <button
+                                type="button"
+                                onClick={() => updateMetros(key, Math.max(0.5, Number(((item.metros || 1) - 1).toFixed(1))))}
+                                aria-label="Reducir metros por unidad"
+                              >
+                                −
+                              </button>
+                              <span>{item.metros} m</span>
+                              <button
+                                type="button"
+                                onClick={() => updateMetros(key, Number(((item.metros || 1) + 1).toFixed(1)))}
+                                aria-label="Aumentar metros por unidad"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
                         </>
                       ) : (
-                        <>
+                        <div className="carrito-stepper">
                           <button
                             type="button"
                             onClick={() => updateQuantity(key, item.cantidad - 1)}
@@ -149,12 +176,12 @@ const CarritoPage = () => {
                           >
                             +
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
 
                       <span className="carrito-item-subtotal">
-                        ${(item.precio_venta_producto * (item.venta_por_metros ? item.metros || 0 : item.cantidad)).toLocaleString()} COP
+                        ${(item.precio_venta_producto * (item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : item.cantidad)).toLocaleString()} COP
                       </span>
 
                       <button

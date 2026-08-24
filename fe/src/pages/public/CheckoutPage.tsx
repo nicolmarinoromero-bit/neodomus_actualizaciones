@@ -186,7 +186,7 @@ const CheckoutPage = () => {
   }, [firmaServicios, servicios.length]);
 
   const firmaItems = items
-    .map((i) => `${i.id_producto}-${i.venta_por_metros ? i.metros : i.cantidad}`)
+    .map((i) => `${i.id_producto}-${i.venta_por_metros ? `${i.metros}x${i.cantidad}` : i.cantidad}`)
     .join('|');
   const servicioInstalacion = servicios.find((s) => s.tipo === 'Instalación');
   useEffect(() => {
@@ -200,7 +200,8 @@ const CheckoutPage = () => {
         items: items.map((i) => ({
           id_producto: i.id_producto,
           cantidad: i.venta_por_metros ? 1 : i.cantidad,
-          metros: i.venta_por_metros ? i.metros : undefined,
+          // El backend trabaja con metros totales (tramos × metros por unidad).
+          metros: i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : undefined,
         })),
         fecha: servicioInstalacion?.fecha || undefined,
         hora: servicioInstalacion?.hora || undefined,
@@ -350,7 +351,9 @@ const CheckoutPage = () => {
         items: items.map((i) => ({
           id_producto: i.id_producto,
           cantidad: i.venta_por_metros ? 1 : i.cantidad,
-          metros: i.venta_por_metros ? i.metros : undefined,
+          // Metros TOTALES (tramos × metros por unidad): así el backend cobra
+          // y descuenta stock por la longitud completa.
+          metros: i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : undefined,
           color: i.color,
           tamaño: i.tamaño,
           id_variante: i.id_variante ?? undefined,
@@ -1103,14 +1106,18 @@ const CheckoutPage = () => {
             <h2>Resumen del pedido</h2>
             <div className="checkout-resumen-items">
               {items.map((item) => {
-                const importe = item.precio_venta_producto * (item.venta_por_metros ? item.metros || 0 : item.cantidad);
+                // Por metros: cantidad de tramos × metros por unidad.
+                const metrosTotales = item.venta_por_metros
+                  ? (item.metros || 0) * (item.cantidad || 1)
+                  : 0;
+                const importe = item.precio_venta_producto * (item.venta_por_metros ? metrosTotales : item.cantidad);
                 const tecnicosReq = Number(item.tecnicos_requeridos) || 1;
                 return (
                   <div className="checkout-resumen-item" key={item.id_producto}>
                     <span className="checkout-resumen-nombre">
                       {item.nombre_producto}
                       {item.venta_por_metros
-                        ? ` · ${item.metros} m`
+                        ? ` · ${item.cantidad} × ${item.metros} m`
                         : item.cantidad > 1
                           ? ` × ${item.cantidad}`
                           : ''}

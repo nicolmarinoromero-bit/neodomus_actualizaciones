@@ -247,6 +247,69 @@
   border-right: 1px solid #2e2e2e;
 }
 
+/* ── Controles dobles para productos por metro (unidades + metros c/u) ── */
+.carrito-cantidad.doble {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+.carrito-control-grupo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.carrito-control-label {
+  color: #9c9c9c;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-width: 78px;
+}
+
+.carrito-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.carrito-stepper button {
+  width: 34px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.carrito-stepper button:hover {
+  background: rgba(211, 172, 77, 0.25);
+  color: #ffd700;
+}
+
+.carrito-stepper span {
+  min-width: 46px;
+  height: 40px;
+  padding: 0 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #ffffff;
+  font-weight: 600;
+  border-left: 1px solid #2e2e2e;
+  border-right: 1px solid #2e2e2e;
+}
+
 .carrito-item-subtotal {
   color: #ffd700;
   font-weight: 700;

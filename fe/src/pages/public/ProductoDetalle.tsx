@@ -11,6 +11,7 @@ interface Producto {
   id_producto: number;
   nombre_producto: string;
   marca?: string | null;
+  referencia_producto?: string | null;
   venta_por_metros?: boolean;
   precio_venta_producto: number;
   imagen_url?: string | null;
@@ -40,6 +41,14 @@ interface Producto {
 }
 
 const METROS_OPCIONES = [10, 20, 30, 40, 50];
+
+// Colores específicos por producto (referencia). Array vacío = el producto no
+// ofrece selección de color (p. ej. un kit completo); si la referencia no está
+// en el mapa, se usa la paleta de su categoría.
+const COLORES_POR_REFERENCIA: Record<string, string[]> = {
+  'utp6-050': ['Blanco', 'Negro'],
+  'kit-001': [],
+};
 
 const PALETAS: Record<number, string[]> = {
   1: ['Blanco', 'Negro', 'Gris'],
@@ -147,6 +156,19 @@ const ProductoDetalle = () => {
   const { t } = useIdioma();
   const { esFavorito, toggleFavorito } = useFavoritos();
 
+  // Paleta de colores mostrada al cliente: variantes reales > colores
+  // específicos del producto > paleta de su categoría.
+  const paletaDe = (p: {
+    referencia_producto?: string | null;
+    id_cate_pr?: number;
+    variantes?: { nombre: string }[];
+  }): string[] => {
+    if (p.variantes?.length) return p.variantes.map(v => v.nombre);
+    const especificos = COLORES_POR_REFERENCIA[p.referencia_producto || ''];
+    if (especificos !== undefined) return especificos;
+    return PALETAS[p.id_cate_pr ?? 0] || ['Blanco', 'Negro', 'Gris'];
+  };
+
   const editarKey = searchParams.get('editar');
 
   const [producto, setProducto] = useState<Producto | null>(null);
@@ -225,9 +247,10 @@ const ProductoDetalle = () => {
 
   useEffect(() => {
     if (producto) {
-      const paleta = (producto.variantes?.length ? producto.variantes.map(v => v.nombre) : PALETAS[producto.id_cate_pr ?? 0]) || ['Blanco', 'Negro', 'Gris'];
+      const paleta = paletaDe(producto);
       const paramColor = searchParams.get('color');
-      const colorInicial = paramColor && paleta.includes(paramColor) ? paramColor : paleta[0];
+      const colorInicial =
+        paramColor && paleta.includes(paramColor) ? paramColor : paleta[0] || '';
       setColor(colorInicial);
       // Selecciona la primera medida disponible si el producto las usa.
       if (usaTamanos) {
@@ -245,7 +268,7 @@ const ProductoDetalle = () => {
         setMetros(METROS_OPCIONES.includes(Number(paramMetros)) ? Number(paramMetros) : 10);
       }
       const paramCantidad = searchParams.get('cantidad');
-      if (!producto.venta_por_metros && paramCantidad) {
+      if (paramCantidad) {
         setCantidad(Math.max(1, Number(paramCantidad) || 1));
       }
     }
@@ -262,9 +285,7 @@ const ProductoDetalle = () => {
       </div>
     );
 
-  const paleta = variantes.length
-    ? variantes.map(v => v.nombre)
-    : PALETAS[producto.id_cate_pr ?? 0] || ['Blanco', 'Negro', 'Gris'];
+  const paleta = paletaDe(producto);
   const caracteristicas = (producto.caracteristicas_producto || '')
     .split('\n')
     .map((c) => c.replace(/^[-*\s]+/, '').trim())
@@ -298,6 +319,10 @@ const ProductoDetalle = () => {
         showToast('Ingresa una cantidad de metros válida');
         return;
       }
+      if (cantidad < 1) {
+        showToast('Ingresa una cantidad válida');
+        return;
+      }
       if (editarKey) removeItem(editarKey);
       addItem(
         {
@@ -308,13 +333,13 @@ const ProductoDetalle = () => {
           venta_por_metros: true,
           tecnicos_requeridos: producto.tecnicos_requeridos || 1,
         },
-        1,
+        cantidad,
         metros
       );
       if (editarKey) {
         navigate('/carrito');
       } else {
-        showToast(`${metros} m x ${producto.nombre_producto} ${t('productos.agregadoAlCarrito')}`);
+        showToast(`${cantidad} × ${metros} m de ${producto.nombre_producto} ${t('productos.agregadoAlCarrito')}`);
       }
       return;
     }
@@ -387,19 +412,15 @@ const ProductoDetalle = () => {
             <div className="detalle-precio">
               {tieneDescuento && (
                 <span className="detalle-precio-original">
-                  ${(
-                    producto.precio_venta_producto *
-                    (producto.venta_por_metros ? metros : 1)
-                  ).toLocaleString()}
+                  ${producto.precio_venta_producto.toLocaleString()}
                 </span>
               )}
               <span className="detalle-precio-monto">
-                ${(
-                  precioFinal *
-                  (producto.venta_por_metros ? metros : 1)
-                ).toLocaleString()}
+                ${precioFinal.toLocaleString()}
               </span>
-              <span className="detalle-precio-sufijo">COP{producto.venta_por_metros ? ` / metro (${metros} m)` : ''}</span>
+              <span className="detalle-precio-sufijo">
+                COP{producto.venta_por_metros ? ' / metro' : ''}
+              </span>
               {tieneDescuento && (
                 <span className="detalle-badge-descuento">-{producto.descuento_activo}%</span>
               )}
@@ -480,46 +501,48 @@ const ProductoDetalle = () => {
                 </div>
               )}
 
-              <div className="detalle-colores">
-                <span className="detalle-label">Color: <strong>{color}</strong></span>
-                <div className="detalle-colores-swatches">
-                  {paleta.map(c => {
-                    const variante = usaTamanos
-                      ? variantes.find(v => v.nombre === c && medidaDe(v) === tamano)
-                      : variantes.find(v => v.nombre === c);
-                    const fondo = (variante?.hex || COLOR_HEX[c] || '#ccc').trim();
-                    const esDegradado = fondo.startsWith('linear');
-                    const agotado = !variantes.length
-                      ? false
-                      : (variante?.stock ?? 0) <= 0;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        className={`detalle-swatch ${color === c ? 'activo' : ''} ${agotado ? 'agotado' : ''}`}
-                        onClick={() => setColor(c)}
-                        disabled={agotado}
-                        aria-label={`Color ${c}${agotado ? ' (sin stock)' : ''}`}
-                        title={agotado ? `${c} — sin stock` : c}
-                      >
-                        <span
-                          className="detalle-swatch-circle"
-                          style={
-                            esDegradado
-                              ? { background: fondo }
-                              : { background: fondo || '#ccc', opacity: agotado ? 0.35 : 1 }
-                          }
-                        />
-                      </button>
-                    );
-                  })}
+              {paleta.length > 0 && (
+                <div className="detalle-colores">
+                  <span className="detalle-label">Color: <strong>{color}</strong></span>
+                  <div className="detalle-colores-swatches">
+                    {paleta.map(c => {
+                      const variante = usaTamanos
+                        ? variantes.find(v => v.nombre === c && medidaDe(v) === tamano)
+                        : variantes.find(v => v.nombre === c);
+                      const fondo = (variante?.hex || COLOR_HEX[c] || '#ccc').trim();
+                      const esDegradado = fondo.startsWith('linear');
+                      const agotado = !variantes.length
+                        ? false
+                        : (variante?.stock ?? 0) <= 0;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`detalle-swatch ${color === c ? 'activo' : ''} ${agotado ? 'agotado' : ''}`}
+                          onClick={() => setColor(c)}
+                          disabled={agotado}
+                          aria-label={`Color ${c}${agotado ? ' (sin stock)' : ''}`}
+                          title={agotado ? `${c} — sin stock` : c}
+                        >
+                          <span
+                            className="detalle-swatch-circle"
+                            style={
+                              esDegradado
+                                ? { background: fondo }
+                                : { background: fondo || '#ccc', opacity: agotado ? 0.35 : 1 }
+                            }
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="detalle-cantidad-row">
                 {producto.venta_por_metros ? (
                   <div className="detalle-metros">
-                    <span className="detalle-metros-titulo">Elige cuántos metros quieres:</span>
+                    <span className="detalle-metros-titulo">Elige cuántos metros quieres por unidad:</span>
                     <div className="detalle-metros-opciones">
                       {METROS_OPCIONES.map(m => (
                         <button
@@ -532,6 +555,26 @@ const ProductoDetalle = () => {
                           {m} m
                         </button>
                       ))}
+                    </div>
+                    <div className="detalle-metros detalle-cantidad-unidades">
+                      <span className="detalle-metros-titulo">Cantidad de unidades:</span>
+                      <div className="detalle-cantidad">
+                        <button
+                          type="button"
+                          onClick={() => setCantidad(Math.max(1, cantidad - 1))}
+                          aria-label="Reducir cantidad de unidades"
+                        >
+                          −
+                        </button>
+                        <span>{cantidad}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCantidad(cantidad + 1)}
+                          aria-label="Aumentar cantidad de unidades"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -568,12 +611,12 @@ const ProductoDetalle = () => {
               </div>
 
               <p className="detalle-subtotal">
-                Subtotal:{' '}
+                Subtotal ({producto.venta_por_metros ? `${cantidad} × ${metros} m` : `${cantidad} u.`}):{' '}
                 <strong>
                   $
                   {(
                     precioUnitario *
-                    (producto.venta_por_metros ? metros : cantidad)
+                    (producto.venta_por_metros ? metros * cantidad : cantidad)
                   ).toLocaleString()}{' '}
                   COP
                 </strong>

@@ -138,6 +138,7 @@ const ProductosPublicos = () => {
     const precio = producto.precio_final ?? producto.precio_venta_producto;
     if (producto.venta_por_metros) {
       const m = metros[id] || 10;
+      const tramos = cantidades[id] || 1;
       addItem(
         {
           id_producto: producto.id_producto,
@@ -146,10 +147,10 @@ const ProductosPublicos = () => {
           imagen: getImagen(producto),
           venta_por_metros: true,
         },
-        1,
+        tramos,
         m
       );
-      setCartMessage(`${m} m x ${producto.nombre_producto}`);
+      setCartMessage(`${tramos} × ${m} m de ${producto.nombre_producto}`);
     } else {
       addItem(
         {
@@ -184,6 +185,18 @@ const ProductosPublicos = () => {
       ...prev,
       [id]: metros,
     }));
+  };
+
+  // Mueve el metraje del producto al tramo anterior/siguiente disponible
+  // (10, 20, 30... m) manteniendo el mismo control ± que los demás productos.
+  const cambiarMetrosProducto = (id: number, direccion: number) => {
+    const actual = metros[id] || METROS_OPCIONES[0];
+    const idx = METROS_OPCIONES.indexOf(actual);
+    const base = idx === -1 ? 0 : idx;
+    const nuevo = METROS_OPCIONES[
+      Math.min(Math.max(base + direccion, 0), METROS_OPCIONES.length - 1)
+    ];
+    if (nuevo !== actual) setMetrosProducto(id, nuevo);
   };
 
   // Imagen basada en ID
@@ -259,6 +272,7 @@ const ProductosPublicos = () => {
                   const esFavorito = favoritos.has(producto.id_producto);
                   const esPorMetros = Boolean(producto.venta_por_metros);
                   const cantidadMetros = metros[producto.id_producto] || 10;
+                  const cantidad = cantidades[producto.id_producto] || 1;
                   const tieneDescuento = producto.precio_final != null && producto.descuento_activo && producto.descuento_activo > 0;
                   const precioFinal = producto.precio_final ?? producto.precio_venta_producto;
                   return (
@@ -304,43 +318,60 @@ const ProductosPublicos = () => {
                         <div className="precio-producto">
                           {tieneDescuento && (
                             <span className="precio-original">
-                              ${(producto.precio_venta_producto * (esPorMetros ? cantidadMetros : 1)).toLocaleString()}
+                              ${producto.precio_venta_producto.toLocaleString()}
                             </span>
                           )}
                           <span className="precio-monto">
-                            ${(precioFinal * (esPorMetros ? cantidadMetros : 1)).toLocaleString()}
+                            ${precioFinal.toLocaleString()}
                           </span>
-                          <span className="precio-sufijo">COP</span>
+                          <span className="precio-sufijo">
+                            COP{esPorMetros ? ' / metro' : ''}
+                          </span>
                           {tieneDescuento && (
                             <span className="badge-descuento">-{producto.descuento_activo}%</span>
                           )}
                         </div>
-                        {esPorMetros && (
-                          <span className="precio-metro-hint">
-                            {precioFinal.toLocaleString()} COP / metro
-                          </span>
-                        )}
-                        <div className="acciones-producto">
-                          <div className="cantidad-control">
-                            {esPorMetros ? (
-                              <select
-                                className="metros-select"
-                                value={cantidadMetros}
-                                onChange={(e) => setMetrosProducto(producto.id_producto, Number(e.target.value))}
-                                aria-label="Metros"
-                              >
-                                {METROS_OPCIONES.map(m => (
-                                  <option key={m} value={m}>{m} m</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <>
-                                <button type="button" onClick={() => disminuirCantidad(producto.id_producto)} aria-label="Reducir cantidad">−</button>
-                                <span>{cantidades[producto.id_producto] || 1}</span>
-                                <button type="button" onClick={() => aumentarCantidad(producto.id_producto)} aria-label="Aumentar cantidad">+</button>
-                              </>
+                        {/* Bloque inferior anclado: misma línea base en todas
+                            las tarjetas, con o sin opciones de metros. */}
+                        <div className="tarjeta-inferior">
+                          <div className="producto-opciones">
+                            {esPorMetros && (
+                              <div className="opcion-grupo">
+                                <span className="opcion-etiqueta">Metro</span>
+                                <div className="cantidad-control mini metros">
+                                  <button
+                                    type="button"
+                                    onClick={() => cambiarMetrosProducto(producto.id_producto, -1)}
+                                    disabled={cantidadMetros <= METROS_OPCIONES[0]}
+                                    aria-label="Reducir metros por unidad"
+                                  >−</button>
+                                  <span>{cantidadMetros} m</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => cambiarMetrosProducto(producto.id_producto, 1)}
+                                    disabled={cantidadMetros >= METROS_OPCIONES[METROS_OPCIONES.length - 1]}
+                                    aria-label="Aumentar metros por unidad"
+                                  >+</button>
+                                </div>
+                              </div>
                             )}
+                            <div className="opcion-grupo">
+                              <span className="opcion-etiqueta">Cant.</span>
+                              <div className="cantidad-control mini">
+                                <button type="button" onClick={() => disminuirCantidad(producto.id_producto)} aria-label="Reducir cantidad">−</button>
+                                <span>{cantidad}</span>
+                                <button type="button" onClick={() => aumentarCantidad(producto.id_producto)} aria-label="Aumentar cantidad">+</button>
+                              </div>
+                            </div>
                           </div>
+
+                          {esPorMetros && (
+                            <span className="total-por-metros" aria-live="polite">
+                              Total {cantidad} × {cantidadMetros} m:{' '}
+                              <strong>${(precioFinal * cantidadMetros * cantidad).toLocaleString()} COP</strong>
+                            </span>
+                          )}
+
                           <button
                             className="btn-agregar"
                             onClick={() => handleAddToCart(producto.id_producto)}

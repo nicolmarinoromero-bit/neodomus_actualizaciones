@@ -32,14 +32,31 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string }) =>
+const itemKey = (item: {
+  id_producto: number;
+  color?: string;
+  medida?: string;
+  tamaño?: string;
+  venta_por_metros?: boolean;
+  metros?: number;
+}) =>
   [
     item.id_producto,
     item.color?.toLowerCase(),
     (item.medida || item.tamaño || '').toLowerCase(),
+    // En venta por metros cada metraje es una línea propia: el mismo metraje
+    // acumula cantidad (tramos) y uno distinto se guarda aparte.
+    item.venta_por_metros && item.metros != null ? `${item.metros}m` : '',
   ]
     .filter(Boolean)
     .join('-');
+
+// Clave pública para que las vistas operen sobre la MISMA identidad que el
+// contexto (carrito, edición desde el detalle, etc.).
+export const claveCarrito = itemKey;
+
+export const totalMetrosItem = (item: { venta_por_metros?: boolean; metros?: number; cantidad: number }) =>
+  item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : 0;
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>(() => loadItem<CartItem[]>(CART_KEY, []));
@@ -59,21 +76,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const addItem = (producto: Omit<CartItem, 'cantidad'>, cantidad = 1, metros?: number) => {
     setItems(prev => {
-      const key = itemKey(producto);
+      const esMetros = Boolean(producto.venta_por_metros);
+      // Por metros: cantidad = número de tramos y metros = metros POR tramo.
+      const nuevo: CartItem = esMetros
+        ? { ...producto, cantidad: Math.max(1, cantidad), metros: metros || 0 }
+        : { ...producto, cantidad };
+      const key = itemKey(nuevo);
       const existing = prev.find(i => itemKey(i) === key);
       if (existing) {
+        // Misma línea (incluido el mismo metraje): se suman unidades/tramos.
         return prev.map(i =>
-          itemKey(i) === key
-            ? {
-                ...i,
-                // En venta por metros se acumulan metros (no unidades).
-                cantidad: producto.venta_por_metros ? 1 : i.cantidad + cantidad,
-                metros: producto.venta_por_metros ? (i.metros || 0) + (metros || 0) : i.metros,
-              }
-            : i
+          itemKey(i) === key ? { ...i, cantidad: i.cantidad + nuevo.cantidad } : i
         );
       }
-      return [...prev, { ...producto, cantidad: producto.venta_por_metros ? 1 : cantidad, metros: producto.venta_por_metros ? metros || 0 : metros }];
+      return [...prev, nuevo];
     });
   };
 
@@ -101,7 +117,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       items.reduce(
         (acc, i) =>
           acc +
-          i.precio_venta_producto * (i.venta_por_metros ? i.metros || 0 : i.cantidad),
+          i.precio_venta_producto *
+            (i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : i.cantidad),
         0
       ),
     [items]
