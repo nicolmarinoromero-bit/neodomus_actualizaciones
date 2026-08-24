@@ -605,3 +605,67 @@
     min-height: 260px;
   }
 }
+
+/* ── Combinaciones disponibles (color × medida) ────────────── */
+.detalle-combos {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detalle-combos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.detalle-combo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 165, 75, 0.25);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.detalle-combo:hover:not(:disabled) {
+  border-color: rgba(212, 165, 75, 0.6);
+  background: rgba(212, 165, 75, 0.06);
+}
+.detalle-combo.activo {
+  border-color: #d4a54b;
+  background: rgba(212, 165, 75, 0.1);
+}
+.detalle-combo:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.detalle-combo-color {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+.detalle-combo-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.detalle-combo-info strong {
+  color: inherit;
+  font-size: 0.85rem;
+}
+.detalle-combo-info em {
+  font-style: normal;
+  color: #9f9f9f;
+  font-size: 0.76rem;
+}
+.detalle-combo-info small {
+  color: #46d06f;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.detalle-combo:disabled .detalle-combo-info small { color: #9f9f9f; }

@@ -320,7 +320,7 @@ def _validar_franja_cita(
     if not _dia_es_laboral(fecha):
         raise HTTPException(
             status_code=400,
-            detail="Las citas solo se pueden agendar de lunes a viernes.",
+            detail="Las citas solo se pueden agendar de lunes a sábado.",
         )
     if hora not in horas_laborales(fecha, duracion_horas):
         raise HTTPException(
@@ -1340,20 +1340,105 @@ def editar_cita(
     return cita
 
 
-@router.delete("/{cita_id}", response_model=CitaResponse)
+@router.delete("/{cita_id}", response_model=dict)
 def cancelar_cita(
     cita_id: int,
     client: Cliente = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    """Cancela una cita propia (pasa a estado Cancelada)"""
+    """Cancela una cita propia. Si estaba pagada, procesa automáticamente
+    el reembolso del 85% del servicio (se retiene el 15%) y notifica al
+    administrador como comprobante."""
     cita = _get_own_cita(cita_id, client, db)
     if cita.estado == "Finalizada":
         raise HTTPException(status_code=400, detail="No se puede cancelar una cita ya finalizada")
+    if cita.estado == "Cancelada":
+        raise HTTPException(status_code=400, detail="La cita ya está cancelada")
+
+    estado_anterior = cita.estado
+    nombre_cliente = f"{client.first_name} {client.last_name}".strip() or "Cliente"
     cita.estado = "Cancelada"
+
+    # ── Reembolso del 85% si la cita tenía pago aprobado ─────────
+    # Queda PENDIENTE hasta que el administrador lo confirme.
+    reembolso_info = None
+    if cita.estado_pago in ("aprobado", "pagado") and cita.costo_cita:
+        from app.models.especializacion import Reembolso
+
+        monto_reembolso = round(float(cita.costo_cita) * 0.85, 2)
+        retenido = round(float(cita.costo_cita) - monto_reembolso, 2)
+        motivo_reembolso = (
+            f"Cancelación realizada por el cliente. Se retiene el 15% "
+            f"del servicio (${retenido:,.0f} COP)."
+        )
+        reembolso = Reembolso(
+            id_cita=cita.id_cita,
+            monto=monto_reembolso,
+            estado="Pendiente",
+            motivo=motivo_reembolso,
+            numero_transaccion_original=cita.numero_transaccion,
+        )
+        db.add(reembolso)
+        db.flush()
+
+        # Notificación de plataforma + correo a los administradores.
+        admins = (
+            db.query(User)
+            .filter(User.id_rol_u == 1, User.is_active == True)  # noqa: E712
+            .all()
+        )
+        from app.services.notificaciones import programar_correo
+
+        for admin in admins:
+            crear_notificacion(
+                db,
+                id_usuario=admin.id_usuario,
+                id_cliente=None,
+                tipo="reembolso",
+                titulo="Reembolso pendiente por cancelación de cliente",
+                mensaje=(
+                    f"{nombre_cliente} canceló la cita #{cita.id_cita} "
+                    f"({cita.tipo_servicio}, {cita.fecha}). Confirma el reembolso "
+                    f"del 85% del servicio (${monto_reembolso:,.0f} COP); se retiene "
+                    f"el 15% (${retenido:,.0f} COP)."
+                ),
+            )
+            if admin.email:
+                programar_correo(
+                    admin.email,
+                    f"Reembolso pendiente - Cita #{cita.id_cita} cancelada",
+                    "<div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;"
+                    "background:#fff;border-radius:12px;border:1px solid #e8e2d6;overflow:hidden'>"
+                    "<div style='background:#1f1a12;padding:20px 26px;border-bottom:4px solid #d4a54b'>"
+                    "<h2 style='margin:0;color:#fff;font-size:18px'>Neodomus</h2>"
+                    "<p style='margin:4px 0 0;color:#d4a54b;font-size:12px;font-weight:600'>"
+                    "REEMBOLSO PENDIENTE DE CONFIRMACIÓN</p></div>"
+                    "<div style='padding:24px'>"
+                    f"<p>Hola, <strong>{nombre_cliente}</strong> canceló la cita #{cita.id_cita}.</p>"
+                    f"<p><strong>Servicio:</strong> {cita.tipo_servicio}<br/>"
+                    f"<strong>Valor pagado:</strong> ${float(cita.costo_cita):,.0f} COP<br/>"
+                    f"<strong>A reembolsar (85%):</strong> ${monto_reembolso:,.0f} COP<br/>"
+                    f"<strong>Retención (15%):</strong> ${retenido:,.0f} COP</p>"
+                    f"<p style='color:#666;font-size:13px'>{motivo_reembolso}</p>"
+                    "<p style='color:#b8860b;font-weight:700'>Confirma el reembolso desde el panel administrativo.</p>"
+                    "</div></div>",
+                )
+
+        reembolso_info = {
+            "id_reembolso": reembolso.id_reembolso,
+            "monto": monto_reembolso,
+            "estado": "Pendiente",
+        }
+
     db.commit()
     db.refresh(cita)
-    return cita
+
+    return {
+        "id_cita": cita.id_cita,
+        "estado": cita.estado,
+        "estado_anterior": estado_anterior,
+        "reembolso": reembolso_info,
+    }
 
 
 # ============================================================

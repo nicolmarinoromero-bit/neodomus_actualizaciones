@@ -22,6 +22,16 @@ interface Producto {
   stock_producto?: number;
   stock_estado?: 'disponible' | 'bajo' | 'agotado';
   tecnicos_requeridos?: number;
+  variantes?: {
+    id: number;
+    nombre: string;
+    hex?: string | null;
+    tamaño?: string | null;
+    ancho_cm?: number | null;
+    alto_cm?: number | null;
+    etiqueta_medida?: string | null;
+    stock: number;
+  }[];
 }
 
 interface Categoria {
@@ -319,6 +329,35 @@ const ProductosPublicos = () => {
                           <span className="precio-metro-hint">
                             {precioFinal.toLocaleString()} COP / metro
                           </span>
+                        )}
+                        {(producto.variantes?.length ?? 0) > 0 && (
+                          <div className="combos-mini">
+                            {producto.variantes!.slice(0, 4).map((v) => {
+                              const medida = v.etiqueta_medida || v.tamaño || '';
+                              const agotada = (v.stock || 0) <= 0;
+                              return (
+                                <span
+                                  key={v.id}
+                                  className={`combo-chip ${agotada ? 'agotado' : ''}`}
+                                  title={`${v.nombre}${medida ? ` · ${medida}` : ''} — ${
+                                    agotada ? 'Sin stock' : `${v.stock} u.`
+                                  }`}
+                                >
+                                  <i
+                                    className="combo-dot"
+                                    style={{ background: v.hex || '#d4a54b' }}
+                                  />
+                                  {medida && <b>{medida}</b>}
+                                  {agotada ? ' ✕' : ` · ${v.stock}`}
+                                </span>
+                              );
+                            })}
+                            {(producto.variantes!.length > 4) && (
+                              <span className="combo-chip mas">
+                                +{producto.variantes!.length - 4}
+                              </span>
+                            )}
+                          </div>
                         )}
                         <div className="acciones-producto">
                           <div className="cantidad-control">

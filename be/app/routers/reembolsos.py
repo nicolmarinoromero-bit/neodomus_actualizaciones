@@ -7,7 +7,7 @@ solicitud de devolución. El procesamiento usa la pasarela simulada.
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -402,13 +402,20 @@ def solicitar_reembolso_pedido(
     return _serializar_reembolso(db, reembolso)
 
 
+class ProcesarReembolsoIn(BaseModel):
+    porcentaje_cliente: Optional[float] = Field(default=None, ge=0, le=100)
+
+
 @router.post("/{id_reembolso}/procesar", response_model=dict)
 def reprocesar_reembolso(
     id_reembolso: int,
+    data: ProcesarReembolsoIn = Body(default=ProcesarReembolsoIn()),
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):
-    """Reintenta el procesamiento de un reembolso pendiente o rechazado."""
+    """Reintenta el procesamiento de un reembolso pendiente o rechazado.
+    El administrador puede ajustar el porcentaje que se le devuelve al cliente
+    (por defecto usa el monto ya registrado)."""
     reembolso = db.query(Reembolso).filter(Reembolso.id_reembolso == id_reembolso).first()
     if not reembolso:
         raise HTTPException(status_code=404, detail="Reembolso no encontrado")
@@ -417,6 +424,27 @@ def reprocesar_reembolso(
             status_code=400,
             detail=f"El reembolso ya está {reembolso.estado.lower()}",
         )
+    if data.porcentaje_cliente is not None and reembolso.numero_transaccion_original:
+        # Recalcular monto según el porcentaje que el admin decida.
+        transaccion_original = reembolso.numero_transaccion_original
+        cita = (
+            db.query(Cita)
+            .filter(Cita.numero_transaccion == transaccion_original)
+            .first()
+        )
+        base = float(cita.costo_cita) if cita and cita.costo_cita else None
+        if base is None:
+            pedido_ref = (
+                db.query(Pedido)
+                .filter(Pedido.id_pedido == reembolso.id_pedido)
+                .first()
+            )
+            base = float(pedido_ref.total_pedido) if pedido_ref and pedido_ref.total_pedido else None
+        if base is not None:
+            nuevo_monto = round(base * data.porcentaje_cliente / 100, 2)
+            if nuevo_monto > 0:
+                reembolso.monto = nuevo_monto
+
     procesar_reembolso(db, reembolso)
     _notificar_reembolso_cliente(db, reembolso)
     return _serializar_reembolso(db, reembolso)

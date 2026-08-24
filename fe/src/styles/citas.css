@@ -1303,3 +1303,93 @@ input[type='date'].citas-input::-webkit-calendar-picker-indicator {
   margin-right: 6px;
   border: 1px solid rgba(212, 165, 75, 0.5);
 }
+
+/* ── Modal de cancelación con retención del 15% ────────────── */
+.citas-modal { position: relative; }
+.citas-modal-close-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(229, 72, 77, 0.12);
+  color: #e5484d;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.citas-modal-close-x:hover {
+  background: rgba(229, 72, 77, 0.25);
+  transform: scale(1.08);
+}
+.citas-cancel-montos {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 165, 75, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.citas-cancel-montos div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.citas-cancel-montos span { color: #9f9f9f; }
+.citas-cancel-montos strong.ok { color: #46d06f; }
+.citas-cancel-montos strong.ret { color: #ff8b96; }
+
+.citas-modal-foto {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 10px;
+  display: block;
+  border: 3px solid #d4a54b;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Aplazo en línea sobre la tarjeta de cita ───────────────── */
+.citas-aplazo-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: rgba(212, 165, 75, 0.06);
+  border: 1px solid rgba(212, 165, 75, 0.3);
+  border-radius: 12px;
+}
+.citas-aplazo-titulo {
+  width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d4a54b;
+  letter-spacing: 0.3px;
+}
+.citas-aplazo-inline input[type='date'],
+.citas-aplazo-inline input[type='time'] {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #1a1a1a;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+.citas-aplazo-inline input:focus {
+  border-color: #d4a54b;
+}

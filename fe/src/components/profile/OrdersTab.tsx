@@ -143,6 +143,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
   const [comentarioSel, setComentarioSel] = useState<Record<number, string>>({});
   const [guardandoCalif, setGuardandoCalif] = useState<number | null>(null);
   const [motivoDev, setMotivoDev] = useState<{ key: string; texto: string } | null>(null);
+  const [preferenciaDev, setPreferenciaDev] = useState<Record<string, string>>({});
   const [enviandoDev, setEnviandoDev] = useState(false);
   const pollRef = useRef<number | null>(null);
 
@@ -282,6 +283,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
         id_pedido: pedido.id_pedido,
         id_producto: item.id_producto_d,
         motivo: motivoDev.texto.trim(),
+        preferencia: preferenciaDev[motivoDev.key] || 'dinero',
       });
       notify('Tu solicitud de devolución fue enviada. Te contactaremos pronto.', 'success');
       setMotivoDev(null);
@@ -450,6 +452,27 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                             setMotivoDev({ key: devKey, texto: e.target.value })
                                           }
                                         />
+                                        <div className="pf-dev-pref">
+                                          <span>¿Qué prefieres?</span>
+                                          <label>
+                                            <input
+                                              type="radio"
+                                              name={`pref-${devKey}`}
+                                              checked={(preferenciaDev[devKey] || 'dinero') === 'dinero'}
+                                              onChange={() => setPreferenciaDev((p) => ({ ...p, [devKey]: 'dinero' }))}
+                                            />{' '}
+                                            Devolver mi dinero
+                                          </label>
+                                          <label>
+                                            <input
+                                              type="radio"
+                                              name={`pref-${devKey}`}
+                                              checked={preferenciaDev[devKey] === 'producto'}
+                                              onChange={() => setPreferenciaDev((p) => ({ ...p, [devKey]: 'producto' }))}
+                                            />{' '}
+                                            Cambio de producto
+                                          </label>
+                                        </div>
                                         <div className="pf-dev-form-actions">
                                           <button
                                             type="button"

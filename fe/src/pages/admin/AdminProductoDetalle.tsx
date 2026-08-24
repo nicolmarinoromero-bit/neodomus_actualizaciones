@@ -547,6 +547,8 @@ const AdminProductoDetalle = () => {
             <h2>{esNuevo ? <><FaCirclePlus /> {t('adm.productoDetalle.tituloNuevo')}</> : <><FaPen /> {t('adm.productoDetalle.editandoProducto')}</>}</h2>
           </div>
 
+          <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Información básica</h3>
           <div className="ap-form-grid">
             <div className="ap-form-group full">
               <label className="ap-form-label" htmlFor="apf-nombre">{t('adm.productoDetalle.labelNombre')}</label>
@@ -637,7 +639,12 @@ const AdminProductoDetalle = () => {
               </div>
               <span className="ap-form-hint">{t('adm.productoDetalle.hintProveedor')}</span>
             </div>
+          </div>
+        </section>
 
+        <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Precio e inventario</h3>
+          <div className="ap-form-grid">
             <div className="ap-form-group">
               <label className="ap-form-label" htmlFor="apf-pv">{t('adm.productoDetalle.labelPrecioVenta')}</label>
               <input
@@ -694,7 +701,12 @@ const AdminProductoDetalle = () => {
                 <option value="inactivo">{t('adm.productoDetalle.estadoInactivo')}</option>
               </select>
             </div>
+          </div>
+        </section>
 
+        <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Instalación y lanzamiento</h3>
+          <div className="ap-form-grid">
             <div className="ap-form-group">
               <label className="ap-form-label" htmlFor="apf-tecnicos">{t('adm.productoDetalle.labelTecnicos')}</label>
               <input
@@ -825,9 +837,15 @@ const AdminProductoDetalle = () => {
                 id="apf-medidas"
                 aria-checked={form.tiene_medidas}
                 className={`ap-nuevo-switch ${form.tiene_medidas ? 'on' : ''}`}
-                onClick={() =>
-                  setForm((prev) => ({ ...prev, tiene_medidas: !prev.tiene_medidas }))
-                }
+                onClick={() => {
+                  const activando = !form.tiene_medidas;
+                  setForm((prev) => ({ ...prev, tiene_medidas: !prev.tiene_medidas }));
+                  // Al activar las medidas, aparece de una vez una fila de
+                  // variante lista para escribir Ancho/Alto/Color/Precio.
+                  if (activando && variantesForm.length === 0) {
+                    setVariantesForm([VARIANTE_VACIA()]);
+                  }
+                }}
               >
                 <span className="ap-nuevo-thumb" />
               </button>
@@ -836,7 +854,12 @@ const AdminProductoDetalle = () => {
                 propio stock, y la tienda muestra el selector de medidas.
               </span>
             </div>
+          </div>
+        </section>
 
+        <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Promoción e imagen</h3>
+          <div className="ap-form-grid">
             <div className="ap-form-group">
               <label className="ap-form-label" htmlFor="apf-dcto">{t('adm.productoDetalle.labelDescuento')}</label>
               <input
@@ -983,9 +1006,20 @@ const AdminProductoDetalle = () => {
                 {t('adm.productoDetalle.hintColores')}
               </span>
             </div>
+          </div>
+        </section>
 
+        <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Variantes por color y medida</h3>
+          <div className="ap-form-grid">
             <div className="ap-form-group full">
               <label className="ap-form-label">{t('adm.productoDetalle.labelVariantes')}</label>
+              {form.tiene_medidas && (
+                <span className="ap-form-hint" style={{ marginLeft: 8 }}>
+                  Para cada combinación Color + Medida (Ancho × Alto en cm) define su
+                  precio y su stock. Ej: Blanco · 150 cm por 100 cm.
+                </span>
+              )}
               <div className="ap-variantes">
                 {variantesForm.length === 0 && (
                   <span className="ap-form-hint">
@@ -1045,35 +1079,6 @@ const AdminProductoDetalle = () => {
                     )}
                     <input
                       className="ap-form-input"
-                      type="text"
-                      placeholder="Tamaño (ej: S, M, 80cm)"
-                      value={v.tamaño}
-                      onChange={(e) => setVariante(i, 'tamaño', e.target.value)}
-                    />
-                    {form.tiene_medidas && (
-                      <>
-                        <input
-                          className="ap-form-input"
-                          type="number"
-                          min="1"
-                          placeholder="Ancho cm"
-                          value={v.ancho_cm}
-                          onChange={(e) => setVariante(i, 'ancho_cm', e.target.value)}
-                          style={{ maxWidth: 90 }}
-                        />
-                        <input
-                          className="ap-form-input"
-                          type="number"
-                          min="1"
-                          placeholder="Alto cm"
-                          value={v.alto_cm}
-                          onChange={(e) => setVariante(i, 'alto_cm', e.target.value)}
-                          style={{ maxWidth: 90 }}
-                        />
-                      </>
-                    )}
-                    <input
-                      className="ap-form-input"
                       type="number"
                       min="0"
                       step="1"
@@ -1081,14 +1086,6 @@ const AdminProductoDetalle = () => {
                       value={v.precio}
                       onChange={(e) => setVariante(i, 'precio', e.target.value)}
                       title="Vacío = usa el precio del producto"
-                    />
-                    <input
-                      className="ap-form-input"
-                      type="number"
-                      min="0"
-                      placeholder={t('adm.productoDetalle.phVarianteStock')}
-                      value={v.stock}
-                      onChange={(e) => setVariante(i, 'stock', e.target.value)}
                     />
                     <div className="ap-variante-acciones">
                       <button
@@ -1109,6 +1106,56 @@ const AdminProductoDetalle = () => {
                         <FaTrash />
                       </button>
                     </div>
+                    <div className="ap-variante-medidas">
+                      <span className="ap-variante-medidas-label">Medidas</span>
+                      <div className="ap-med-campo">
+                        <label>Tamaño</label>
+                        <input
+                          className="ap-form-input"
+                          type="text"
+                          placeholder="S, M, 80cm…"
+                          value={v.tamaño}
+                          onChange={(e) => setVariante(i, 'tamaño', e.target.value)}
+                        />
+                      </div>
+                      {form.tiene_medidas && (
+                        <>
+                          <div className="ap-med-campo">
+                            <label>Ancho (cm)</label>
+                            <input
+                              className="ap-form-input"
+                              type="number"
+                              min="1"
+                              placeholder="150"
+                              value={v.ancho_cm}
+                              onChange={(e) => setVariante(i, 'ancho_cm', e.target.value)}
+                            />
+                          </div>
+                          <div className="ap-med-campo">
+                            <label>Alto (cm)</label>
+                            <input
+                              className="ap-form-input"
+                              type="number"
+                              min="1"
+                              placeholder="100"
+                              value={v.alto_cm}
+                              onChange={(e) => setVariante(i, 'alto_cm', e.target.value)}
+                            />
+                          </div>
+                        </>
+                      )}
+                      <div className="ap-med-campo">
+                        <label>Stock</label>
+                        <input
+                          className="ap-form-input"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={v.stock}
+                          onChange={(e) => setVariante(i, 'stock', e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -1122,7 +1169,12 @@ const AdminProductoDetalle = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </section>
 
+        <section className="apf-seccion">
+          <h3 className="apf-seccion-titulo">Descripción y características</h3>
+          <div className="ap-form-grid">
             <div className="ap-form-group full">
               <label className="ap-form-label" htmlFor="apf-desc">{t('adm.productoDetalle.labelDescripcion')}</label>
               <textarea
@@ -1196,6 +1248,7 @@ const AdminProductoDetalle = () => {
               </span>
             </div>
           </div>
+        </section>
 
           <div className="ap-form-row">
             <button
