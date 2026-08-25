@@ -44,8 +44,11 @@ def crear_notificacion(db, id_usuario: int | None, tipo: str, titulo: str, mensa
 def programar_correo(correo: str, subject: str, body: str) -> None:
     """Programa el envío de un correo en segundo plano (fire-and-forget).
 
-    Si no hay un event loop corriendo (rutas síncronas de FastAPI), ejecuta
-    el envío de forma bloqueante con asyncio.run para no perder el correo.
+    - Con event loop activo (rutas async): crea una tarea.
+    - En rutas SÍNCRONAS no hay loop: el envío va en un hilo daemon para NO
+      bloquear la respuesta HTTP esperando al servidor SMTP (antes usaba
+      asyncio.run() en línea y la petición tardaba segundos o quedaba
+      colgada si el SMTP no respondía).
     """
     from app.utils.email import send_email
 
@@ -58,10 +61,15 @@ def programar_correo(correo: str, subject: str, body: str) -> None:
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        try:
-            asyncio.run(_tarea())
-        except Exception as e:
-            print(f"Error enviando correo (sin loop) a {correo}: {e}")
+        import threading
+
+        def _enviar_en_hilo():
+            try:
+                asyncio.run(_tarea())
+            except Exception as e:
+                print(f"Error en hilo de correo a {correo}: {e}")
+
+        threading.Thread(target=_enviar_en_hilo, daemon=True).start()
         return
     loop.create_task(_tarea())
 
@@ -729,3 +737,160 @@ def notificar_recordatorio_cita(
         acento="#ffd98a",
     )
     programar_correo(correo, subject="Recordatorio de tu cita en Neodomus", body=body)
+
+
+def notificar_oferta_horario(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Plataforma + correo: se liberó un horario más temprano con su técnico
+    y el cliente puede ADELANTAR su cita aceptándolo antes de que expire."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="cita",
+            titulo="Horario disponible para adelantar tu cita",
+            mensaje=(
+                f"Se liberó el {datos['fecha']} a las {datos['hora']} con {datos['tecnico']}. "
+                f"Puedes mover tu cita ahí desde Mis citas (tienes {datos['horas']} h)."
+            ),
+        )
+    subject = "Se liberó un horario más cercano - Neodomus"
+    filas = [
+        ("Nuevo horario", f"{datos['fecha']} · {datos['hora']}"),
+        ("Técnico", datos["tecnico"]),
+        ("Tiempo para aceptar", f"{datos['horas']} horas"),
+    ]
+    body = _plantilla(
+        "HORARIO DISPONIBLE",
+        (
+            f"Hola {cliente_nombre}, se liberó un horario MÁS CERCANO con {datos['tecnico']}: "
+            f"{datos['fecha']} a las {datos['hora']}. Si lo aceptas, moveremos tu cita actual a ese momento."
+        ),
+        filas,
+        "Entra a Mis citas y pulsa 'Adelantar mi cita'. Es para el primero que la acepte; "
+        "los clientes con mayor antigüedad en compras y servicios tienen prioridad.",
+        color="#12211f",
+        acento="#8fd9c0",
+    )
+    programar_correo(correo, subject, body)
+
+
+# ──────────────────────────────────────────────────────────────────
+# ↩️ Notificaciones del proceso de devolución de productos
+# ──────────────────────────────────────────────────────────────────
+
+_DEV_EVENTOS = {
+    # evento: (header, asunto, nota)
+    "solicitada": (
+        "SOLICITUD DE DEVOLUCIÓN RECIBIDA",
+        "Recibimos tu solicitud de devolución - Neodomus",
+        "Nuestro equipo revisará tu solicitud y te avisaremos con la decisión.",
+    ),
+    "en_revision": (
+        "DEVOLUCIÓN EN REVISIÓN",
+        "Tu devolución está en revisión - Neodomus",
+        "Estamos revisando los detalles de tu solicitud. Te contactaremos pronto.",
+    ),
+    "aprobada": (
+        "DEVOLUCIÓN APROBADA",
+        "Tu devolución fue aprobada - Neodomus",
+        "Un técnico pasará a recoger los productos en la dirección registrada.",
+    ),
+    "rechazada": (
+        "DEVOLUCIÓN RECHAZADA",
+        "Tu solicitud de devolución fue rechazada - Neodomus",
+        "Si tienes dudas sobre esta decisión, responde a este correo o contáctanos.",
+    ),
+    "recibida": (
+        "PRODUCTO RECIBIDO",
+        "Recibimos tus productos devueltos - Neodomus",
+        "Confirmamos la recepción de los productos devueltos.",
+    ),
+    "reembolso_procesado": (
+        "REEMBOLSO PROCESADO",
+        "Tu reembolso fue procesado - Neodomus",
+        "El dinero será devuelto al mismo medio de pago de tu compra.",
+    ),
+}
+
+
+def notificar_devolucion_cliente(
+    db,
+    cliente_id: int | None,
+    correo: str | None,
+    cliente_nombre: str,
+    *,
+    numero: str,
+    pedido_id: int,
+    evento: str,
+    monto: float | None = None,
+    motivo_rechazo: str | None = None,
+    productos_txt: str | None = None,
+) -> None:
+    """Notifica al cliente (plataforma + correo) cada hito de su devolución:
+    solicitada, en revisión, aprobada, rechazada, recibida o reembolso."""
+    header, subject, nota = _DEV_EVENTOS.get(
+        evento, (f"DEVOLUCIÓN — {evento.upper()}", f"Actualización de tu devolución — Neodomus", "")
+    )
+
+    mensajes = {
+        "solicitada": (
+            f"Registramos tu solicitud de devolución {numero} del pedido "
+            f"#{pedido_id}. Nuestro equipo la revisará pronto."
+        ),
+        "en_revision": (
+            f"Tu devolución {numero} del pedido #{pedido_id} está siendo "
+            "revisada por nuestro equipo."
+        ),
+        "aprobada": (
+            f"Tu devolución {numero} del pedido #{pedido_id} fue APROBADA. "
+            "Revisa los detalles para conocer los siguientes pasos."
+        ),
+        "rechazada": (
+            f"Tu devolución {numero} del pedido #{pedido_id} fue rechazada."
+            + (f" Motivo: {motivo_rechazo}" if motivo_rechazo else "")
+        ),
+        "recibida": (
+            f"El técnico recogió tus productos. Tu devolución {numero} quedó "
+            "como Recibida."
+        ),
+        "reembolso_procesado": (
+            f"El reembolso de tu devolución {numero} fue procesado por el valor "
+            f"de los productos devueltos."
+        ),
+    }
+
+    crear_notificacion(
+        db,
+        id_usuario=None,
+        id_cliente=cliente_id,
+        tipo="devolucion",
+        titulo=f"Devolución {numero}",
+        mensaje=mensajes.get(evento, f"Tu devolución {numero} cambió de estado."),
+    )
+
+    if not correo:
+        return
+
+    filas = [
+        ("Devolución", numero),
+        ("Pedido", f"#{pedido_id}"),
+    ]
+    if productos_txt:
+        filas.append(("Productos", productos_txt))
+    if monto is not None and evento in ("aprobada", "reembolso_procesado"):
+        filas.append(("Valor estimado", f"${float(monto):,.0f} COP"))
+    if evento == "rechazada":
+        filas.append(("Motivo del rechazo", motivo_rechazo or "-"))
+
+    body = _plantilla(
+        header,
+        f"Hola {cliente_nombre}, " + nota,
+        filas,
+        "Puedes ver el detalle de tu devolución desde tu perfil, en la pestaña Mis pedidos.",
+        color="#3d1212" if evento == "rechazada" else "#1f1a12",
+        acento="#ff9b9b" if evento == "rechazada" else "#ffd98a",
+    )
+    programar_correo(correo, subject=subject, body=body)

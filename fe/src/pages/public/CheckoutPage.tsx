@@ -139,12 +139,11 @@ const CheckoutPage = () => {
   const [tecnicosMap, setTecnicosMap] = useState<Record<number, TecnicoCheckout[]>>({});
   const [recomendacion, setRecomendacion] = useState<Recomendacion | null>(null);
   const hoyISO = new Date().toISOString().split('T')[0];
-  const ahoraLocal = new Date();
-  const horaActual = `${String(ahoraLocal.getHours()).padStart(2, '0')}:${String(ahoraLocal.getMinutes()).padStart(2, '0')}`;
-  // Los servicios técnicos se agendan con mínimo 3 días de anticipación.
-  const fechaMinimaServicio = new Date();
-  fechaMinimaServicio.setDate(fechaMinimaServicio.getDate() + 3);
-  const fechaMinimaServicioISO = `${fechaMinimaServicio.getFullYear()}-${String(fechaMinimaServicio.getMonth() + 1).padStart(2, '0')}-${String(fechaMinimaServicio.getDate()).padStart(2, '0')}`;
+  // Los servicios se agendan con al menos 3 horas de anticipación:
+  // HOY es posible si la hora elegida queda fuera de esa ventana y hay agenda.
+  const limiteAnticipacion = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const limiteEsHoy = limiteAnticipacion.getDate() === new Date().getDate();
+  const horaMinimaHoy = `${String(limiteAnticipacion.getHours()).padStart(2, '0')}:${String(limiteAnticipacion.getMinutes()).padStart(2, '0')}`;
 
   const totalServicios = servicios.reduce((acc, s) => acc + s.precio, 0);
   const total = totalPrice + totalServicios;
@@ -309,13 +308,10 @@ const CheckoutPage = () => {
         setError('Selecciona la fecha en que deseas el servicio técnico.');
         return;
       }
-      if (s.fecha < fechaMinimaServicioISO) {
-        setError('Los servicios se agendan con al menos 3 días de anticipación. Elige una fecha posterior.');
-        return;
-      }
       const fechaHora = new Date(`${s.fecha}T${s.hora || '08:00'}:00`);
-      if (isNaN(fechaHora.getTime()) || fechaHora.getTime() <= Date.now()) {
-        setError('La fecha y hora del servicio debe ser posterior al momento actual.');
+      const limite = new Date(Date.now() + 3 * 60 * 60 * 1000);
+      if (isNaN(fechaHora.getTime()) || fechaHora < limite) {
+        setError('Los servicios se agendan con al menos 3 horas de anticipación. Si es para hoy, elige una hora posterior.');
         return;
       }
       const camposTecnicos: (keyof LineaServicio)[] = ['id_tecnico', 'id_tecnico_2', 'id_tecnico_3'];
@@ -783,13 +779,13 @@ const CheckoutPage = () => {
                           <input
                             type="date"
                             value={s.fecha || ''}
-                            min={fechaMinimaServicioISO}
+                            min={hoyISO}
                             onChange={(e) => actualizarServicio(s.id, 'fecha', e.target.value)}
                           />
                           <input
                             type="time"
                             value={s.hora || '08:00'}
-                            min={s.fecha === hoyISO ? horaActual : undefined}
+                            min={s.fecha === hoyISO && limiteEsHoy ? horaMinimaHoy : undefined}
                             step={3600}
                             onChange={(e) => actualizarServicio(s.id, 'hora', e.target.value)}
                           />

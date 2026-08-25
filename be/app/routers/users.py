@@ -12,7 +12,7 @@ from app.models.roles_usuario import RolesUsuario
 from app.models.tecnico import Tecnico
 from app.schemas.user import EmployeeResponse, PerfilEmpleadoResponse, UserUpdate
 from app.utils.respaldo_usuarios import respaldar_usuarios
-from app.utils.security import get_current_employee, require_roles, hash_password
+from app.utils.security import get_current_employee, hash_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -202,6 +202,21 @@ def update_me(
         if campo in update_data:
             update_data[campo] = update_data[campo].strip()
     certificacion_t = update_data.pop("certificacion_t", None)
+    if "documento_usuario" in update_data:
+        doc = update_data["documento_usuario"]
+        if doc is not None:
+            existe_doc = (
+                db.query(User)
+                .filter(
+                    User.documento_usuario == doc,
+                    User.id_usuario != current_user.id_usuario,
+                )
+                .first()
+            )
+            if existe_doc:
+                raise HTTPException(
+                    status_code=400, detail="El documento ya está registrado"
+                )
     for field, value in update_data.items():
         setattr(current_user, field, value)
     if certificacion_t is not None:
@@ -227,7 +242,6 @@ def get_roles(_admin_user: User = Depends(_admin), db: Session = Depends(get_db)
 
 
 @router.get("/", response_model=List[EmployeeResponse])
-@require_roles("admin")
 def get_users(
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),

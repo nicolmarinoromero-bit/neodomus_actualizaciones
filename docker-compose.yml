@@ -4,10 +4,10 @@ services:
     container_name: neodomus_mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: neodomus
       MYSQL_USER: neodomus
-      MYSQL_PASSWORD: neodomus123
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-neodomus123}
     ports:
       - "3307:3306"
     volumes:
@@ -34,7 +34,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: mysql+pymysql://neodomus:neodomus123@db:3306/neodomus?charset=utf8mb4
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-neodomus}:${MYSQL_PASSWORD:-neodomus123}@db:3306/neodomus?charset=utf8mb4
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
@@ -44,7 +44,7 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-neodomus29@gmail.com}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
-      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-Neodomus <onboarding@resend.dev>}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}

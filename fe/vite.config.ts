@@ -21,6 +21,11 @@ export default defineConfig({
     port: 5173,
     host: true,
     open: false,
+    // Evita que el navegador bloquee window.postMessage del botón de
+    // Google Identity Services (advertencia Cross-Origin-Opener-Policy).
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
     watch: {
       usePolling: true,
       interval: 100,

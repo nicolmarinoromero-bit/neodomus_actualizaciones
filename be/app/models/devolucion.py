@@ -37,8 +37,21 @@ class Devolucion(Base):
     resuelta_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     # Preferencia del cliente: 'producto' (cambio) o 'dinero' (reembolso).
     preferencia: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    # Recogida del producto: técnico asignado aleatoriamente por el sistema.
+    # Recogida del producto: tǸcnico asignado aleatoriamente por el sistema.
     id_tecnico_recogida: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     recogida_estado: Mapped[str | None] = mapped_column(
         String(20), nullable=True, server_default="Asignada"
+    )
+    # Evidencia fotográfica en MinIO (clave del objeto) al recoger el producto.
+    evidencia_recogida: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    fecha_recogida: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Evidencia fotográfica de la entrega del producto de cambio (resolución
+    # 'Cambio'): foto del producto nuevo entregado al cliente.
+    evidencia_cambio: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    fecha_entrega_cambio: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Cantidad de unidades devueltas de este producto (devolución parcial).
+    cantidad: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # Solicitud de devolución (cabecera) que agrupa esta línea.
+    id_solicitud_dv: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, index=True
     )

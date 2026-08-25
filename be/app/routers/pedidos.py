@@ -41,6 +41,7 @@ class ItemCarrito(BaseModel):
     cantidad: int = 1
     metros: Optional[float] = None
     color: Optional[str] = None
+    id_variante: Optional[int] = None
 
 
 class ServicioCheckout(BaseModel):
@@ -110,7 +111,7 @@ def _serializar_detalle(det):
     }
 
 
-def _serializar_pedido(pedido, con_detalles=False):
+def _serializar_pedido(pedido, con_detalles=False, db: Session | None = None):
     data = {
         "id_pedido": pedido.id_pedido,
         "fecha": pedido.fecha_peedido.isoformat() if pedido.fecha_peedido else None,
@@ -129,6 +130,19 @@ def _serializar_pedido(pedido, con_detalles=False):
             pedido.tecnico_entrega.usuario.foto_url if pedido.tecnico_entrega and pedido.tecnico_entrega.usuario else None
         ),
     }
+    # Cita de instalación vinculada (si la hay): permite al frontend habilitar
+    # la calificación/devolución cuando el servicio quedó Finalizada aunque la
+    # entrega física no se haya marcado como 'Entregado'.
+    if db is not None:
+        from app.services.pedidos_service import cita_de_pedido, pedido_completado
+
+        cita = cita_de_pedido(db, pedido.id_pedido)
+        data["cita"] = (
+            {"id_cita": cita.id_cita, "estado": cita.estado, "tipo_servicio": cita.tipo_servicio}
+            if cita
+            else None
+        )
+        data["productos_calificables"] = pedido_completado(db, pedido)
     if con_detalles:
         data["detalles"] = [_serializar_detalle(d) for d in pedido.detalles]
     return data
@@ -201,7 +215,7 @@ async def checkout(
     factura = result["factura"]
 
     return {
-        "pedido": _serializar_pedido(pedido, con_detalles=True),
+        "pedido": _serializar_pedido(pedido, con_detalles=True, db=db),
         "pago": _serializar_pago(pago),
         "factura": (
             {
@@ -245,7 +259,7 @@ def mis_pedidos(
 
     resultado = []
     for p in pedidos:
-        data = _serializar_pedido(p, con_detalles=True)
+        data = _serializar_pedido(p, con_detalles=True, db=db)
         pago = pagos.get(p.id_pedido)
         factura = facturas.get(p.id_pedido)
         data["pago"] = _serializar_pago(pago) if pago else None
@@ -640,7 +654,7 @@ def detalle_pedido(
     )
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    return _serializar_pedido(pedido, con_detalles=True)
+    return _serializar_pedido(pedido, con_detalles=True, db=db)
 
 
 @router.get("/{pedido_id}/factura")
@@ -688,7 +702,7 @@ async def confirmar_pago(
     pago = result["pago"]
     factura = result["factura"]
     return {
-        "pedido": _serializar_pedido(pedido),
+        "pedido": _serializar_pedido(pedido, db=db),
         "pago": _serializar_pago(pago),
         "factura": (
             {

@@ -377,7 +377,6 @@ const Register = () => {
                   }}
                   theme="outline"
                   size="large"
-                  width="100%"
                   text="signup_with"
                   shape="rectangular"
                 />

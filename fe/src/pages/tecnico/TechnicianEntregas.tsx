@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  FaBoxOpen,
+  FaCalendarCheck,
   FaCalendarDays,
   FaCamera,
   FaCircleCheck,
@@ -9,11 +11,22 @@ import {
   FaLocationDot,
   FaPhone,
   FaTruckFast,
+  FaUsers,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
+
+interface CitaEntrega {
+  id_cita: number;
+  tipo_servicio?: string | null;
+  fecha?: string | null;
+  hora?: string | null;
+  direccion?: string | null;
+  estado?: string | null;
+  tecnico?: string | null;
+}
 
 interface Entrega {
   id_pedido: number;
@@ -27,6 +40,22 @@ interface Entrega {
   estado_entrega?: string | null;
   evidencias_entrega?: string[];
   productos?: { descripcion: string; cantidad: number; subtotal: number }[];
+  cita?: CitaEntrega | null;
+}
+
+interface Recogida {
+  id_devolucion: number;
+  id_pedido?: number | null;
+  producto: string;
+  cliente: string;
+  direccion: string;
+  telefono?: number | null;
+  estado_devolucion: string;
+  preferencia: string;
+  recogida_estado: 'Asignada' | 'Recogida' | null;
+  motivo?: string | null;
+  evidencia_recogida_url?: string | null;
+  fecha_recogida?: string | null;
 }
 
 const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '');
@@ -36,12 +65,15 @@ type Toast = { msg: string; tipo: 'success' | 'error' } | null;
 const TechnicianEntregas = () => {
   const { t } = useIdioma();
   const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [recogidas, setRecogidas] = useState<Recogida[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [updatingEntrega, setUpdatingEntrega] = useState<number | null>(null);
   const [compartiendoUbicacion, setCompartiendoUbicacion] = useState(false);
+  const [subiendoRecogida, setSubiendoRecogida] = useState<number | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const watchIdRef = useRef<number | null>(null);
+  const recogidaRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const notificar = (msg: string, tipo: 'success' | 'error' = 'success') => {
     setToast({ msg, tipo });
@@ -52,13 +84,36 @@ const TechnicianEntregas = () => {
     setLoading(true);
     setErrorCarga(false);
     try {
-      const res = await api.get<Entrega[]>('/tecnicos/entregas');
+      const [res, resRec] = await Promise.all([
+        api.get<Entrega[]>('/tecnicos/entregas'),
+        api
+          .get<Recogida[]>('/devoluciones/mis-recogidas')
+          .catch(() => ({ data: [] as Recogida[] })),
+      ]);
       setEntregas(res.data || []);
+      setRecogidas(resRec.data || []);
     } catch (err) {
       console.error(err);
       setErrorCarga(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmarRecogida = async (idDevolucion: number, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fd = new FormData();
+    fd.append('file', files[0]);
+    setSubiendoRecogida(idDevolucion);
+    try {
+      await api.post(`/devoluciones/${idDevolucion}/evidencia-recogida`, fd);
+      notificar(t('tec.recogidaConfirmada'));
+      await cargar();
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || t('tec.recogidaError');
+      notificar(msg, 'error');
+    } finally {
+      setSubiendoRecogida(null);
     }
   };
 
@@ -104,6 +159,7 @@ const TechnicianEntregas = () => {
       detenerUbicacion();
       return;
     }
+    if (watchIdRef.current !== null) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         try {
@@ -111,7 +167,6 @@ const TechnicianEntregas = () => {
             latitud: pos.coords.latitude,
             longitud: pos.coords.longitude,
           });
-          setCompartiendoUbicacion(true);
         } catch (err) {
           console.error(err);
         }
@@ -123,6 +178,7 @@ const TechnicianEntregas = () => {
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
+    setCompartiendoUbicacion(true);
   };
 
   const enCamino = entregas.filter((e) => e.estado_entrega === 'En camino').length;
@@ -234,6 +290,27 @@ const TechnicianEntregas = () => {
                   <p><FaLocationDot style={{ marginRight: 6 }} />{e.direccion || t('tec.noRegistrado')}</p>
                   <p><FaPhone style={{ marginRight: 6 }} />{e.telefono ?? t('tec.noRegistrado')}</p>
                   {e.email ? <p><FaEnvelope style={{ marginRight: 6 }} />{e.email}</p> : null}
+                  {e.cita && (
+                    <p className="ap-entrega-cita">
+                      <FaCalendarCheck style={{ marginRight: 6 }} />
+                      <strong>
+                        Adjunta al servicio: {e.cita.tipo_servicio || 'Instalación'}
+                        {e.cita.fecha
+                          ? ` · ${new Date(e.cita.fecha).toLocaleDateString('es-CO', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}`
+                          : ''}
+                        {e.cita.hora ? ` · ${e.cita.hora}` : ''}
+                      </strong>
+                      {e.cita.estado ? (
+                        <span className={`ap-badge ${e.cita.estado === 'Finalizada' ? 'ok' : 'pendiente'}`} style={{ marginLeft: 8 }}>
+                          {e.cita.estado}
+                        </span>
+                      ) : null}
+                    </p>
+                  )}
                   {e.productos && e.productos.length > 0 && (
                     <div className="ap-entrega-productos">
                       {e.productos.map((p, idx) => (
@@ -348,6 +425,87 @@ const TechnicianEntregas = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {recogidas.length > 0 && (
+        <div className="ap-card" style={{ marginTop: 18 }}>
+          <div className="ap-card-head">
+            <h3>
+              <FaBoxOpen /> {t('tec.recogidasTitulo')}
+            </h3>
+            <p>{t('tec.recogidasDesc')}</p>
+          </div>
+          <div className="ap-tarifas-grid">
+            {recogidas.map((r) => (
+              <div className="ap-tarifa-item" key={r.id_devolucion} style={{ alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 0 }}>
+                  <span className="ap-tarifa-nombre" style={{ display: 'block' }}>
+                    Devolución #{r.id_devolucion} · {r.producto}
+                  </span>
+                  <span style={{ fontSize: '0.82rem', color: '#9a8f78', display: 'block' }}>
+                    <FaUsers /> {r.cliente}
+                    {r.telefono ? ` · ${r.telefono}` : ''}
+                  </span>
+                  <span style={{ fontSize: '0.82rem', color: '#9a8f78', display: 'block' }}>
+                    <FaLocationDot /> {r.direccion}
+                  </span>
+                  {r.motivo && (
+                    <span style={{ fontSize: '0.78rem', color: '#9a8f78', display: 'block' }}>
+                      Motivo: {r.motivo}
+                    </span>
+                  )}
+                </div>
+                <div className="ap-tarifa-valor" style={{ flexWrap: 'wrap', gap: 6, maxWidth: 260 }}>
+                  <span className={`ap-badge ${r.recogida_estado === 'Recogida' ? 'ok' : 'warn'}`}>
+                    {r.recogida_estado === 'Recogida'
+                      ? t('tec.recogidaHecha')
+                      : t('tec.recogidaPendiente')}
+                  </span>
+                  {r.recogida_estado === 'Recogida' && r.evidencia_recogida_url && (
+                    <a href={r.evidencia_recogida_url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={r.evidencia_recogida_url}
+                        alt="Evidencia de recogida"
+                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }}
+                      />
+                    </a>
+                  )}
+                  {r.recogida_estado !== 'Recogida' && (
+                    <>
+                      <button
+                        type="button"
+                        className="ap-btn ap-btn-primary"
+                        disabled={subiendoRecogida === r.id_devolucion}
+                        onClick={() => recogidaRefs.current[r.id_devolucion]?.click()}
+                      >
+                        <FaCamera />
+                        {subiendoRecogida === r.id_devolucion
+                          ? t('tec.procesando')
+                          : t('tec.recogidaSubirEvidencia')}
+                      </button>
+                      <input
+                        ref={(el) => { recogidaRefs.current[r.id_devolucion] = el; }}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: 'none' }}
+                        onChange={(ev) => {
+                          confirmarRecogida(r.id_devolucion, ev.target.files);
+                          ev.target.value = '';
+                        }}
+                      />
+                    </>
+                  )}
+                  {r.recogida_estado === 'Recogida' && r.fecha_recogida && (
+                    <span style={{ fontSize: '0.75rem', color: '#9a8f78' }}>
+                      {new Date(r.fecha_recogida).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

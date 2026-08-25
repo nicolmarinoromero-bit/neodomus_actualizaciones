@@ -37,6 +37,7 @@ const TecnicosPage = () => {
   const navigate = useNavigate();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoverTecnico, setHoverTecnico] = useState<number | null>(null);
   const { esFavorito: esTecFavorito, toggleFavorito: toggleFavTecnico } = useTecnicosFavoritos();
 
   useEffect(() => {
@@ -132,10 +133,20 @@ const TecnicosPage = () => {
                   type="button"
                   className={`tecnicos-fav-btn ${esTecFavorito(tecnico.id) ? 'activo' : ''}`}
                   onClick={() => toggleFavTecnico(tecnico.id)}
+                  onMouseEnter={() => setHoverTecnico(tecnico.id)}
+                  onMouseLeave={() => setHoverTecnico(null)}
                   aria-label={esTecFavorito(tecnico.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                   title={esTecFavorito(tecnico.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                 >
-                  <FaHeart />
+                  <FaHeart
+                    style={{
+                      fill:
+                        esTecFavorito(tecnico.id) || hoverTecnico === tecnico.id
+                          ? '#ff4d6d'
+                          : 'rgba(255,255,255,0.65)',
+                      transition: 'fill 0.15s ease',
+                    }}
+                  />
                 </button>
               </div>
               <div className="tecnico-card-body">

@@ -7,19 +7,30 @@ Lógica de las tareas automáticas que ejecuta el scheduler:
    y aún no se le ha recordado (antes solo ocurría si el cliente abría la app).
 2. Expiración de pagos: los pagos pendientes (punto de pago) cuya fecha
    límite venció se marcan 'expirado' y el pedido queda cancelado.
+3. Recordatorios de calificación: cada hora avisa a los clientes que tienen
+   servicios o productos sin calificar (calificación voluntaria, no bloquea).
 """
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.cita import Cita
+from app.models.calificacion import Calificacion
+from app.models.calificacion_producto import CalificacionProducto
 from app.models.cliente import Cliente
+from app.models.notificacion import Notificacion
+from app.models.oferta_horario import OfertaHorario
 from app.models.pago import Pago
+from app.models.pedido import DetallePedido, Pedido
 from app.services.notificaciones import (
     crear_notificacion,
     notificar_recordatorio_cita,
 )
+
+# Ventana mínima entre recordatorios del mismo tipo (el job corre cada hora).
+INTERVALO_RECORDATORIO = timedelta(minutes=55)
 
 
 def enviar_recordatorio_si_corresponde(db: Session, cliente: Cliente, cita: Cita) -> bool:
@@ -116,3 +127,196 @@ def expirar_pagos_vencidos(db: Session) -> int:
     if vencidos:
         db.commit()
     return len(vencidos)
+
+def expirar_ofertas_vencidas(db) -> int:
+    """Ofertas de horario no aceptadas dentro de su ventana -> 'Expirada'."""
+    ahora = datetime.now()
+    n = (
+        db.query(OfertaHorario)
+        .filter(OfertaHorario.estado == "Ofrecida", OfertaHorario.expira_en <= ahora)
+        .update({"estado": "Expirada"}, synchronize_session=False)
+    )
+    if n:
+        db.commit()
+    return n
+
+
+# ────────────────────────────────────────────────────────────────────
+# ⭐ Recordatorios horarios de calificación (técnico y productos)
+# ────────────────────────────────────────────────────────────────────
+
+def _renovar_recordatorio_previo(db: Session, id_cliente: int, tipo: str) -> bool:
+    """Anti-spam: devuelve True si toca enviar un recordatorio nuevo.
+
+    Si ya existe uno SIN leer enviado hace menos de ~1 hora no se repite.
+    Al enviar uno nuevo, los anteriores sin leer se marcan como leídos para
+    que el cliente tenga siempre UN solo recordatorio activo por tipo.
+    """
+    ahora = datetime.now()
+    previos = (
+        db.query(Notificacion)
+        .filter(
+            Notificacion.id_cliente == id_cliente,
+            Notificacion.tipo == tipo,
+            Notificacion.leida.is_(False),
+        )
+        .all()
+    )
+    if any(
+        n.fecha_creacion and (ahora - n.fecha_creacion) < INTERVALO_RECORDATORIO
+        for n in previos
+    ):
+        return False
+    for n in previos:
+        n.leida = True
+    return True
+
+
+def _clientes_con_servicios_sin_calificar(db: Session) -> dict[int, int]:
+    """{id_cliente: cantidad de citas Finalizadas sin calificar}."""
+    filas = (
+        db.query(Cita.id_cliente, func.count(Cita.id_cita))
+        .outerjoin(
+            Calificacion,
+            (Calificacion.id_cita_c == Cita.id_cita)
+            & (Calificacion.id_cliente_c == Cita.id_cliente),
+        )
+        .filter(
+            Cita.estado == "Finalizada",
+            Cita.id_tecnico.isnot(None),
+            Cita.id_cliente.isnot(None),
+            Calificacion.id_calificacion.is_(None),
+        )
+        .group_by(Cita.id_cliente)
+        .all()
+    )
+    return {int(cid): int(n) for cid, n in filas}
+
+
+def _pedidos_pendientes_calificacion_productos(db: Session) -> dict[int, list[int]]:
+    """{id_cliente: [ids de pedidos completados con productos sin calificar]}.
+
+    Un pedido está pendiente si tiene productos cuya calificación individual
+    (CalificacionProducto) aún no fue dejada por ese cliente.
+    """
+    pedidos = db.query(Pedido).order_by(Pedido.id_pedido.desc()).limit(300).all()
+    resultado: dict[int, list[int]] = {}
+    for pedido in pedidos:
+        if not pedido.id_cliente_pe:
+            continue
+        from app.services.pedidos_service import pedido_completado
+
+        if not pedido_completado(db, pedido):
+            continue
+        detalles = (
+            db.query(DetallePedido)
+            .filter(
+                DetallePedido.id_pedido_d == pedido.id_pedido,
+                DetallePedido.id_producto_d.isnot(None),
+            )
+            .all()
+        )
+        if not detalles:
+            continue
+        calificadas = (
+            db.query(func.count(CalificacionProducto.id_calificacion_producto))
+            .filter(
+                CalificacionProducto.id_pedido_cp == pedido.id_pedido,
+                CalificacionProducto.id_cliente_cp == pedido.id_cliente_pe,
+            )
+            .scalar() or 0
+        )
+        if int(calificadas) < len(detalles):
+            resultado.setdefault(int(pedido.id_cliente_pe), []).append(pedido.id_pedido)
+    return resultado
+
+
+def _recordatorios_pendientes_recientes(db: Session, id_cliente: int, tipos: tuple[str, ...]) -> bool:
+    """True si ya existe un recordatorio del mismo grupo sin leer y reciente."""
+    ahora = datetime.now()
+    recientes = (
+        db.query(Notificacion)
+        .filter(
+            Notificacion.id_cliente == id_cliente,
+            Notificacion.tipo.in_(list(tipos)),
+            Notificacion.leida.is_(False),
+        )
+        .all()
+    )
+    return any(
+        n.fecha_creacion and (ahora - n.fecha_creacion) < INTERVALO_RECORDATORIO
+        for n in recientes
+    )
+
+
+def enviar_recordatorios_calificacion(db: Session) -> int:
+    """Job horario: notifica a los clientes con calificaciones pendientes.
+
+    - Técnico: citas Finalizadas sin calificación (tipo 'recordatorio_cita').
+    - Productos: pedidos completados con productos sin calificar
+      (tipo 'recordatorio_producto').
+
+    Se envía máximo UN recordatorio por cliente y tipo cada hora; el anterior
+    sin leer se marca como leído al generar el nuevo. Retorna cuántos se
+    crearon.
+    """
+    enviados = 0
+
+    # ── Servicios (técnico) pendientes ──────────────────────────────
+    servicios = _clientes_con_servicios_sin_calificar(db)
+    # ── Pedidos con productos pendientes ────────────────────────────
+    productos = _pedidos_pendientes_calificacion_productos(db)
+
+    clientes_ids = set(servicios) | set(productos)
+    if not clientes_ids:
+        return 0
+    clientes = {
+        c.id_cliente: c
+        for c in db.query(Cliente).filter(Cliente.id_cliente.in_(clientes_ids)).all()
+    }
+
+    for cid in sorted(clientes_ids):
+        cliente = clientes.get(cid)
+        if not cliente:
+            continue
+        n_serv = servicios.get(cid, 0)
+        pedidos_pend = productos.get(cid, [])
+
+        # TÉCNICO: solo si no hay recordatorio reciente del MISMO grupo.
+        if n_serv > 0 and not _recordatorios_pendientes_recientes(
+            db, cid, ("recordatorio_cita",)
+        ):
+            if _renovar_recordatorio_previo(db, cid, "recordatorio_cita"):
+                crear_notificacion(
+                    db,
+                    id_usuario=None,
+                    id_cliente=cid,
+                    tipo="recordatorio_cita",
+                    titulo="Recuerda calificar tu servicio",
+                    mensaje=(
+                        f"Tienes {n_serv} servicio(s) finalizado(s) sin calificar. "
+                        "Tu opinión sobre el técnico ayuda a otros clientes."
+                    ),
+                )
+                enviados += 1
+
+        # PRODUCTOS: agrupa todos los pedidos pendientes en un solo aviso.
+        if pedidos_pend and not _recordatorios_pendientes_recientes(
+            db, cid, ("recordatorio_producto",)
+        ):
+            if _renovar_recordatorio_previo(db, cid, "recordatorio_producto"):
+                pedidos_txt = ", ".join(f"#{p}" for p in pedidos_pend[:5])
+                crear_notificacion(
+                    db,
+                    id_usuario=None,
+                    id_cliente=cid,
+                    tipo="recordatorio_producto",
+                    titulo="Recuerda calificar tus productos",
+                    mensaje=(
+                        f"Califica los productos de tus pedidos {pedidos_txt}. "
+                        "¡Tu opinión nos ayuda a mejorar!"
+                    ),
+                )
+                enviados += 1
+
+    return enviados

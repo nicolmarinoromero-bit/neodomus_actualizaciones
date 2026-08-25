@@ -28,6 +28,31 @@ from app.models.producto import Producto
 from app.models.tecnico import Tecnico
 from app.services import pagos_service
 from app.services.inventario_service import descontar_stock
+
+
+# ────────────────────────────────────────────────────────────────────
+# Pedido completado: entrega física O cita de instalación finalizada
+# ────────────────────────────────────────────────────────────────────
+
+def cita_de_pedido(db: Session, id_pedido: int) -> Cita | None:
+    """Cita de instalación asociada a un pedido (creada en el checkout con
+    numero_transaccion = 'PEDIDO-{id}')."""
+    return (
+        db.query(Cita)
+        .filter(Cita.numero_transaccion == f"PEDIDO-{id_pedido}")
+        .order_by(Cita.id_cita.desc())
+        .first()
+    )
+
+
+def pedido_completado(db: Session, pedido: Pedido) -> bool:
+    """Un pedido está completado —y sus productos calificables/devolubles—
+    cuando el técnico marcó la entrega como 'Entregado' O cuando la cita de
+    instalación vinculada quedó 'Finalizada' (el servicio terminó)."""
+    if pedido.estado_entrega == "Entregado":
+        return True
+    cita = cita_de_pedido(db, pedido.id_pedido)
+    return bool(cita and cita.estado == "Finalizada")
 from app.services.especialidades import (
     tecnico_ocupado,
     duracion_desde_items,
@@ -139,6 +164,60 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             "precio_unitario": precio_unitario,
             "subtotal": round(subtotal, 2),
         })
+
+    # ── Validación AGREGADA de stock ANTES de procesar el pago ──────
+    # Suma lo solicitado por producto/variante en todas las líneas del
+    # carrito y verifica contra el stock actual. Así un stock insuficiente
+    # falla ANTES de cobrar al cliente (descontar_stock re-valida con
+    # bloqueo pesimista al confirmar el pago).
+    from collections import defaultdict
+
+    requerido_prod: dict[int, float] = defaultdict(float)
+    requerido_var: dict[int, float] = defaultdict(float)
+    productos_por_id: dict[int, Producto] = {}
+    variantes_por_id: dict[int, "ProductoVariante"] = {}
+    for linea in preparados:
+        p = linea["producto"]
+        v = linea.get("variante")
+        unidades = (
+            float(linea["metros"])
+            if (p.venta_por_metros and linea["metros"])
+            else linea["cantidad"]
+        )
+        requerido_prod[p.id_producto] += unidades
+        productos_por_id[p.id_producto] = p
+        if v is not None:
+            requerido_var[v.id] += unidades
+            variantes_por_id[v.id] = v
+
+    for pid, req in requerido_prod.items():
+        prod = productos_por_id[pid]
+        disponible = prod.stock_producto or 0
+        if req > disponible:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Stock insuficiente de '{prod.nombre_producto}' "
+                    f"(disponible: {disponible}, solicitado: {req:g})"
+                ),
+            )
+    for vid, req in requerido_var.items():
+        var = variantes_por_id[vid]
+        disponible = var.stock or 0
+        if req > disponible:
+            nombre = (
+                productos_por_id[var.id_producto].nombre_producto
+                if var.id_producto in productos_por_id
+                else "el producto"
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Stock insuficiente de '{nombre}' en la variante seleccionada "
+                    f"(disponible: {disponible}, solicitado: {req:g})"
+                ),
+            )
+
     return preparados
 
 
@@ -544,15 +623,23 @@ def _crear_orden_instalacion(
     if fecha is None:
         fecha = (datetime.now() + timedelta(days=1)).date()
     else:
-        # Regla de negocio: los servicios del carrito se agendan con al
-        # menos 3 días de anticipación.
-        minima = (datetime.now() + timedelta(days=3)).date()
-        if fecha < minima:
+        # Regla de negocio: mínimo 3 horas de anticipación. HOY es posible si
+        # la franja elegida queda fuera de esas 3 horas y hay agenda libre
+        # (la disponibilidad se valida más abajo con slot_tomado/técnicos).
+        try:
+            partes_hora = str(serv.get("hora") or "08:00").split(":")
+            fecha_hora_servicio = datetime.combine(
+                fecha,
+                datetime.min.time(),
+            ).replace(hour=int(partes_hora[0]), minute=int(partes_hora[1]))
+        except (TypeError, ValueError, IndexError):
+            fecha_hora_servicio = datetime.combine(fecha, datetime.min.time())
+        if fecha_hora_servicio < datetime.now() + timedelta(hours=3):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Los servicios se agendan con al menos 3 días de "
-                    f"anticipación (mínimo {minima.isoformat()})."
+                    "Los servicios se agendan con al menos 3 horas de "
+                    "anticipación. Si es para hoy, elige una hora posterior."
                 ),
             )
     hora = serv.get("hora") or "08:00"
@@ -1001,32 +1088,6 @@ def _alertar_admin_stock_agotado(db: Session, agotados: list) -> None:
         _programar_envio_correo(correo, subject, body)
 
 
-def _bloquear_si_cita_sin_calificar(db: Session, cliente: Cliente) -> None:
-    """La calificación del técnico es obligatoria: si el cliente tiene una
-    cita Finalizada sin calificar, no puede agendar servicios en el carrito."""
-    from app.models.calificacion import Calificacion
-
-    finalizada_sin_calificar = (
-        db.query(Cita)
-        .outerjoin(
-            Calificacion,
-            (Calificacion.id_cita_c == Cita.id_cita)
-            & (Calificacion.id_cliente_c == Cita.id_cliente),
-        )
-        .filter(
-            Cita.id_cliente == cliente.id_cliente,
-            Cita.estado == "Finalizada",
-            Calificacion.id_calificacion.is_(None),
-        )
-        .first()
-    )
-    if finalizada_sin_calificar is not None:
-        raise HTTPException(
-            status_code=400,
-            detail="Debes calificar al técnico de tu última cita finalizada antes de agendar un nuevo servicio.",
-        )
-
-
 def _asignar_entrega(db: Session, pedido: Pedido, cliente: Cliente) -> dict | None:
     """Asigna un técnico para entregar un pedido de solo productos: la fecha
     de entrega queda entre 1 y 5 días hábiles, en franja de 1 hora, y el día
@@ -1108,8 +1169,8 @@ async def crear_pedido(
     # carrito: se usa para validar que las franjas elegidas alcancen.
     duracion_items = duracion_desde_items(db, items)
     lineas_servicio = _preparar_servicios(db, servicios or [], duracion_items)
-    if lineas_servicio:
-        _bloquear_si_cita_sin_calificar(db, cliente)
+    # La calificación del técnico es VOLUNTARIA: ya no bloquea nuevas citas.
+    # En su lugar, el scheduler envía recordatorios periódicos al cliente.
 
     total = round(
         sum(l["subtotal"] for l in lineas_producto)

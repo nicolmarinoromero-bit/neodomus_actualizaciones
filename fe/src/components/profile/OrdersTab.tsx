@@ -3,11 +3,15 @@ import {
   FaBoxOpen,
   FaChevronDown,
   FaChevronUp,
-  FaFilePdf,
   FaCircleCheck,
+  FaCircleExclamation,
+  FaFilePdf,
   FaLocationDot,
+  FaMinus,
+  FaPlus,
   FaRotateLeft,
   FaStar,
+  FaXmark,
 } from 'react-icons/fa6';
 import api, { descargarFactura } from '@services/api';
 import SectionHeader from './SectionHeader';
@@ -43,6 +47,12 @@ interface Pago {
   ultimos_digitos?: string | null;
 }
 
+interface CitaPedido {
+  id_cita: number;
+  estado: string;
+  tipo_servicio?: string | null;
+}
+
 interface Pedido {
   id_pedido: number;
   fecha?: string | null;
@@ -59,6 +69,8 @@ interface Pedido {
   telefono_tecnico_entrega?: string | null;
   foto_tecnico_entrega?: string | null;
   estado_entrega?: string | null;
+  cita?: CitaPedido | null;
+  productos_calificables?: boolean;
 }
 
 interface PasoSeguimiento {
@@ -81,14 +93,66 @@ interface CalificacionProducto {
   comentario?: string | null;
 }
 
-interface Devolucion {
+interface ItemDevolucion {
   id_devolucion: number;
-  id_pedido: number | null;
-  id_producto: number | null;
-  producto?: string | null;
-  motivo: string;
-  estado: string;
+  id_producto: number;
+  producto: string;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal_linea: number;
+  estado_linea: string;
+  recogida_estado?: string | null;
+  fecha_recogida?: string | null;
 }
+
+interface SolicitudDevolucion {
+  id_solicitud: number;
+  numero: string;
+  id_pedido: number | null;
+  motivo_tipo: string | null;
+  motivo_label?: string | null;
+  motivo_otro: string | null;
+  comentario: string | null;
+  estado: string;
+  tipo_devolucion: 'parcial' | 'total';
+  monto_total: number;
+  resolucion: string | null;
+  motivo_rechazo: string | null;
+  observaciones_admin?: string | null;
+  created_at: string | null;
+  items: ItemDevolucion[];
+  reembolso?: { estado: string; monto: number; numero_transaccion_reembolso?: string | null } | null;
+}
+
+interface LineaElegible {
+  id_detalle: number;
+  id_producto: number;
+  nombre: string;
+  cantidad_comprada: number;
+  cantidad_disponible: number;
+  precio_unitario: number;
+  monto_maximo: number;
+}
+
+interface ElegibilidadInfo {
+  elegible: boolean;
+  razon: string | null;
+  pedido: { id_pedido: number; total: number; estado_entrega: string | null };
+  productos: LineaElegible[];
+  motivos: { key: string; label: string }[];
+}
+
+const ESTADO_DEV_CLASE: Record<string, string> = {
+  Solicitada: '',
+  'En revisión': 'pendiente',
+  Aprobada: 'ok',
+  'Producto en devolución': 'pendiente',
+  Recibida: 'ok',
+  'Reembolso procesado': 'ok',
+  Rechazada: 'err',
+};
+
+const PASOS_PIPELINE = ['Solicitada', 'En revisión', 'Aprobada', 'Producto en devolución', 'Recibida', 'Reembolso procesado'];
 
 const estadoColor: Record<string, string> = {
   Pagado: '#28a745',
@@ -129,6 +193,13 @@ const pagoEstadoInfo = (estado?: string | null): { texto: string; clase: string 
   }
 };
 
+// El pedido está completado cuando el técnico marcó la entrega como
+// "Entregado" o cuando la cita de instalación quedó "Finalizada".
+const pedidoCompletado = (pedido: Pedido): boolean =>
+  pedido.productos_calificables === true ||
+  pedido.estado_entrega === 'Entregado' ||
+  pedido.cita?.estado === 'Finalizada';
+
 const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,13 +209,25 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
   const [seguimientoDe, setSeguimientoDe] = useState<number | null>(null);
   const [seguimiento, setSeguimiento] = useState<Seguimiento | null>(null);
   const [califsPorProducto, setCalifsPorProducto] = useState<Record<number, CalificacionProducto>>({});
-  const [devoluciones, setDevoluciones] = useState<Record<string, Devolucion>>({});
+  const [solicitudesDev, setSolicitudesDev] = useState<SolicitudDevolucion[]>([]);
   const [ratingSel, setRatingSel] = useState<Record<number, number>>({});
   const [comentarioSel, setComentarioSel] = useState<Record<number, string>>({});
   const [guardandoCalif, setGuardandoCalif] = useState<number | null>(null);
-  const [motivoDev, setMotivoDev] = useState<{ key: string; texto: string } | null>(null);
-  const [preferenciaDev, setPreferenciaDev] = useState<Record<string, string>>({});
+
+  // ── Wizard de devolución (paso 1: productos · paso 2: motivo · paso 3: resumen) ──
+  const [wizardPedido, setWizardPedido] = useState<Pedido | null>(null);
+  const [elegibilidad, setElegibilidad] = useState<ElegibilidadInfo | null>(null);
+  const [cargandoEleg, setCargandoEleg] = useState(false);
+  const [pasoWizard, setPasoWizard] = useState(1);
+  const [seleccion, setSeleccion] = useState<Record<number, number>>({});
+  const [motivoSel, setMotivoSel] = useState('');
+  const [motivoOtroTxt, setMotivoOtroTxt] = useState('');
+  const [comentarioTxt, setComentarioTxt] = useState('');
   const [enviandoDev, setEnviandoDev] = useState(false);
+  const [detalleSolAbierta, setDetalleSolAbierta] = useState<number | null>(null);
+
+  const fotoCalifRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const fotosCalif = useRef<Record<number, File>>({});
   const pollRef = useRef<number | null>(null);
 
   const cargarPedidos = async () => {
@@ -220,7 +303,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
   }, [seguimientoDe, seguimiento?.estado_entrega]);
 
   const cargarResenas = async (pedido: Pedido) => {
-    if (pedido.estado_entrega !== 'Entregado') return;
+    if (!pedidoCompletado(pedido)) return;
     try {
       const res = await api.get<{ calificaciones: CalificacionProducto[] }>(
         `/calificaciones/producto/pedido/${pedido.id_pedido}`,
@@ -234,16 +317,107 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
       console.error(err);
     }
     try {
-      const res = await api.get<Devolucion[]>('/devoluciones/mias');
-      const mapaD: Record<string, Devolucion> = {};
-      (res.data || []).forEach((d) => {
-        if (d.id_pedido === pedido.id_pedido && d.id_producto) {
-          mapaD[`${pedido.id_pedido}-${d.id_producto}`] = d;
-        }
-      });
-      setDevoluciones(mapaD);
+      const res = await api.get<SolicitudDevolucion[]>('/devoluciones/mis-solicitudes');
+      setSolicitudesDev(res.data || []);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // ── Wizard de devolución ─────────────────────────────────────────
+  const abrirWizard = async (pedido: Pedido) => {
+    setWizardPedido(pedido);
+    setCargandoEleg(true);
+    setPasoWizard(1);
+    setSeleccion({});
+    setMotivoSel('');
+    setMotivoOtroTxt('');
+    setComentarioTxt('');
+    try {
+      const res = await api.get<ElegibilidadInfo>(`/devoluciones/elegibilidad/${pedido.id_pedido}`);
+      if (!res.data.elegible) {
+        notify(res.data.razon || 'Este pedido no es elegible para devolución.', 'error');
+        setWizardPedido(null);
+        return;
+      }
+      setElegibilidad(res.data);
+    } catch (err: any) {
+      const detalle = err.response?.data?.detail;
+      notify(typeof detalle === 'string' ? detalle : 'No se pudo cargar la devolución.', 'error');
+      setWizardPedido(null);
+    } finally {
+      setCargandoEleg(false);
+    }
+  };
+
+  const cerrarWizard = () => {
+    setWizardPedido(null);
+    setElegibilidad(null);
+  };
+
+  const cambiarCantidad = (idProducto: number, delta: number, maximo: number) => {
+    setSeleccion((prev) => {
+      const actual = prev[idProducto] || 0;
+      const nuevo = Math.min(maximo, Math.max(0, actual + delta));
+      return { ...prev, [idProducto]: nuevo };
+    });
+  };
+
+  const itemsSeleccionados = (): { id_producto: number; cantidad: number }[] =>
+    Object.entries(seleccion)
+      .map(([pid, cant]) => ({ id_producto: Number(pid), cantidad: cant }))
+      .filter((i) => i.cantidad > 0);
+
+  const totalSeleccionado = (): number => {
+    if (!elegibilidad) return 0;
+    return itemsSeleccionados().reduce((acc, it) => {
+      const linea = elegibilidad.productos.find((p) => p.id_producto === it.id_producto);
+      return acc + (linea ? linea.precio_unitario * it.cantidad : 0);
+    }, 0);
+  };
+
+  const continuarPaso1 = () => {
+    if (itemsSeleccionados().length === 0) {
+      notify('Selecciona al menos un producto para devolver.', 'error');
+      return;
+    }
+    setPasoWizard(2);
+  };
+
+  const continuarPaso2 = () => {
+    if (!motivoSel) {
+      notify('Selecciona el motivo de la devolución.', 'error');
+      return;
+    }
+    if (motivoSel === 'otro' && motivoOtroTxt.trim().length < 10) {
+      notify('Cuéntanos brevemente el motivo (mínimo 10 caracteres).', 'error');
+      return;
+    }
+    setPasoWizard(3);
+  };
+
+  const enviarSolicitud = async () => {
+    if (!wizardPedido) return;
+    setEnviandoDev(true);
+    try {
+      await api.post('/devoluciones/solicitudes', {
+        id_pedido: wizardPedido.id_pedido,
+        items: itemsSeleccionados(),
+        motivo_tipo: motivoSel,
+        motivo_otro: motivoSel === 'otro' ? motivoOtroTxt.trim() : undefined,
+        comentario: comentarioTxt.trim() || undefined,
+      });
+      notify(
+        `Tu solicitud de devolución fue enviada. Recibirás una notificación con el estado.`,
+        'success',
+      );
+      cerrarWizard();
+      await cargarResenas(wizardPedido);
+    } catch (err: any) {
+      const detalle = err.response?.data?.detail;
+      notify(typeof detalle === 'string' ? detalle : 'No se pudo enviar la solicitud.', 'error');
+    } finally {
+      setEnviandoDev(false);
     }
   };
 
@@ -262,6 +436,21 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
         calificacion: nota,
         comentario: comentarioSel[item.id_producto_d]?.trim() || undefined,
       });
+      // Subir foto si el cliente seleccionó una.
+      const foto = fotosCalif.current[item.id_producto_d];
+      if (foto) {
+        const fd = new FormData();
+        fd.append('file', foto);
+        try {
+          await api.post(
+            `/calificaciones/producto/${pedido.id_pedido}/${item.id_producto_d}/foto`,
+            fd,
+          );
+        } catch {
+          /* la foto es opcional; si falla no bloquea la calificación */
+        }
+        delete fotosCalif.current[item.id_producto_d];
+      }
       notify('¡Gracias por tu calificación!', 'success');
       await cargarResenas(pedido);
     } catch (err: any) {
@@ -269,30 +458,6 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
       notify(typeof detalle === 'string' ? detalle : 'No se pudo enviar tu calificación.', 'error');
     } finally {
       setGuardandoCalif(null);
-    }
-  };
-
-  const solicitarDevolucion = async (pedido: Pedido, item: Detalle) => {
-    if (!item.id_producto_d || !motivoDev || motivoDev.texto.trim().length < 10) {
-      notify('Cuéntanos brevemente el motivo de la devolución (mínimo 10 caracteres).', 'error');
-      return;
-    }
-    setEnviandoDev(true);
-    try {
-      await api.post('/devoluciones', {
-        id_pedido: pedido.id_pedido,
-        id_producto: item.id_producto_d,
-        motivo: motivoDev.texto.trim(),
-        preferencia: preferenciaDev[motivoDev.key] || 'dinero',
-      });
-      notify('Tu solicitud de devolución fue enviada. Te contactaremos pronto.', 'success');
-      setMotivoDev(null);
-      await cargarResenas(pedido);
-    } catch (err: any) {
-      const detalle = err.response?.data?.detail;
-      notify(typeof detalle === 'string' ? detalle : 'No se pudo enviar la solicitud.', 'error');
-    } finally {
-      setEnviandoDev(false);
     }
   };
 
@@ -342,7 +507,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                   onClick={() => {
                     const nuevo = !abierto;
                     setExpanded(nuevo ? pedido.id_pedido : null);
-                    if (nuevo && pedido.estado_entrega === 'Entregado') {
+                    if (nuevo && pedidoCompletado(pedido)) {
                       cargarResenas(pedido);
                       setSeguimientoDe(null);
                       setSeguimiento(null);
@@ -362,8 +527,6 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                         {pedido.detalles.map((item, idx) => {
                           const esProducto = !item.es_servicio && item.id_producto_d != null;
                           const calif = esProducto ? califsPorProducto[item.id_producto_d!] : undefined;
-                          const devKey = `${pedido.id_pedido}-${item.id_producto_d}`;
-                          const devolucion = esProducto ? devoluciones[devKey] : undefined;
                           return (
                             <Fragment key={idx}>
                               <div className="pf-order-item">
@@ -376,7 +539,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                 </span>
                                 <span className="pf-order-item-price">{formatoPeso(item.subtotal)}</span>
                               </div>
-                              {esProducto && pedido.estado_entrega === 'Entregado' && (
+                              {esProducto && pedidoCompletado(pedido) && (
                                 <div className="pf-resena">
                                   {calif ? (
                                     <div className="pf-resena-guardada">
@@ -427,80 +590,28 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                       >
                                         {guardandoCalif === item.id_producto_d ? 'Enviando...' : 'Enviar'}
                                       </button>
-                                    </div>
-                                  )}
-                                  {devolucion ? (
-                                    <span
-                                      className={`pf-dev-estado ${
-                                        devolucion.estado === 'Aprobada'
-                                          ? 'ok'
-                                          : devolucion.estado === 'Rechazada'
-                                            ? 'err'
-                                            : ''
-                                      }`}
-                                    >
-                                      Devolución {devolucion.estado.toLowerCase()}
-                                    </span>
-                                  ) : (
-                                    motivoDev?.key === devKey && (
-                                      <div className="pf-dev-form">
-                                        <textarea
-                                          placeholder="¿Qué pasó con este producto? (mínimo 10 caracteres)"
-                                          maxLength={1000}
-                                          value={motivoDev.texto}
-                                          onChange={(e) =>
-                                            setMotivoDev({ key: devKey, texto: e.target.value })
+                                      <input
+                                        ref={(el) => { fotoCalifRefs.current[item.id_producto_d!] = el; }}
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        style={{ display: 'none' }}
+                                        onChange={(ev) => {
+                                          if (ev.target.files?.[0]) {
+                                            fotosCalif.current[item.id_producto_d!] = ev.target.files[0];
                                           }
-                                        />
-                                        <div className="pf-dev-pref">
-                                          <span>¿Qué prefieres?</span>
-                                          <label>
-                                            <input
-                                              type="radio"
-                                              name={`pref-${devKey}`}
-                                              checked={(preferenciaDev[devKey] || 'dinero') === 'dinero'}
-                                              onChange={() => setPreferenciaDev((p) => ({ ...p, [devKey]: 'dinero' }))}
-                                            />{' '}
-                                            Devolver mi dinero
-                                          </label>
-                                          <label>
-                                            <input
-                                              type="radio"
-                                              name={`pref-${devKey}`}
-                                              checked={preferenciaDev[devKey] === 'producto'}
-                                              onChange={() => setPreferenciaDev((p) => ({ ...p, [devKey]: 'producto' }))}
-                                            />{' '}
-                                            Cambio de producto
-                                          </label>
-                                        </div>
-                                        <div className="pf-dev-form-actions">
-                                          <button
-                                            type="button"
-                                            className="pf-dev-enviar"
-                                            disabled={enviandoDev}
-                                            onClick={() => solicitarDevolucion(pedido, item)}
-                                          >
-                                            {enviandoDev ? 'Enviando...' : 'Enviar solicitud'}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="pf-dev-cancelar"
-                                            onClick={() => setMotivoDev(null)}
-                                          >
-                                            Cancelar
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-                                  {!devolucion && motivoDev?.key !== devKey && (
-                                    <button
-                                      type="button"
-                                      className="pf-dev-btn"
-                                      onClick={() => setMotivoDev({ key: devKey, texto: '' })}
-                                    >
-                                      <FaRotateLeft /> Solicitar devolución
-                                    </button>
+                                          ev.target.value = '';
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="pf-btn pf-btn-ghost"
+                                        title="Adjuntar foto del producto"
+                                        onClick={() => fotoCalifRefs.current[item.id_producto_d!]?.click()}
+                                      >
+                                        📷
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -509,6 +620,102 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                         })}
                       </div>
                     </div>
+
+                    {/* ── Solicitudes de devolución del pedido ── */}
+                    {pedidoCompletado(pedido) &&
+                      solicitudesDev.some((s) => s.id_pedido === pedido.id_pedido) && (
+                        <div className="pf-detail-block">
+                          <h4 className="pf-detail-title">Devoluciones</h4>
+                          <div className="pf-dev-solicitudes">
+                            {solicitudesDev
+                              .filter((s) => s.id_pedido === pedido.id_pedido)
+                              .map((s) => {
+                                const abierta = detalleSolAbierta === s.id_solicitud;
+                                const pasoIdx = PASOS_PIPELINE.indexOf(s.estado);
+                                return (
+                                  <div className="pf-dev-sol" key={s.id_solicitud}>
+                                    <button
+                                      type="button"
+                                      className="pf-dev-sol-head"
+                                      onClick={() => setDetalleSolAbierta(abierta ? null : s.id_solicitud)}
+                                    >
+                                      <span className="pf-dev-sol-num">
+                                        <FaRotateLeft /> Devolución {s.numero}
+                                      </span>
+                                      <span className={`pf-dev-estado ${ESTADO_DEV_CLASE[s.estado] || ''}`}>
+                                        {s.estado}
+                                      </span>
+                                      {abierta ? <FaChevronUp /> : <FaChevronDown />}
+                                    </button>
+                                    {abierta && (
+                                      <div className="pf-dev-sol-body">
+                                        {PASOS_PIPELINE.includes(s.estado) ? (
+                                          <div className="pf-dev-pipeline">
+                                            {PASOS_PIPELINE.map((paso, i) => (
+                                              <span
+                                                key={paso}
+                                                className={`pf-dev-paso ${i <= pasoIdx ? 'done' : ''}`}
+                                                title={paso}
+                                              >
+                                                <FaCircleCheck />
+                                                <small>{paso}</small>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="pf-dev-rechazo">
+                                            <FaCircleExclamation /> Devolución rechazada
+                                            {s.motivo_rechazo ? `: ${s.motivo_rechazo}` : ''}
+                                          </p>
+                                        )}
+                                        <ul className="pf-dev-items">
+                                          {s.items.map((it) => (
+                                            <li key={it.id_devolucion}>
+                                              <span>{it.producto}</span>
+                                              <span className="pf-dev-item-cant">× {it.cantidad}</span>
+                                              <span>{formatoPeso(it.subtotal_linea)}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                        <div className="pf-dev-meta">
+                                          <p>
+                                            <strong>Motivo:</strong> {s.motivo_label}
+                                            {s.motivo_otro ? ` — ${s.motivo_otro}` : ''}
+                                          </p>
+                                          {s.comentario && (
+                                            <p>
+                                              <strong>Comentario:</strong> {s.comentario}
+                                            </p>
+                                          )}
+                                          <p>
+                                            <strong>Tipo:</strong>{' '}
+                                            {s.tipo_devolucion === 'total'
+                                              ? 'Devolución completa del pedido'
+                                              : 'Devolución parcial'}
+                                          </p>
+                                          <p className="pf-dev-total">
+                                            <strong>Total a devolver: {formatoPeso(s.monto_total)}</strong>
+                                          </p>
+                                          {s.reembolso?.numero_transaccion_reembolso && (
+                                            <p className="pf-dev-transaccion">
+                                              Reembolso {s.reembolso.estado} · Transacción{' '}
+                                              {s.reembolso.numero_transaccion_reembolso}
+                                            </p>
+                                          )}
+                                          {s.observaciones_admin && (
+                                            <p>
+                                              <strong>Observaciones:</strong> {s.observaciones_admin}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
 
                     {pedido.pago && (
                       <div className="pf-detail-block">
@@ -675,6 +882,22 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                       )}
                     </div>
 
+                    {pedidoCompletado(pedido) &&
+                      pedido.detalles.some((d) => !d.es_servicio && d.id_producto_d != null) && (
+                        <div className="pf-dev-cta">
+                          <button
+                            type="button"
+                            className="pf-dev-btn"
+                            onClick={() => abrirWizard(pedido)}
+                          >
+                            <FaRotateLeft /> Solicitar devolución
+                          </button>
+                          <span className="pf-dev-cta-hint">
+                            Puedes devolver uno, varios o todos los productos del pedido.
+                          </span>
+                        </div>
+                      )}
+
                     <div className="pf-order-detail-footer">
                       <strong className="pf-order-total-big">Total: {formatoPeso(pedido.total)}</strong>
                     </div>
@@ -683,6 +906,196 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Modal: wizard de solicitud de devolución ── */}
+      {wizardPedido && (
+        <div className="pf-modal-backdrop" onClick={cerrarWizard}>
+          <div className="pf-modal pf-modal-dev" onClick={(e) => e.stopPropagation()}>
+            <div className="pf-modal-header">
+              <h3>
+                <FaRotateLeft /> Solicitar devolución · Pedido #{wizardPedido.id_pedido}
+              </h3>
+              <button type="button" className="pf-modal-close" onClick={cerrarWizard} aria-label="Cerrar">
+                <FaXmark />
+              </button>
+            </div>
+
+            {cargandoEleg || !elegibilidad ? (
+              <p className="pf-dev-cargando">Cargando productos del pedido...</p>
+            ) : (
+              <>
+                <div className="pf-dev-pasos">
+                  {['Productos', 'Motivo', 'Resumen'].map((nombre, i) => (
+                    <span key={nombre} className={`pf-dev-paso-ind ${pasoWizard >= i + 1 ? 'activo' : ''}`}>
+                      {i + 1}. {nombre}
+                    </span>
+                  ))}
+                </div>
+
+                {pasoWizard === 1 && (
+                  <div className="pf-dev-body">
+                    <p className="pf-dev-instruccion">
+                      Selecciona los productos a devolver y cuántas unidades.
+                    </p>
+                    {elegibilidad.productos.map((linea) => {
+                      const cant = seleccion[linea.id_producto] || 0;
+                      const agotada = linea.cantidad_disponible === 0;
+                      return (
+                        <label
+                          key={linea.id_producto}
+                          className={`pf-dev-linea ${cant > 0 ? 'seleccionada' : ''} ${agotada ? 'agotada' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={agotada}
+                            checked={cant > 0}
+                            onChange={(e) =>
+                              setSeleccion((prev) => ({
+                                ...prev,
+                                [linea.id_producto]: e.target.checked ? Math.min(1, linea.cantidad_disponible) : 0,
+                              }))
+                            }
+                          />
+                          <span className="pf-dev-linea-info">
+                            <strong>{linea.nombre}</strong>
+                            <small>
+                              Comprados: {linea.cantidad_comprada} · Precio:{' '}
+                              {formatoPeso(linea.precio_unitario)}
+                            </small>
+                          </span>
+                          {agotada ? (
+                            <span className="pf-dev-agotada">Ya devuelto / en proceso</span>
+                          ) : (
+                            <span className="pf-dev-cantidades" onClick={(e) => e.preventDefault()}>
+                              <button
+                                type="button"
+                                aria-label="Quitar unidad"
+                                disabled={cant === 0}
+                                onClick={() => cambiarCantidad(linea.id_producto, -1, linea.cantidad_disponible)}
+                              >
+                                <FaMinus />
+                              </button>
+                              <strong>{cant}</strong>
+                              <button
+                                type="button"
+                                aria-label="Agregar unidad"
+                                disabled={cant >= linea.cantidad_disponible}
+                                onClick={() => cambiarCantidad(linea.id_producto, 1, linea.cantidad_disponible)}
+                              >
+                                <FaPlus />
+                              </button>
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                    <div className="pf-dev-subtotal">
+                      <span>Subtotal a devolver:</span>
+                      <strong>{formatoPeso(totalSeleccionado())}</strong>
+                    </div>
+                    <div className="pf-form-actions">
+                      <button type="button" className="pf-btn pf-btn-ghost" onClick={cerrarWizard}>
+                        Cancelar
+                      </button>
+                      <button type="button" className="pf-btn pf-btn-primary" onClick={continuarPaso1}>
+                        Continuar devolución
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {pasoWizard === 2 && (
+                  <div className="pf-dev-body">
+                    <p className="pf-dev-instruccion">¿Cuál es el motivo de la devolución?</p>
+                    <div className="pf-dev-motivos">
+                      {(elegibilidad.motivos || []).map((m) => (
+                        <label key={m.key} className={`pf-dev-motivo ${motivoSel === m.key ? 'sel' : ''}`}>
+                          <input
+                            type="radio"
+                            name="motivo-dev"
+                            checked={motivoSel === m.key}
+                            onChange={() => setMotivoSel(m.key)}
+                          />
+                          {m.label}
+                        </label>
+                      ))}
+                    </div>
+                    {motivoSel === 'otro' && (
+                      <textarea
+                        className="pf-dev-textarea"
+                        placeholder="Explica brevemente el motivo (mínimo 10 caracteres)"
+                        maxLength={1000}
+                        value={motivoOtroTxt}
+                        onChange={(e) => setMotivoOtroTxt(e.target.value)}
+                      />
+                    )}
+                    <textarea
+                      className="pf-dev-textarea"
+                      placeholder="Comentario adicional (opcional)"
+                      maxLength={1000}
+                      value={comentarioTxt}
+                      onChange={(e) => setComentarioTxt(e.target.value)}
+                    />
+                    <div className="pf-form-actions">
+                      <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setPasoWizard(1)}>
+                        Atrás
+                      </button>
+                      <button type="button" className="pf-btn pf-btn-primary" onClick={continuarPaso2}>
+                        Ver resumen
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {pasoWizard === 3 && (
+                  <div className="pf-dev-body">
+                    <h4 className="pf-dev-resumen-titulo">Solicitud de devolución</h4>
+                    <p className="pf-dev-resumen-pedido">
+                      Pedido: <strong>#{wizardPedido.id_pedido}</strong>
+                    </p>
+                    <ul className="pf-dev-items">
+                      {itemsSeleccionados().map((it) => {
+                        const linea = elegibilidad.productos.find((p) => p.id_producto === it.id_producto);
+                        if (!linea) return null;
+                        return (
+                          <li key={it.id_producto}>
+                            <span>{linea.nombre}</span>
+                            <span className="pf-dev-item-cant">
+                              {it.cantidad} unidad{it.cantidad > 1 ? 'es' : ''}
+                            </span>
+                            <span>{formatoPeso(linea.precio_unitario * it.cantidad)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="pf-dev-total-estimado">
+                      Total estimado a devolver: <strong>{formatoPeso(totalSeleccionado())}</strong>
+                    </p>
+                    <p className="pf-dev-nota">
+                      El reembolso se calcula únicamente sobre los productos y cantidades
+                      seleccionadas. Un técnico pasará a recogerlos una vez aprobada la
+                      solicitud.
+                    </p>
+                    <div className="pf-form-actions">
+                      <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setPasoWizard(2)}>
+                        Atrás
+                      </button>
+                      <button
+                        type="button"
+                        className="pf-btn pf-btn-primary"
+                        disabled={enviandoDev}
+                        onClick={enviarSolicitud}
+                      >
+                        {enviandoDev ? 'Enviando...' : 'Solicitar devolución'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

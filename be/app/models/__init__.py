@@ -16,6 +16,7 @@ from .pedido import Pedido, DetallePedido
 from .calificacion_producto import CalificacionProducto
 from .ubicacion_tecnico import UbicacionTecnico
 from .devolucion import Devolucion
+from .solicitud_devolucion import SolicitudDevolucion
 from .tecnico import Tecnico
 from .contacto import Contacto
 from .pago import Pago

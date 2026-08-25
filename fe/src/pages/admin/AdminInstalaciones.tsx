@@ -555,7 +555,7 @@ const AdminInstalaciones = () => {
             <div className="ap-grid-item" key={cita.id_cita}>
               <div className="ap-grid-item-top">
                 <span className="ap-initials">
-                  {(cita.cliente_nombre || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
+                  {(cita.cliente_nombre || '?').split(/\s+/).filter(Boolean).map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
                 </span>
                 <span className={`ap-badge ${CLASE_ESTADO[cita.estado] || 'neutral'}`}>{t(ESTADO_TRAD[cita.estado] || cita.estado)}</span>
               </div>

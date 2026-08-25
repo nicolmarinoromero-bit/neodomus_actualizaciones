@@ -10,6 +10,9 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* Color base del panel: globals.css no se importa globalmente, así que el
+     texto heredaría el negro por defecto del navegador sobre este tema oscuro. */
+  color: #ffffff;
 }
 
 .admin-body {
@@ -759,6 +762,10 @@
   font-weight: 600;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.ap-grid-item h4 {
+  color: #ffffff;
 }
 
 .ap-grid-item p {
@@ -1651,6 +1658,7 @@
 }
 
 .ap-def-value {
+  display: block;
   color: #ffffff;
   font-size: 0.9rem;
   font-weight: 600;
@@ -2543,4 +2551,40 @@
   font-size: 0.7rem;
   color: #9f9f9f;
   font-weight: 600;
+}
+
+
+/* --------------------------------------------------------------
+   DEVOLUCIONES � panel admin (solicitudes)
+   -------------------------------------------------------------- */
+.ap-dev-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ap-dev-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(212, 165, 75, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.ap-dev-item strong { display: block; font-size: 0.85rem; overflow-wrap: anywhere; }
+.ap-dev-item small { color: #c9c0ab; font-size: 0.76rem; }
+.ap-dev-tecnico-select { max-width: 210px; font-size: 0.8rem; padding-top: 8px; padding-bottom: 8px; }
+
+
+.ap-entrega-cita {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #d4a54b;
 }

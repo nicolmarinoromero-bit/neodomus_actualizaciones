@@ -33,8 +33,9 @@ const AdminProductos = () => {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
   const [mostrarSolicitud, setMostrarSolicitud] = useState(false);
-  const [cantidades, setCantidades] = useState<Record<number, string>>({});
-  const [varianteSel, setVarianteSel] = useState<Record<number, string>>({});
+  // Cantidades por línea "{id_producto}:{id_variante ?? 0}" para poder pedir
+  // varias presentaciones (colores/medidas) del mismo producto.
+  const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [marcaSel, setMarcaSel] = useState<Record<number, string>>({});
   const [solicitando, setSolicitando] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
@@ -133,40 +134,70 @@ const AdminProductos = () => {
 
   const formatoPrecio = (valor: number) => `$${valor.toLocaleString('es-CO')}`;
 
+  const claveLinea = (idProducto: number, idVariante?: number | null) =>
+    `${idProducto}:${idVariante ?? 0}`;
+
+  const etiquetaVariante = (v: NonNullable<ProductoAdmin['variantes']>[number]) => {
+    const partes = [v.nombre];
+    if (v.etiqueta_medida) partes.push(v.etiqueta_medida);
+    else if (v.tamaño) partes.push(v.tamaño);
+    else if (v.ancho_cm && v.alto_cm) partes.push(`${v.ancho_cm}×${v.alto_cm} cm`);
+    return partes.filter(Boolean).join(' · ');
+  };
+
   const abrirSolicitud = (idProducto?: number) => {
-    const inicial: Record<number, string> = {};
+    const inicial: Record<string, string> = {};
     const marcasIniciales: Record<number, string> = {};
     productos.forEach((p) => {
-      inicial[p.id_producto] = p.id_producto === idProducto ? '1' : '';
       marcasIniciales[p.id_producto] = p.marca || '';
+      if (p.variantes?.length) {
+        p.variantes.forEach((v) => {
+          inicial[claveLinea(p.id_producto, v.id)] =
+            p.id_producto === idProducto && v.id === p.variantes![0].id ? '1' : '';
+        });
+      } else {
+        inicial[claveLinea(p.id_producto)] = p.id_producto === idProducto ? '1' : '';
+      }
     });
     setCantidades(inicial);
     setMarcaSel(marcasIniciales);
-    setVarianteSel({});
     setMostrarSolicitud(true);
   };
 
   const solicitarReabastecimiento = async (e: React.FormEvent) => {
     e.preventDefault();
+    type ItemSolicitud = {
+      id_producto: number;
+      cantidad: number;
+      id_variante?: number;
+      marca?: string;
+    };
+    const items: ItemSolicitud[] = [];
     for (const p of productos) {
-      const cantidad = parseInt(cantidades[p.id_producto] || '0', 10);
-      if (cantidad > 0 && (p.variantes?.length ?? 0) > 0 && !varianteSel[p.id_producto]) {
-        notify(`Elige color/medida para "${p.nombre_producto}"`, 'err');
-        return;
+      const porMetros = !!p.venta_por_metros;
+      if (p.variantes?.length) {
+        for (const v of p.variantes) {
+          const crudo = cantidades[claveLinea(p.id_producto, v.id)] || '';
+          const cantidad = porMetros ? parseFloat(crudo || '0') : parseInt(crudo || '0', 10);
+          if (!Number.isFinite(cantidad) || cantidad <= 0) continue;
+          items.push({
+            id_producto: p.id_producto,
+            cantidad,
+            id_variante: v.id,
+            marca: marcaSel[p.id_producto]?.trim() || p.marca || undefined,
+          });
+        }
+      } else {
+        const crudo = cantidades[claveLinea(p.id_producto)] || '';
+        const cantidad = porMetros ? parseFloat(crudo || '0') : parseInt(crudo || '0', 10);
+        if (!Number.isFinite(cantidad) || cantidad <= 0) continue;
+        items.push({
+          id_producto: p.id_producto,
+          cantidad,
+          marca: marcaSel[p.id_producto]?.trim() || p.marca || undefined,
+        });
       }
     }
-    const items = productos
-      .map((p) => {
-        const selId = varianteSel[p.id_producto];
-        const variante = (p.variantes || []).find((v) => String(v.id) === String(selId));
-        return {
-          id_producto: p.id_producto,
-          cantidad: parseInt(cantidades[p.id_producto] || '0', 10),
-          id_variante: variante ? variante.id : undefined,
-          marca: marcaSel[p.id_producto]?.trim() || p.marca || undefined,
-        };
-      })
-      .filter((i) => i.cantidad > 0);
     if (items.length === 0) {
       notify(t('adm.productos.notifyCantidad'), 'err');
       return;
@@ -431,40 +462,83 @@ const AdminProductos = () => {
               {t('adm.productos.modalTitulo', { proveedor: nombreProveedor })}
             </h3>
             <p>{t('adm.productos.modalTexto')}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
-              {productos.map((p) => (
-                <div
-                  key={p.id_producto}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(212,165,75,0.25)', borderRadius: 12, padding: '8px 10px', background: 'rgba(255,255,255,0.05)' }}
-                >
-                  <img
-                    src={p.imagen_url || `/productos/${p.id_producto}.jpg`}
-                    alt=""
-                    className="ap-thumb"
-                    onError={(e) => (e.currentTarget.src = '/productos/default.png')}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong
-                      style={{ display: 'block', fontSize: 13, color: '#ffffff', fontWeight: 700, lineHeight: 1.35, overflowWrap: 'break-word', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
-                      title={p.nombre_producto}
-                    >
-                      {p.nombre_producto}
-                    </strong>
-                    <span style={{ fontSize: 11, color: '#c9c9c9' }}>
-                      {t('adm.productos.stockActual', { stock: p.stock_producto ?? 0 })}
-                    </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 420, overflowY: 'auto' }}>
+              {productos.map((p) => {
+                const porMetros = !!p.venta_por_metros;
+                return (
+                  <div
+                    key={p.id_producto}
+                    style={{ border: '1px solid rgba(212,165,75,0.25)', borderRadius: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.05)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img
+                        src={p.imagen_url || `/productos/${p.id_producto}.jpg`}
+                        alt=""
+                        className="ap-thumb"
+                        onError={(e) => (e.currentTarget.src = '/productos/default.png')}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong
+                          style={{ display: 'block', fontSize: 13, color: '#ffffff', fontWeight: 700, lineHeight: 1.35, overflowWrap: 'break-word', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                          title={p.nombre_producto}
+                        >
+                          {p.nombre_producto}
+                        </strong>
+                        <span style={{ fontSize: 11, color: '#c9c9c9' }}>
+                          {t('adm.productos.stockActual', { stock: p.stock_producto ?? 0 })}
+                          {porMetros ? ` · ${t('adm.productos.ventaMetros')}` : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    {p.variantes?.length ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                        {p.variantes.map((v) => (
+                          <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {v.hex && (
+                              <span
+                                title={v.nombre}
+                                style={{ width: 14, height: 14, borderRadius: '50%', background: v.hex, border: '1px solid rgba(255,255,255,0.35)', flexShrink: 0 }}
+                              />
+                            )}
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#e0d9c8', overflowWrap: 'anywhere' }}>
+                              {etiquetaVariante(v)}
+                              <span style={{ color: '#9a8f78' }}> · stock {v.stock ?? 0}</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step={porMetros ? '0.5' : '1'}
+                              className="ap-form-input"
+                              style={{ width: 92 }}
+                              placeholder={porMetros ? '0 m' : '0'}
+                              value={cantidades[claveLinea(p.id_producto, v.id)] ?? ''}
+                              onChange={(e) =>
+                                setCantidades((prev) => ({ ...prev, [claveLinea(p.id_producto, v.id)]: e.target.value }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                        <input
+                          type="number"
+                          min="0"
+                          step={porMetros ? '0.5' : '1'}
+                          className="ap-form-input"
+                          style={{ width: 92 }}
+                          placeholder={porMetros ? '0 m' : '0'}
+                          value={cantidades[claveLinea(p.id_producto)] ?? ''}
+                          onChange={(e) =>
+                            setCantidades((prev) => ({ ...prev, [claveLinea(p.id_producto)]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    className="ap-form-input"
-                    style={{ width: 90 }}
-                    placeholder="0"
-                    value={cantidades[p.id_producto] ?? ''}
-                    onChange={(e) => setCantidades((prev) => ({ ...prev, [p.id_producto]: e.target.value }))}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="ap-modal-actions">
               <button type="button" className="ap-btn ap-btn-ghost" onClick={() => setMostrarSolicitud(false)} disabled={solicitando}>

@@ -1,14 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
 class CalificacionProducto(Base):
-    """Calificación (1-5 estrellas + comentario) que el cliente da a un
-    producto recibido, disponible cuando el pedido quedó Entregado."""
+    """Calificación (1-5 estrellas + comentario + foto opcional) que el
+    cliente da a un producto recibido, disponible cuando el pedido quedó
+    Entregado."""
 
     __tablename__ = "calificaciones_producto"
 
@@ -25,7 +26,8 @@ class CalificacionProducto(Base):
         ForeignKey("productos.id_producto"), nullable=False, index=True
     )
     calificacion: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    comentario: Mapped[str] = mapped_column(Text, nullable=True)
+    comentario: Mapped[str | None] = mapped_column(Text, nullable=True)
+    foto_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )

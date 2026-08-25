@@ -45,4 +45,5 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
     telefono_usuario: Optional[int] = Field(None, ge=1000000000, le=9999999999)
+    documento_usuario: Optional[int] = Field(None, ge=100000, le=999999999999)
     certificacion_t: Optional[str] = None

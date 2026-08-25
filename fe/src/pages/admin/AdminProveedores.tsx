@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaTruckField, FaCircleInfo, FaPlus, FaXmark, FaTriangleExclamation, FaCircleCheck, FaBoxesStacked, FaPen } from 'react-icons/fa6';
+import { FaTruckField, FaCircleInfo, FaPlus, FaXmark, FaTriangleExclamation, FaCircleCheck, FaBoxesStacked, FaPen, FaMagnifyingGlass } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
@@ -31,6 +31,7 @@ const AdminProveedores = () => {
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
   const cargar = async () => {
@@ -124,6 +125,20 @@ const AdminProveedores = () => {
     };
   };
 
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return proveedores;
+    return proveedores.filter((prov) =>
+      [
+        prov.nombre_proveedor,
+        prov.contacto_proveedor || '',
+        prov.telefono_proveedor || '',
+        prov.correo_proveedor || '',
+        prov.direccion_proveedor || '',
+      ].some((v) => v.toLowerCase().includes(q)),
+    );
+  }, [proveedores, busqueda]);
+
   return (
     <motion.section
       className="admin-panel"
@@ -144,6 +159,16 @@ const AdminProveedores = () => {
           </button>
         </div>
       </div>
+
+      <form className="ap-search" style={{ marginBottom: 14 }} onSubmit={(e) => e.preventDefault()}>
+        <FaMagnifyingGlass />
+        <input
+          type="text"
+          placeholder={t('adm.proveedores.buscarPlaceholder')}
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+      </form>
 
       {cargando ? (
         <div className="ap-card">
@@ -176,6 +201,15 @@ const AdminProveedores = () => {
             <p>{t('adm.proveedores.sinProveedoresDesc')}</p>
           </div>
         </div>
+      ) : visibles.length === 0 ? (
+        <div className="ap-card">
+          <div className="ap-states">
+            <div className="ap-states-icon">
+              <FaMagnifyingGlass />
+            </div>
+            <h3>{t('adm.proveedores.sinResultados')}</h3>
+          </div>
+        </div>
       ) : (
         <div className="ap-card">
           <div className="ap-table-wrap">
@@ -191,7 +225,7 @@ const AdminProveedores = () => {
                 </tr>
               </thead>
               <tbody>
-                {proveedores.map((prov) => {
+                {visibles.map((prov) => {
                   const r = resumen(prov.id_proveedor);
                   return (
                     <tr key={prov.id_proveedor}>
