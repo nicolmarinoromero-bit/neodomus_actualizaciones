@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, or_, text
 from sqlalchemy.orm import Session
+
+from app.models.oferta_horario import OfertaHorario
 from typing import List, Optional
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
@@ -52,6 +54,129 @@ router = APIRouter(prefix="/citas", tags=["Citas"])
 ESTADOS_EDITABLES = ("Pendiente", "Confirmada")
 
 ESTADOS_CITA = ("Pendiente", "Confirmada", "Finalizada", "Cancelada")
+
+# Ventana (horas) que tiene un cliente para aceptar una oferta de horario liberado.
+OFERTA_VENTANA_HORAS = 6
+
+
+def _generar_ofertas_por_cancelacion(
+    db: Session,
+    *,
+    fecha,
+    hora: str,
+    tipo_servicio: str,
+    id_tecnico: int | None,
+    nombre_tecnico: str | None,
+    id_cliente_excluido: int | None = None,
+) -> int:
+    """Ofrece la franja de una cita cancelada a clientes con citas FUTURAS
+    con el mismo técnico, priorizando por lealtad (pedidos pagados + citas).
+
+    Crea una fila de oferta por candidato con la misma ventana de tiempo;
+    el primero que acepte gana y las demás pasan a 'Perdida'."""
+    from app.models.cliente import Cliente as ClienteModel
+
+    if id_tecnico is None:
+        return 0
+    ahora = datetime.now()
+    try:
+        h, m = str(hora).split(":")[:2]
+        franja_dt = datetime.combine(fecha, datetime.min.time()).replace(
+            hour=int(h), minute=int(m)
+        )
+    except (ValueError, IndexError):
+        return 0
+    if franja_dt <= ahora + timedelta(hours=1):
+        return 0  # franja demasiado cercana o pasada: no se ofrece
+
+    futuras = (
+        db.query(Cita)
+        .filter(
+            Cita.id_tecnico == id_tecnico,
+            Cita.estado.in_(("Pendiente", "Confirmada")),
+            Cita.fecha > fecha,
+            Cita.id_cliente.isnot(None),
+        )
+        .all()
+    )
+    candidatos: dict[int, dict] = {}
+    for c in futuras:
+        if c.id_cliente == id_cliente_excluido:
+            continue
+        actual = candidatos.get(c.id_cliente)
+        if actual is None or (c.fecha, c.hora) < (actual["cita"].fecha, actual["cita"].hora):
+            candidatos[c.id_cliente] = {"cita": c}
+
+    if not candidatos:
+        return 0
+
+    expira = ahora + timedelta(hours=OFERTA_VENTANA_HORAS)
+    filas: list[tuple[int, dict]] = []
+    for id_cliente, info in candidatos.items():
+        # Lealtad CON ESTE TÉCNICO: citas previas juntos + pedidos que él
+        # le entregó (instalaciones/compras asociadas a su agenda).
+        compras = (
+            db.execute(
+                text(
+                    "SELECT COUNT(*) FROM pedidos WHERE id_cliente_pe = :c "
+                    "AND id_tecnico_entrega = :t AND estado_pedido = 'Pagado'"
+                ),
+                {"c": id_cliente, "t": id_tecnico},
+            ).scalar()
+            or 0
+        )
+        servicios = (
+            db.execute(
+                text(
+                    "SELECT COUNT(*) FROM citas WHERE id_cliente = :c "
+                    "AND id_tecnico = :t"
+                ),
+                {"c": id_cliente, "t": id_tecnico},
+            ).scalar()
+            or 0
+        )
+        info["puntaje"] = int(compras) + int(servicios)
+        filas.append((id_cliente, info))
+
+    # Prioridad: mayor lealtad primero; a igual puntaje, la cita más antigua.
+    filas.sort(key=lambda f: (-f[1]["puntaje"], f[1]["cita"].fecha, f[1]["cita"].hora))
+
+    creadas = 0
+    for posicion, (id_cliente, info) in enumerate(filas, start=1):
+        cliente = db.get(ClienteModel, id_cliente)
+        db.add(
+            OfertaHorario(
+                id_cliente=id_cliente,
+                fecha=fecha,
+                hora=hora,
+                tipo_servicio=tipo_servicio,
+                id_tecnico=id_tecnico,
+                nombre_tecnico=nombre_tecnico,
+                puntaje=info["puntaje"],
+                estado="Ofrecida",
+                expira_en=expira,
+            )
+        )
+        creadas += 1
+        if cliente and cliente.email:
+            from app.services.notificaciones import notificar_oferta_horario
+
+            notificar_oferta_horario(
+                db,
+                id_cliente,
+                cliente.email,
+                f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+                {
+                    "fecha": fecha.strftime("%d/%m/%Y"),
+                    "hora": hora,
+                    "tecnico": nombre_tecnico or "tu técnico",
+                    "horas": OFERTA_VENTANA_HORAS,
+                    "prioridad": posicion,
+                    "puntaje": info["puntaje"],
+                },
+            )
+    db.commit()
+    return creadas
 
 
 class AdminCitaUpdate(BaseModel):
@@ -385,6 +510,12 @@ def crear_cita(
     con el simulador académico local."""
     if data.fecha < datetime.now().date():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
+    minimo = datetime.now().date() + timedelta(days=3)
+    if data.fecha < minimo:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Las citas deben agendarse con al menos 3 días de anticipación (a partir del {minimo.strftime('%d/%m/%Y')})",
+        )
     duracion = duracion_base_tipo(data.tipo_servicio)
     _validar_franja_cita(data.fecha, data.hora, duracion_horas=duracion)
     _bloqueo_por_calificacion(db, client.id_cliente)
@@ -772,6 +903,15 @@ def gestionar_cita_admin(
     # se preservan (FK SET NULL / CASCADE), las evidencias y productos de la
     # cita caen por CASCADE y las facturas quedan desvinculadas.
     if data.estado == "Cancelada" and estado_previo not in (None, "Cancelada"):
+        # Capturar el hueco ANTES de borrar para ofrecerlo a otros clientes.
+        hueco = {
+            "fecha": cita.fecha,
+            "hora": cita.hora,
+            "tipo_servicio": cita.tipo_servicio,
+            "id_tecnico": cita.id_tecnico,
+            "nombre_tecnico": cita.nombre_tecnico,
+            "id_cliente_excluido": cita.id_cliente,
+        }
         db.execute(
             text("DELETE FROM calificaciones WHERE id_cita_c = :id"),
             {"id": cita.id_cita},
@@ -790,6 +930,7 @@ def gestionar_cita_admin(
             {"id": cita.id_cita},
         )
         db.commit()
+        _generar_ofertas_por_cancelacion(db, **hueco)
 
     return respuesta
 
@@ -1310,8 +1451,8 @@ def editar_cita(
     if cita.estado not in ESTADOS_EDITABLES:
         raise HTTPException(status_code=400, detail="No se puede modificar una cita finalizada o cancelada")
     update_data = data.model_dump(exclude_unset=True)
-    if "fecha" in update_data and update_data["fecha"] < datetime.now().date():
-        raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
+    if "fecha" in update_data and update_data["fecha"] < datetime.now().date() + timedelta(days=3):
+        raise HTTPException(status_code=400, detail="Las citas deben reagendarse con al menos 3 días de anticipación")
     nueva_fecha = update_data.get("fecha", cita.fecha)
     nueva_hora = update_data.get("hora", cita.hora)
     duracion_cita = duracion_estimada_cita(db, cita)
@@ -1357,6 +1498,14 @@ def cancelar_cita(
 
     estado_anterior = cita.estado
     nombre_cliente = f"{client.first_name} {client.last_name}".strip() or "Cliente"
+    hueco = {
+        "fecha": cita.fecha,
+        "hora": cita.hora,
+        "tipo_servicio": cita.tipo_servicio,
+        "id_tecnico": cita.id_tecnico,
+        "nombre_tecnico": cita.nombre_tecnico,
+        "id_cliente_excluido": client.id_cliente,
+    }
     cita.estado = "Cancelada"
 
     # ── Reembolso del 85% si la cita tenía pago aprobado ─────────
@@ -1433,11 +1582,195 @@ def cancelar_cita(
     db.commit()
     db.refresh(cita)
 
+    # El hueco liberado se ofrece a otros clientes con citas futuras
+    # con el mismo técnico (prioridad por lealtad).
+    _generar_ofertas_por_cancelacion(db, **hueco)
+
     return {
         "id_cita": cita.id_cita,
         "estado": cita.estado,
         "estado_anterior": estado_anterior,
         "reembolso": reembolso_info,
+    }
+
+
+# ============================================================
+# Ofertas de horarios liberados (cliente)
+# ============================================================
+
+@router.get("/ofertas-pendientes", response_model=List[dict])
+def ofertas_pendientes(
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Ofertas activas para el cliente: huecos liberados por cancelaciones
+    donde puede ADELANTAR su cita con el mismo técnico."""
+    ahora = datetime.now()
+    filas = (
+        db.query(OfertaHorario)
+        .filter(
+            OfertaHorario.id_cliente == client.id_cliente,
+            OfertaHorario.estado == "Ofrecida",
+            OfertaHorario.expira_en > ahora,
+        )
+        .order_by(OfertaHorario.expira_en.asc())
+        .all()
+    )
+    resultado = []
+    for o in filas:
+        mi_cita = (
+            db.query(Cita)
+            .filter(
+                Cita.id_cliente == client.id_cliente,
+                Cita.id_tecnico == o.id_tecnico,
+                Cita.estado.in_(("Pendiente", "Confirmada")),
+                Cita.fecha >= o.fecha,
+            )
+            .order_by(Cita.fecha.asc(), Cita.hora.asc())
+            .first()
+        )
+        if not mi_cita:
+            continue
+        resultado.append({
+            "id_oferta": o.id_oferta,
+            "fecha_nueva": o.fecha.isoformat(),
+            "hora_nueva": o.hora,
+            "tipo_servicio": o.tipo_servicio,
+            "tecnico": o.nombre_tecnico,
+            "mi_cita_id": mi_cita.id_cita,
+            "mi_fecha_actual": mi_cita.fecha.isoformat(),
+            "mi_hora_actual": mi_cita.hora,
+            "expira_en": o.expira_en.isoformat(),
+        })
+    return resultado
+
+
+@router.post("/ofertas/{id_oferta}/aceptar", response_model=dict)
+def aceptar_oferta(
+    id_oferta: int,
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El cliente acepta mover su cita al horario ofrecido. Gana el primero:
+    si otra fila del mismo hueco tiene MAYOR puntaje (lealtad) aún activa, se
+    exige que esa responda primero; al aceptar uno, el resto pasa a 'Perdida'."""
+    oferta = (
+        db.query(OfertaHorario)
+        .filter(
+            OfertaHorario.id_oferta == id_oferta,
+            OfertaHorario.id_cliente == client.id_cliente,
+        )
+        .with_for_update()
+        .first()
+    )
+    if not oferta or oferta.estado != "Ofrecida":
+        raise HTTPException(status_code=409, detail="Esta oferta ya no está disponible")
+
+    ahora = datetime.now()
+    if oferta.expira_en <= ahora:
+        oferta.estado = "Expirada"
+        db.commit()
+        raise HTTPException(status_code=410, detail="La oferta expiró")
+
+    # Prioridad por lealtad: alguien con más puntaje sigue decidiendo.
+    mayor_pendiente = (
+        db.query(OfertaHorario)
+        .filter(
+            OfertaHorario.fecha == oferta.fecha,
+            OfertaHorario.hora == oferta.hora,
+            OfertaHorario.id_tecnico == oferta.id_tecnico,
+            OfertaHorario.estado == "Ofrecida",
+            OfertaHorario.puntaje > oferta.puntaje,
+            OfertaHorario.expira_en > ahora,
+        )
+        .first()
+    )
+    if mayor_pendiente:
+        minutos = max(1, int((mayor_pendiente.expira_en - ahora).total_seconds() // 60))
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Hay clientes con mayor prioridad evaluando este horario. "
+                f"Podrás aceptarlo en ~{minutos} min si no lo toman."
+            ),
+        )
+
+    mi_cita = (
+        db.query(Cita)
+        .filter(
+            Cita.id_cliente == client.id_cliente,
+            Cita.id_tecnico == oferta.id_tecnico,
+            Cita.estado.in_(("Pendiente", "Confirmada")),
+        )
+        .order_by(Cita.fecha.asc(), Cita.hora.asc())
+        .first()
+    )
+    if not mi_cita:
+        raise HTTPException(status_code=409, detail="Ya no tienes una cita movible para este técnico")
+    if (mi_cita.fecha, mi_cita.hora) <= (oferta.fecha, oferta.hora):
+        raise HTTPException(status_code=409, detail="Tu cita ya está agendada en un horario igual o mejor")
+
+    _validar_franja_cita(
+        oferta.fecha,
+        oferta.hora,
+        excluir_cita_id=mi_cita.id_cita,
+        duracion_horas=duracion_estimada_cita(db, mi_cita),
+    )
+
+    fecha_anterior, hora_anterior = mi_cita.fecha, mi_cita.hora
+    mi_cita.fecha = oferta.fecha
+    mi_cita.hora = oferta.hora
+
+    oferta.estado = "Aceptada"
+    oferta.aceptada_por_cliente = client.id_cliente
+
+    # Las demás ofertas del mismo hueco desaparecen.
+    db.query(OfertaHorario).filter(
+        OfertaHorario.fecha == oferta.fecha,
+        OfertaHorario.hora == oferta.hora,
+        OfertaHorario.id_tecnico == oferta.id_tecnico,
+        OfertaHorario.id_oferta != oferta.id_oferta,
+        OfertaHorario.estado == "Ofrecida",
+    ).update({"estado": "Perdida"}, synchronize_session=False)
+
+    db.commit()
+
+    from app.services.notificaciones import crear_notificacion, notificar_cita_reasignada_cliente
+
+    tecnico_ficha = (
+        db.query(Tecnico).filter(Tecnico.id_tecnico == oferta.id_tecnico).first()
+    )
+    if tecnico_ficha and tecnico_ficha.usuario:
+        crear_notificacion(
+            db,
+            id_usuario=tecnico_ficha.usuario.id_usuario,
+            id_cliente=None,
+            tipo="cita",
+            titulo="Cita adelantada a horario libre",
+            mensaje=(
+                f"{client.first_name} {client.last_name} movió su cita de "
+                f"{fecha_anterior.strftime('%d/%m')} {hora_anterior} al {oferta.fecha.strftime('%d/%m')} "
+                f"a las {oferta.hora} contigo."
+            ),
+        )
+    notificar_cita_reasignada_cliente(
+        db,
+        client.id_cliente,
+        client.email,
+        f"{client.first_name} {client.last_name}".strip() or "Cliente",
+        {
+            "servicio": mi_cita.tipo_servicio,
+            "fecha": oferta.fecha.strftime("%d/%m/%Y"),
+            "hora": oferta.hora,
+            "tecnico": oferta.nombre_tecnico or "tu técnico",
+        },
+    )
+
+    return {
+        "id_cita": mi_cita.id_cita,
+        "fecha_nueva": mi_cita.fecha.isoformat(),
+        "hora_nueva": mi_cita.hora,
+        "msg": "Tu cita fue adelantada al horario disponible",
     }
 
 

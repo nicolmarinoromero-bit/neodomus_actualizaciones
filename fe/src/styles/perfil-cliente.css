@@ -1,4 +1,4 @@
-/* ═══ Perfil de cliente · Neodomus ═══════════════════════════════ */
+﻿/* â•â•â• Perfil de cliente Â· Neodomus â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 :root {
   --pf-oro: #d4a54b;
@@ -10,7 +10,7 @@
   --pf-danger: #e5484d;
 }
 
-/* ── Layout general ─────────────────────────────────────────── */
+/* â”€â”€ Layout general â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .perfil-layout {
   min-height: 100vh;
   position: relative;
@@ -29,7 +29,7 @@
   align-items: start;
 }
 
-/* ── Barra lateral ─────────────────────────────────────────── */
+/* â”€â”€ Barra lateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .perfil-sidebar {
   background: linear-gradient(180deg, rgba(24, 24, 24, 0.88), rgba(10, 10, 10, 0.92));
   border: 1px solid rgba(211, 172, 77, 0.25);
@@ -154,7 +154,7 @@
   justify-content: center;
 }
 
-/* ── Contenido principal ───────────────────────────────────── */
+/* â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .perfil-content {
   min-width: 0;
 }
@@ -216,7 +216,7 @@
   to { opacity: 1; }
 }
 
-/* ── Formularios ───────────────────────────────────────────── */
+/* â”€â”€ Formularios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-form {
   display: flex;
   flex-direction: column;
@@ -291,7 +291,7 @@
   flex-wrap: wrap;
 }
 
-/* ── Botones ───────────────────────────────────────────────── */
+/* â”€â”€ Botones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-btn {
   display: inline-flex;
   align-items: center;
@@ -374,7 +374,7 @@
   background: rgba(229, 72, 77, 0.18);
 }
 
-/* ── Estado vacío ──────────────────────────────────────────── */
+/* â”€â”€ Estado vacÃ­o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-empty {
   display: flex;
   flex-direction: column;
@@ -395,7 +395,7 @@
   font-size: 0.9rem;
 }
 
-/* ── Pedidos ───────────────────────────────────────────────── */
+/* â”€â”€ Pedidos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-orders-list {
   display: flex;
   flex-direction: column;
@@ -500,7 +500,7 @@
   gap: 6px;
 }
 
-/* Zona de acciones de la factura (botón de descarga independiente) */
+/* Zona de acciones de la factura (botÃ³n de descarga independiente) */
 .pf-factura-acciones {
   display: flex;
   align-items: center;
@@ -554,7 +554,7 @@
   font-weight: 700;
 }
 
-/* Botón expandir/contraer el detalle */
+/* BotÃ³n expandir/contraer el detalle */
 .pf-order-toggle {
   display: inline-flex;
   align-items: center;
@@ -717,7 +717,7 @@
   white-space: nowrap;
 }
 
-/* Nombre del técnico asignado en el detalle del pedido */
+/* Nombre del tÃ©cnico asignado en el detalle del pedido */
 .pf-order-tecnico-entrega {
   display: flex;
   align-items: center;
@@ -781,8 +781,8 @@
   font-size: 1rem;
 }
 
-/* ── Mensajes ──────────────────────────────────────────────── */
-/* ── Mensajes ──────────────────────────────────────────────── */
+/* â”€â”€ Mensajes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â”€â”€ Mensajes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-filter-bar {
   display: flex;
   gap: 8px;
@@ -958,7 +958,7 @@
   margin: 10px 0 0;
 }
 
-/* ── Técnicos ──────────────────────────────────────────────── */
+/* â”€â”€ TÃ©cnicos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-tech-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1060,7 +1060,7 @@
   margin-top: 12px;
 }
 
-/* ── Reseñas ───────────────────────────────────────────────── */
+/* â”€â”€ ReseÃ±as â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-hreview {
   display: flex;
   justify-content: space-between;
@@ -1198,7 +1198,7 @@
   margin-top: 6px;
 }
 
-/* ── Métodos de pago ───────────────────────────────────────── */
+/* â”€â”€ MÃ©todos de pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-pay-type-select {
   width: 100%;
   height: 46px;
@@ -1305,7 +1305,7 @@
   gap: 6px;
 }
 
-/* ── Notificaciones ────────────────────────────────────────── */
+/* â”€â”€ Notificaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-notif-list {
   display: flex;
   flex-direction: column;
@@ -1383,7 +1383,7 @@
   transform: translateX(20px);
 }
 
-/* ── Idioma ────────────────────────────────────────────────── */
+/* â”€â”€ Idioma â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-lang-list {
   display: flex;
   flex-direction: column;
@@ -1451,7 +1451,7 @@
   text-align: center;
 }
 
-/* ── Avatar ────────────────────────────────────────────────── */
+/* â”€â”€ Avatar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-avatar-zone {
   display: flex;
   align-items: center;
@@ -1532,7 +1532,7 @@
   align-items: flex-start;
 }
 
-/* ── Contraseña ────────────────────────────────────────────── */
+/* â”€â”€ ContraseÃ±a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-eye {
   position: absolute;
   right: 12px;
@@ -1572,7 +1572,7 @@
   font-size: 0.72rem;
 }
 
-/* Requisitos de contraseña (estilo registro) */
+/* Requisitos de contraseÃ±a (estilo registro) */
 .pf-pass-requirements {
   background: rgba(12, 12, 12, 0.8);
   border: 1px solid #1a1a1a;
@@ -1622,7 +1622,7 @@
   text-align: left;
 }
 
-/* ── Zona de eliminación de cuenta ─────────────────────────── */
+/* â”€â”€ Zona de eliminaciÃ³n de cuenta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-danger-zone {
   margin-top: 34px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1666,7 +1666,7 @@
   max-width: 480px;
 }
 
-/* ── Cabecera de sección (SectionHeader) ──────────────────── */
+/* â”€â”€ Cabecera de secciÃ³n (SectionHeader) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-section-header {
   display: flex;
   align-items: center;
@@ -1717,7 +1717,7 @@
   margin: 4px 0 0;
 }
 
-/* ── Modales ───────────────────────────────────────────────── */
+/* â”€â”€ Modales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1771,7 +1771,7 @@
   margin: 6px 0 0;
 }
 
-/* ── Toast ─────────────────────────────────────────────────── */
+/* â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-toast {
   position: fixed;
   top: 24px;
@@ -1801,7 +1801,7 @@
   border-color: rgba(229, 72, 77, 0.5);
 }
 
-/* ── Favoritos ────────────────────────────────────────────────── */
+/* â”€â”€ Favoritos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-favoritos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -2001,7 +2001,7 @@
   }
 }
 
-/* ── Técnicos Page ────────────────────────────────────────────── */
+/* â”€â”€ TÃ©cnicos Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .tecnicos-page {
   min-height: 100vh;
   position: relative;
@@ -2229,7 +2229,7 @@
 }
 
 .star-half::after {
-  content: '★';
+  content: 'â˜…';
   color: var(--pf-muted);
   position: absolute;
   left: 0;
@@ -2335,7 +2335,7 @@
   font-size: 1.1rem;
 }
 
-/* Responsive Técnicos */
+/* Responsive TÃ©cnicos */
 @media (max-width: 900px) {
   .tecnicos-main {
     padding: 26px 16px 60px;
@@ -2392,7 +2392,7 @@
   margin-top: 6px;
 }
 
-/* ── Reseñas de técnicos y productos ─────────────────────────── */
+/* â”€â”€ ReseÃ±as de tÃ©cnicos y productos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-resenas-subtitulo {
   margin: 6px 0 10px;
   color: #e8d9b5;
@@ -2420,7 +2420,7 @@
   margin: 0;
 }
 
-/* ── Selector Técnicos / Productos ───────────────────────────── */
+/* â”€â”€ Selector TÃ©cnicos / Productos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-resenas-toggle {
   display: flex;
   gap: 8px;
@@ -2536,7 +2536,7 @@
   font-size: 0.8rem;
 }
 
-/* ── Edición de perfil campo por campo ─────────────────────── */
+/* â”€â”€ EdiciÃ³n de perfil campo por campo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-fields {
   display: flex;
   flex-direction: column;
@@ -2608,7 +2608,7 @@
   white-space: nowrap;
 }
 
-/* ── Mi perfil: lectura + UN botón EDITAR PERFIL ────────────── */
+/* â”€â”€ Mi perfil: lectura + UN botÃ³n EDITAR PERFIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-cuenta {
   display: flex;
   flex-direction: column;
@@ -2703,9 +2703,9 @@
   border-radius: 16px;
 }
 
-/* ── Rastreo de entrega ────────────────────────────────────── */
+/* â”€â”€ Rastreo de entrega â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Especializaciones del técnico (auto-gestión) */
+/* Especializaciones del tÃ©cnico (auto-gestiÃ³n) */
 .ap-esp-quitar {
   display: inline-flex;
   align-items: center;
@@ -2845,7 +2845,7 @@
   filter: grayscale(0.3) contrast(1.05);
 }
 
-/* ── Reseña de producto ────────────────────────────────────── */
+/* â”€â”€ ReseÃ±a de producto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-resena {
   display: flex;
   flex-wrap: wrap;
@@ -2948,7 +2948,7 @@
   font-style: italic;
 }
 
-/* ── Devoluciones ──────────────────────────────────────────── */
+/* â”€â”€ Devoluciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-dev-btn {
   display: inline-flex;
   align-items: center;
@@ -3053,7 +3053,7 @@
   color: #ff8b96;
 }
 
-/* ── Mis reembolsos ────────────────────────────────────────── */
+/* â”€â”€ Mis reembolsos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-reembolsos-section {
   display: flex;
   flex-direction: column;
@@ -3314,34 +3314,47 @@
   }
 }
 
-/* -- Bot�n de favorito en tarjetas de t�cnicos --------------- */
+/* -- Botï¿½n de favorito en tarjetas de tï¿½cnicos --------------- */
 .tecnicos-fav-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-  width: 36px;
-  height: 36px;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(0, 0, 0, 0.55);
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 1rem;
+  color: #ffffff;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+  transition: transform 0.25s, background 0.25s, border-color 0.25s, color 0.25s;
+}
+.tecnicos-fav-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: rgba(255, 255, 255, 0.65);
 }
 .tecnicos-fav-btn:hover {
-  background: rgba(0, 0, 0, 0.75);
-  transform: scale(1.1);
+  transform: scale(1.12);
+  border-color: rgba(255, 77, 109, 0.6);
+  color: #ff4d6d;
 }
 .tecnicos-fav-btn.activo {
-  color: #d4a54b;
+  border-color: #ff4d6d;
+  background: #ffffff;
+  color: #ff4d6d;
+}
+.tecnicos-fav-btn.activo svg {
+  fill: #ff4d6d !important;
+  fill: #ff4d6d;
+  stroke: #ff4d6d;
 }
 
-/* -- Favoritos en Mis t�cnicos del perfil ------------------- */
+/* -- Favoritos en Mis tï¿½cnicos del perfil ------------------- */
 .pf-tec-favorito-badge {
   padding: 3px 10px;
   border-radius: 999px;
@@ -3375,7 +3388,7 @@
 }
 .pf-tec-favorito-badge svg { font-size: 0.7rem; }
 
-/* -- Tarjetas de t�cnicos en el perfil (cat�logo completo) --- */
+/* -- Tarjetas de tï¿½cnicos en el perfil (catï¿½logo completo) --- */
 .pf-tech-card.pf-tec-favorito {
   border-color: rgba(212, 165, 75, 0.5);
   background: rgba(212, 165, 75, 0.04);
@@ -3423,7 +3436,7 @@
   font-size: 0.82rem;
 }
 
-/* -- Espaciado mejorado en tarjetas de t�cnicos -------------- */
+/* -- Espaciado mejorado en tarjetas de tï¿½cnicos -------------- */
 .pf-tech-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -3524,3 +3537,221 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   DEVOLUCIONES — solicitudes y wizard (estilo e-commerce)
+   ══════════════════════════════════════════════════════════════ */
+.pf-dev-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0 2px;
+}
+.pf-dev-cta-hint {
+  color: var(--pf-muted);
+  font-size: 0.8rem;
+}
+.pf-dev-solicitudes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pf-dev-sol {
+  border: 1px solid rgba(212, 165, 75, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(212, 165, 75, 0.04);
+}
+.pf-dev-sol-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--pf-texto, #333);
+  font-size: 0.88rem;
+}
+.pf-dev-sol-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  margin-right: auto;
+}
+.pf-dev-sol-body {
+  padding: 4px 14px 14px;
+}
+.pf-dev-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.pf-dev-paso {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--pf-muted, #999);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px dashed rgba(150, 150, 150, 0.35);
+}
+.pf-dev-paso.done {
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.45);
+  background: rgba(76, 175, 80, 0.08);
+  border-style: solid;
+}
+.pf-dev-rechazo {
+  color: #c0392b;
+  font-size: 0.82rem;
+  margin: 8px 0;
+}
+.pf-dev-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-dev-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84rem;
+  border-bottom: 1px dashed rgba(150, 150, 150, 0.2);
+  padding-bottom: 6px;
+}
+.pf-dev-item-cant { color: var(--pf-muted, #888); white-space: nowrap; }
+.pf-dev-meta p { margin: 4px 0; font-size: 0.82rem; color: var(--pf-muted, #666); }
+.pf-dev-meta .pf-dev-total strong { color: #2e7d32; }
+.pf-dev-transaccion { color: #7a5a14 !important; }
+
+/* Wizard modal */
+.pf-modal-dev { max-width: 560px; width: min(560px, calc(100vw - 32px)); }
+.pf-dev-pasos {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px;
+  margin-top: 4px;
+}
+.pf-dev-paso-ind {
+  font-size: 0.75rem;
+  color: var(--pf-muted, #999);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+}
+.pf-dev-paso-ind.activo {
+  background: rgba(212, 165, 75, 0.18);
+  color: #7a5a14;
+  font-weight: 700;
+}
+.pf-dev-body { padding: 14px 20px 20px; }
+.pf-dev-instruccion { margin: 0 0 10px; font-size: 0.86rem; color: var(--pf-muted, #555); }
+.pf-dev-linea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(150, 150, 150, 0.25);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pf-dev-linea.seleccionada {
+  border-color: rgba(212, 165, 75, 0.65);
+  background: rgba(212, 165, 75, 0.07);
+}
+.pf-dev-linea.agotada { opacity: 0.55; cursor: not-allowed; }
+.pf-dev-linea-info { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+.pf-dev-linea-info small { color: var(--pf-muted, #888); font-size: 0.74rem; }
+.pf-dev-agotada {
+  font-size: 0.72rem;
+  color: #b06a00;
+  background: rgba(255, 193, 7, 0.12);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pf-dev-cantidades {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.pf-dev-cantidades button {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(150, 150, 150, 0.4);
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+}
+.pf-dev-cantidades button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pf-dev-cantidades strong { min-width: 18px; text-align: center; }
+.pf-dev-subtotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  padding: 10px 2px 0;
+  border-top: 1px solid rgba(150, 150, 150, 0.25);
+  margin-top: 4px;
+}
+.pf-dev-motivos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pf-dev-motivo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 9px 11px;
+  border: 1px solid rgba(150, 150, 150, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.pf-dev-motivo.sel {
+  border-color: rgba(212, 165, 75, 0.7);
+  background: rgba(212, 165, 75, 0.09);
+}
+.pf-dev-textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  border: 1px solid rgba(150, 150, 150, 0.4);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+.pf-dev-resumen-titulo { margin: 0 0 4px; }
+.pf-dev-resumen-pedido { margin: 0 0 12px; color: var(--pf-muted, #666); }
+.pf-dev-total-estimado {
+  font-size: 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(150, 150, 150, 0.3);
+}
+.pf-dev-total-estimado strong { color: #2e7d32; }
+.pf-dev-nota { font-size: 0.78rem; color: var(--pf-muted, #777); }
+.pf-dev-cargando { padding: 22px; text-align: center; color: var(--pf-muted, #777); }

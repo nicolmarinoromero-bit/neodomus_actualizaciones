@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FaBell,
   FaBoxOpen,
@@ -317,17 +318,22 @@ const TechnicianDashboard = () => {
     }
   };
 
-  const marcarRecogida = async (idDevolucion: number) => {
+  const recogidaEvidenciaRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [subiendoRecogidaEvid, setSubiendoRecogidaEvid] = useState<number | null>(null);
+
+  const subirEvidenciaRecogida = async (idDevolucion: number, file?: File) => {
+    if (!file) return;
+    setSubiendoRecogidaEvid(idDevolucion);
     try {
-      await api.put(`/devoluciones/${idDevolucion}/recogida`, { recogida: true });
-      setRecogidas((prev) =>
-        prev.map((r) =>
-          r.id_devolucion === idDevolucion ? { ...r, recogida_estado: 'Recogida' } : r,
-        ),
-      );
-      notificar('Producto marcado como recogido');
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post(`/devoluciones/${idDevolucion}/evidencia-recogida`, fd);
+      notificar('Evidencia de recogida guardada. El administrador fue notificado.');
+      await fetchCitas();
     } catch (err: any) {
-      notificar(err.response?.data?.detail || 'No se pudo actualizar la recogida', 'error');
+      notificar(err.response?.data?.detail || 'No se pudo subir la evidencia', 'error');
+    } finally {
+      setSubiendoRecogidaEvid(null);
     }
   };
 
@@ -347,6 +353,7 @@ const TechnicianDashboard = () => {
       detenerUbicacion();
       return;
     }
+    if (watchIdRef.current !== null) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         try {
@@ -354,7 +361,6 @@ const TechnicianDashboard = () => {
             latitud: pos.coords.latitude,
             longitud: pos.coords.longitude,
           });
-          setCompartiendoUbicacion(true);
         } catch (err) {
           console.error(err);
         }
@@ -366,6 +372,7 @@ const TechnicianDashboard = () => {
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
+    setCompartiendoUbicacion(true);
   };
 
   useEffect(() => () => detenerUbicacion(), []);
@@ -794,9 +801,14 @@ const TechnicianDashboard = () => {
       <div className="ap-card" style={{ marginTop: 20 }}>
         <div className="ap-card-head">
           <h2><FaBoxOpen /> Recogidas por devolución</h2>
-          {recogidas.length > 0 && (
-            <span className="ap-badge info">{recogidas.length}</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {recogidas.length > 0 && (
+              <span className="ap-badge info">{recogidas.length}</span>
+            )}
+            <Link to="/tecnico/devoluciones" className="ap-btn ap-btn-ghost">
+              Ver todas
+            </Link>
+          </div>
         </div>
         {recogidas.length === 0 ? (
           <p style={{ margin: '8px 0', color: '#bdbdbd' }}>
@@ -835,19 +847,33 @@ const TechnicianDashboard = () => {
                   className={`ap-badge ${r.recogida_estado === 'Recogida' ? 'ok' : r.estado_devolucion === 'Aprobada' ? 'info' : 'pendiente'}`}
                 >
                   {r.recogida_estado === 'Recogida'
-                    ? 'Recogida'
+                    ? '✓ Recogida con evidencia'
                     : r.estado_devolucion === 'Pendiente'
                       ? 'Esperando aprobación del admin'
                       : r.recogida_estado || 'Asignada'}
                 </span>
                 {r.recogida_estado !== 'Recogida' && r.estado_devolucion !== 'Pendiente' && (
-                  <button
-                    type="button"
-                    className="ap-btn ap-btn-primary"
-                    onClick={() => marcarRecogida(r.id_devolucion)}
-                  >
-                    <FaCircleCheck /> Marcar como recogida
-                  </button>
+                  <>
+                    <input
+                      ref={(el) => { recogidaEvidenciaRefs.current[r.id_devolucion] = el; }}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(ev) => {
+                        subirEvidenciaRecogida(r.id_devolucion, ev.target.files?.[0]);
+                        ev.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ap-btn ap-btn-primary"
+                      disabled={subiendoRecogidaEvid === r.id_devolucion}
+                      onClick={() => recogidaEvidenciaRefs.current[r.id_devolucion]?.click()}
+                    >
+                      <FaCamera /> {subiendoRecogidaEvid === r.id_devolucion ? 'Subiendo...' : 'Subir evidencia y confirmar'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

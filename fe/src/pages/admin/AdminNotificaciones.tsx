@@ -12,6 +12,8 @@ import {
   FaArrowRight,
   FaMoneyBillWave,
   FaPercent,
+  FaRotateLeft,
+  FaStar,
   FaTruckFast,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
@@ -34,8 +36,11 @@ const ICONO_TIPO: Record<TipoNotificacion, React.ReactNode> = {
   sistema: <FaCircleInfo />,
   entrega: <FaTruckFast />,
   reembolso: <FaMoneyBillWave />,
+  devolucion: <FaRotateLeft />,
   producto: <FaBoxOpen />,
   promocion: <FaPercent />,
+  recordatorio_cita: <FaStar />,
+  recordatorio_producto: <FaStar />,
 };
 
 const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
@@ -47,8 +52,11 @@ const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
   sistema: 'adm.notificaciones.tipoSistema',
   entrega: 'adm.notificaciones.tipoEntrega',
   reembolso: 'Reembolso',
+  devolucion: 'Devolución',
   producto: 'Producto nuevo',
   promocion: 'Promoción',
+  recordatorio_cita: 'Encuesta de servicio',
+  recordatorio_producto: 'Encuesta de productos',
 };
 
 const AdminNotificaciones = () => {

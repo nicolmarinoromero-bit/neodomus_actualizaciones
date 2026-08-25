@@ -1,9 +1,12 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 
 from app.database import get_db
+from app.models.roles_usuario import RolesUsuario
+from app.models.user import User
 from app.services.auth_service import (
     register_client,
     verify_client_email,
@@ -125,10 +128,13 @@ def logout(response: Response):
 
 
 @router.get("/session")
-def session_actual(request: Request):
+def session_actual(request: Request, db: Session = Depends(get_db)):
     """Tipo y rol de la cuenta de la sesión actual (cookie HttpOnly o header).
     401 si no hay sesión válida; lo usa el frontend al cargar para validar
-    que la cookie corresponda con la vista que quiere mostrar."""
+    que la cookie corresponda con la vista que quiere mostrar.
+    El rol se lee de la BD (no del claim del JWT): si el rol cambió después
+    de emitirse el token, el frontend lo sabe antes de llamar a endpoints
+    que exigen permisos y evita errores 403 con una vista equivocada."""
     token = None
     if request is not None:
         token = request.cookies.get(ACCESS_COOKIE_NAME)
@@ -138,10 +144,30 @@ def session_actual(request: Request):
     payload = decode_token(token) if token else None
     if not payload:
         raise HTTPException(status_code=401, detail="Sin sesión válida")
+    user_type = payload.get("user_type")
+    uid = payload.get("uid")
+    sub = payload.get("sub")
+    rol_claim = payload.get("rol")
+
+    rol = rol_claim
+    if user_type == "employee":
+        user = None
+        if uid:
+            try:
+                user = db.query(User).filter(User.id_usuario == int(uid)).first()
+            except (TypeError, ValueError):
+                user = None
+        if user is None and sub:
+            user = db.query(User).filter(User.email == sub).first()
+        if user:
+            rol = db.execute(
+                select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == user.id_rol_u)
+            ).scalar_one_or_none() or rol_claim
+
     return {
-        "user_type": payload.get("user_type"),
-        "rol": payload.get("rol"),
-        "uid": payload.get("uid"),
+        "user_type": user_type,
+        "rol": rol,
+        "uid": uid,
     }
 
 @router.post("/change-password")

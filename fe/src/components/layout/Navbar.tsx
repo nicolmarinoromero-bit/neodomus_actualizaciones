@@ -137,7 +137,7 @@ const Navbar = () => {
                     <Link to="/dashboard/tecnico">{t('nav.inicio')}</Link>
                     <Link to="/tecnico/citas">{t('nav.citas')}</Link>
                     <Link to="/tecnico/entregas">{t('nav.entregas')}</Link>
-                    <Link to="/tecnico/servicios">{t('nav.servicios')}</Link>
+                    <Link to="/tecnico/historial">{t('nav.servicios')}</Link>
                   </>
                 )}
               </>

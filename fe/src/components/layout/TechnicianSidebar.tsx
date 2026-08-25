@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useIdioma } from "@i18n/IdiomaContext";
 import {
+  FaBoxOpen,
   FaHouse,
   FaCalendarCheck,
   FaClockRotateLeft,
@@ -35,6 +36,7 @@ const TechnicianSidebar = ({ open, onNavigate }: TechnicianSidebarProps) => {
       links: [
         { to: "/tecnico/citas", icon: <FaCalendarCheck />, label: t('tec.misCitas') },
         { to: "/tecnico/entregas", icon: <FaTruckFast />, label: t('nav.entregas') },
+        { to: "/tecnico/devoluciones", icon: <FaBoxOpen />, label: t('tec.devoluciones') },
         { to: "/tecnico/historial", icon: <FaClockRotateLeft />, label: t('tec.historial') },
       ],
     },

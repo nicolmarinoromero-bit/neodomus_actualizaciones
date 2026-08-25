@@ -1,6 +1,8 @@
 export const ADMIN_TRADUCCIONES_PROVEEDORES: Record<string, { es: string; en: string }> = {
   'adm.proveedores.titulo': { es: 'Proveedores', en: 'Suppliers' },
   'adm.proveedores.subtitulo': { es: 'Proveedores registrados, cuántos productos manejan y su stock para solicitar reabastecimiento.', en: 'Registered suppliers, how many products they handle and their stock to request restocking.' },
+  'adm.proveedores.buscarPlaceholder': { es: 'Buscar por nombre, contacto, teléfono, correo o dirección...', en: 'Search by name, contact, phone, email or address...' },
+  'adm.proveedores.sinResultados': { es: 'Ningún proveedor coincide con la búsqueda', en: 'No suppliers match the search' },
   'adm.proveedores.nuevoProveedor': { es: 'Nuevo proveedor', en: 'New supplier' },
   'adm.proveedores.cargando': { es: 'Cargando proveedores', en: 'Loading suppliers' },
   'adm.proveedores.cargandoDesc': { es: 'Consultando proveedores y productos...', en: 'Loading suppliers and products...' },

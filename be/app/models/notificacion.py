@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -21,7 +21,7 @@ class Notificacion(Base):
     id_cliente: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("clientes.id_cliente"), nullable=True, index=True
     )
-    tipo: Mapped[str] = mapped_column(String(20), nullable=False, default="sistema")
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False, default="sistema")
     titulo: Mapped[str] = mapped_column(String(150), nullable=False)
     mensaje: Mapped[str] = mapped_column(String(500), nullable=False)
     leida: Mapped[bool] = mapped_column(

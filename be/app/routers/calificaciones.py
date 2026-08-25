@@ -9,7 +9,9 @@ Reglas:
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -269,6 +271,7 @@ def estado_calificacion_cita(
 
 def _pedido_entregado_propio(db: Session, id_pedido: int, id_cliente: int) -> Pedido:
     from app.models.pedido import Pedido
+    from app.services.pedidos_service import pedido_completado
 
     pedido = (
         db.query(Pedido)
@@ -277,7 +280,8 @@ def _pedido_entregado_propio(db: Session, id_pedido: int, id_cliente: int) -> Pe
     )
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    if pedido.estado_entrega != "Entregado":
+    # Entregado por el técnico O con la cita de instalación finalizada.
+    if not pedido_completado(db, pedido):
         raise HTTPException(
             status_code=400,
             detail="Solo puedes calificar productos de pedidos ya entregados",
@@ -354,6 +358,53 @@ def calificar_producto(
         "comentario": calificacion.comentario,
         "created_at": calificacion.created_at.isoformat() if calificacion.created_at else None,
     }
+
+
+@router.post("/producto/{id_pedido}/{id_producto}/foto")
+async def subir_foto_calificacion_producto(
+    id_pedido: int,
+    id_producto: int,
+    file: UploadFile = File(...),
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El cliente sube una foto opcional junto con su calificación de un
+    producto entregado. Se guarda en MinIO bajo 'calificaciones_productos'."""
+    from fastapi import File, UploadFile
+
+    from app.models.calificacion_producto import CalificacionProducto
+    from app.services import minio_service
+
+    pedido = _pedido_entregado_propio(db, id_pedido, client.id_cliente)
+    ya = (
+        db.query(CalificacionProducto)
+        .filter(
+            CalificacionProducto.id_pedido_cp == id_pedido,
+            CalificacionProducto.id_producto_cp == id_producto,
+            CalificacionProducto.id_cliente_cp == client.id_cliente,
+        )
+        .first()
+    )
+    if not ya:
+        raise HTTPException(status_code=404, detail="Califica primero el producto para poder adjuntar foto")
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise HTTPException(status_code=400, detail="Formato no permitido (JPG, PNG, WEBP)")
+    contenido = await file.read()
+    if not contenido:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen supera los 5 MB")
+
+    import uuid as _uuid
+    nombre = f"{_uuid.uuid4().hex}{ext}"
+    url = minio_service.subir_imagen("calificaciones_productos", nombre, contenido)
+
+    ya.foto_url = url
+    db.commit()
+
+    return {"msg": "Foto guardada", "foto_url": url}
 
 
 @router.get("/producto/pedido/{id_pedido}")

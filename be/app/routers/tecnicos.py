@@ -29,6 +29,8 @@ from app.services.especialidades import (
     tecnico_ocupado,
 )
 from app.services.notificaciones import notificar_cita_reasignada_cliente
+from app.routers.citas import _validar_franja_cita
+from app.models.ubicacion_tecnico import UbicacionTecnico
 from app.services import minio_service
 from app.utils.security import get_current_employee
 
@@ -129,6 +131,10 @@ class ComisionTecnicoResponse(BaseModel):
     cliente_nombre: str
     costo_cita: float | None = None
     estado_pago: str | None = None
+    metodo_pago: str | None = None
+    id_comision: int | None = None
+    porcentaje_comision: float | None = None
+    valor_comision: float | None = None
 
 
 class ReagendarCitaRequest(BaseModel):
@@ -1316,4 +1322,45 @@ def actualizar_estado_entrega_tecnico(
             )
 
     return _serializar_entrega_tecnico(db, pedido)
+
+
+# ── Ubicación GPS en vivo del técnico ──────────────────────────
+
+class UbicacionUpdate(BaseModel):
+    latitud: float
+    longitud: float
+
+
+@router.post("/ubicacion")
+def reportar_ubicacion(
+    data: UbicacionUpdate,
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """El técnico reporta su ubicación GPS actual (el cliente la ve mientras
+    su entrega está En camino vía GET /pedidos/{id}/seguimiento)."""
+    if not (-90 <= data.latitud <= 90) or not (-180 <= data.longitud <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas fuera de rango")
+
+    ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
+    if not ficha:
+        raise HTTPException(status_code=404, detail="Ficha técnica no encontrada")
+
+    registro = (
+        db.query(UbicacionTecnico)
+        .filter(UbicacionTecnico.id_tecnico_ut == ficha.id_tecnico)
+        .first()
+    )
+    if registro:
+        registro.latitud = data.latitud
+        registro.longitud = data.longitud
+    else:
+        registro = UbicacionTecnico(
+            id_tecnico_ut=ficha.id_tecnico,
+            latitud=data.latitud,
+            longitud=data.longitud,
+        )
+        db.add(registro)
+    db.commit()
+    return {"ok": True}
 

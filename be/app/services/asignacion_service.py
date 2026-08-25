@@ -232,21 +232,24 @@ def cancelar_cita_con_reembolso(
             motivo=motivo_cliente,
         )
 
-    # Reembolso si la cita estaba pagada.
+    # Reembolso si la cita estaba pagada — queda PENDIENTE para confirmación del admin.
     reembolso_resumen = None
     if (cita.estado_pago == "aprobado") and cita.costo_cita:
-        reembolso = reembolso_service.crear_reembolso(
-            db,
-            monto=float(cita.costo_cita),
+        from app.models.especializacion import Reembolso as ReembolsoModel
+
+        reembolso = ReembolsoModel(
+            id_cita=cita.id_cita,
+            monto=round(float(cita.costo_cita), 2),
+            estado="Pendiente",
             motivo=motivo,
-            cita_id=cita.id_cita,
             numero_transaccion_original=cita.numero_transaccion,
         )
+        db.add(reembolso)
+        db.flush()
         reembolso_resumen = {
             "id_reembolso": reembolso.id_reembolso,
             "monto": reembolso.monto,
             "estado": reembolso.estado,
-            "numero_transaccion_reembolso": reembolso.numero_transaccion_reembolso,
         }
     return reembolso_resumen
 

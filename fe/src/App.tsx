@@ -35,6 +35,7 @@ import TecnicoCitas from '@pages/tecnico/TecnicoCitas';
 import TecnicoHistorial from '@pages/tecnico/TecnicoHistorial';
 import TecnicoClientes from '@pages/tecnico/TecnicoClientes';
 import TecnicoMensajes from '@pages/tecnico/TecnicoMensajes';
+import TecnicoDevoluciones from '@pages/tecnico/TecnicoDevoluciones';
 import Calificaciones from '@pages/tecnico/Calificaciones';
 import TechnicianEntregas from '@pages/tecnico/TechnicianEntregas';
 import AdminDevoluciones from '@pages/admin/AdminDevoluciones';
@@ -114,6 +115,7 @@ function App() {
             <Route path="/tecnico/mensajes" element={<TecnicoMensajes />} />
             <Route path="/tecnico/calificaciones" element={<Calificaciones />} />
             <Route path="/tecnico/entregas" element={<TechnicianEntregas />} />
+            <Route path="/tecnico/devoluciones" element={<TecnicoDevoluciones />} />
           </Route>
         </Route>
 

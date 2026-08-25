@@ -159,7 +159,7 @@ class ProveedorCreate(BaseModel):
 
 class SolicitudReabastecimientoItem(BaseModel):
     id_producto: int
-    cantidad: int = 1
+    cantidad: float = 1
     id_variante: Optional[int] = None
     marca: Optional[str] = None
 
@@ -602,7 +602,8 @@ async def solicitar_reabastecimiento(
                 (v.stock if v else (p.stock_producto or 0)),
             ),
             _celda(
-                f"<span style='color:#b8860b;font-weight:700;font-size:14px'>{item_cantidad}</span>",
+                f"<span style='color:#b8860b;font-weight:700;font-size:14px'>"
+                f"{item_cantidad:g}{' m' if p.venta_por_metros else ' u.'}</span>",
             ),
         )
         for i, (p, item_cantidad, v, item_marca) in enumerate(filas)
@@ -853,31 +854,64 @@ def editar_producto(
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):
-    """Actualiza un producto (solo administrador)"""
+    """Actualiza un producto (solo administrador).
+
+    Los campos que el cliente NO envíe explícitamente conservan su valor
+    actual (permite toggles parciales sin destruir configuración).
+    """
     producto = db.query(Producto).filter(Producto.id_producto == producto_id).first()
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    provistos = data.model_fields_set
     campos = {
         "nombre_producto": data.nombre_producto.strip(),
         "marca": (data.marca or "").strip() or None,
-        "venta_por_metros": 1 if data.venta_por_metros else 0,
+        "venta_por_metros": (
+            (1 if data.venta_por_metros else 0)
+            if "venta_por_metros" in provistos
+            else int(bool(producto.venta_por_metros))
+        ),
         "id_proveedor_pr": data.id_proveedor_pr,
         "precio_compra_producto": data.precio_compra_producto,
         "precio_venta_producto": data.precio_venta_producto,
         "imagen_url": data.imagen_url,
         "id_cate_pr": data.id_cate_pr,
         "descripcion_producto": data.descripcion_producto,
-        "caracteristicas_producto": data.caracteristicas_producto,
+        "caracteristicas_producto": (
+            data.caracteristicas_producto
+            if "caracteristicas_producto" in provistos
+            else producto.caracteristicas_producto
+        ),
         "colores_producto": data.colores_producto,
         "estado_producto": data.estado_producto or "activo",
         "stock_producto": data.stock_producto or 0,
         "descuento_activo": data.descuento_activo,
         "promocion_hasta": _parsear_fecha_promo(data.promocion_hasta),
-        "es_nuevo_producto": True if data.es_nuevo_producto is None else bool(data.es_nuevo_producto),
-        "tecnicos_requeridos": max(1, data.tecnicos_requeridos or 1),
-        "dificultad_instalacion": _validar_dificultad(data.dificultad_instalacion),
-        "tiempo_estimado_horas": data.tiempo_estimado_horas,
-        "tiene_medidas": bool(data.tiene_medidas),
+        "es_nuevo_producto": (
+            bool(data.es_nuevo_producto)
+            if data.es_nuevo_producto is not None
+            else bool(producto.es_nuevo_producto)
+        ),
+        "tecnicos_requeridos": (
+            max(1, data.tecnicos_requeridos)
+            if data.tecnicos_requeridos is not None
+            else max(1, producto.tecnicos_requeridos or 1)
+        ),
+        "dificultad_instalacion": (
+            _validar_dificultad(data.dificultad_instalacion)
+            if "dificultad_instalacion" in provistos
+            else producto.dificultad_instalacion
+        ),
+        "tiempo_estimado_horas": (
+            data.tiempo_estimado_horas
+            if "tiempo_estimado_horas" in provistos
+            else producto.tiempo_estimado_horas
+        ),
+        "tiene_medidas": (
+            bool(data.tiene_medidas)
+            if "tiene_medidas" in provistos
+            else bool(producto.tiene_medidas)
+        ),
     }
     nombre_anterior = producto.nombre_producto
     era_promocion = bool(producto.descuento_activo)

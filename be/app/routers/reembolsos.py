@@ -77,6 +77,7 @@ def _serializar_reembolso(db: Session, r: Reembolso) -> dict:
         "cliente_nombre": _nombre_cliente(db, id_cliente),
         "detalle": detalle,
         "monto": r.monto,
+        "costo_original": float(cita.costo_cita) if cita and cita.costo_cita else None,
         "estado": r.estado,
         "motivo": r.motivo,
         "numero_transaccion_original": r.numero_transaccion_original,
@@ -386,18 +387,25 @@ def solicitar_reembolso_pedido(
     db: Session = Depends(get_db),
 ):
     """El cliente solicita el reembolso de su propio pedido pagado mientras
-    no haya sido entregado. Se procesa de inmediato con la pasarela simulada."""
+    no haya sido entregado. Queda PENDIENTE hasta confirmación del admin."""
     pedido = db.query(Pedido).filter(Pedido.id_pedido == id_pedido).first()
     if not pedido or pedido.id_cliente_pe != cliente.id_cliente:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     monto_pagado, original, _pedido = _validar_pedido_reembolsable(db, id_pedido)
-    reembolso = crear_reembolso(
-        db,
-        monto=monto_pagado,
-        motivo=(data.motivo or "Solicitud del cliente")[:255],
-        pedido_id=id_pedido,
+
+    from app.models.especializacion import Reembolso as ReembolsoModel
+
+    reembolso = ReembolsoModel(
+        id_pedido=id_pedido,
+        monto=round(float(monto_pagado), 2),
+        estado="Pendiente",
         numero_transaccion_original=original,
     )
+    db.add(reembolso)
+    db.commit()
+    db.refresh(reembolso)
+
+    # Notificar al cliente.
     _notificar_reembolso_cliente(db, reembolso)
     return _serializar_reembolso(db, reembolso)
 

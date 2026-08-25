@@ -31,6 +31,18 @@ interface CitaForm {
   descripcion: string;
 }
 
+interface OfertaHorario {
+  id_oferta: number;
+  fecha_nueva: string;
+  hora_nueva: string;
+  tipo_servicio: string;
+  tecnico?: string | null;
+  mi_cita_id: number;
+  mi_fecha_actual: string;
+  mi_hora_actual: string;
+  expira_en: string;
+}
+
 interface Cita {
   id_cita: number;
   tipo_servicio: string;
@@ -114,6 +126,8 @@ const CitasPage = () => {
   const [toast, setToast] = useState<{ msg: string; tipo: 'success' | 'error' } | null>(null);
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
+  const [ofertas, setOfertas] = useState<OfertaHorario[]>([]);
+  const [aceptandoOferta, setAceptandoOferta] = useState<number | null>(null);
   const [citasLoading, setCitasLoading] = useState(false);
   const [citaACancelar, setCitaACancelar] = useState<Cita | null>(null);
   const [cancelandoId, setCancelandoId] = useState<number | null>(null);
@@ -251,15 +265,39 @@ const CitasPage = () => {
     }
     setCitasLoading(true);
     try {
-      const res = await api.get<Cita[]>('/citas/mis-citas');
+      const [res, resOf] = await Promise.all([
+        api.get<Cita[]>('/citas/mis-citas'),
+        api
+          .get<OfertaHorario[]>('/citas/ofertas-pendientes')
+          .catch(() => ({ data: [] as OfertaHorario[] })),
+      ]);
       // Las citas canceladas no se muestran al cliente.
       setCitas((res.data || []).filter((c) => c.estado !== 'Cancelada'));
+      setOfertas(resOf.data || []);
     } catch (err) {
       console.error('Error cargando citas:', err);
     } finally {
       setCitasLoading(false);
     }
   }, [isAuthenticated]);
+
+  const aceptarOferta = async (idOferta: number) => {
+    setAceptandoOferta(idOferta);
+    try {
+      const res = await api.post(`/citas/ofertas/${idOferta}/aceptar`);
+      const f = new Date(`${res.data.fecha_nueva}T${res.data.hora_nueva}`).toLocaleDateString('es-CO');
+      setToast({ msg: `Tu cita se adelantó al ${f} a las ${res.data.hora_nueva}`, tipo: 'success' });
+      window.setTimeout(() => setToast(null), 3500);
+      await cargarCitas();
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'No se pudo aceptar la oferta';
+      setToast({ msg, tipo: 'error' });
+      window.setTimeout(() => setToast(null), 3500);
+      await cargarCitas();
+    } finally {
+      setAceptandoOferta(null);
+    }
+  };
 
   useEffect(() => {
     if (vista === 'mis-citas') cargarCitas();
@@ -873,7 +911,64 @@ const CitasPage = () => {
         </div>
 
         {vista === 'mis-citas' ? (
-          renderMisCitas()
+          <>
+            {ofertas.length > 0 && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg,#12211f,#1c3a34)',
+                  color: '#eafff7',
+                  borderRadius: 14,
+                  padding: '16px 18px',
+                  marginBottom: 16,
+                  border: '1px solid #2f5b50',
+                }}
+              >
+                <strong style={{ display: 'block', marginBottom: 6 }}>
+                  Se liberó un horario más cercano contigo
+                </strong>
+                {ofertas.map((o) => (
+                  <div
+                    key={o.id_oferta}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 0',
+                      borderTop: '1px solid #2f5b50',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                      <strong>
+                        {new Date(`${o.fecha_nueva}T00:00:00`).toLocaleDateString('es-CO', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                        })}{' '}
+                        · {o.hora_nueva}
+                      </strong>{' '}
+                      con {o.tecnico || 'tu técnico'}
+                      <div style={{ fontSize: 13, opacity: 0.85 }}>
+                        Tu cita actual: {new Date(`${o.mi_fecha_actual}T00:00:00`).toLocaleDateString('es-CO')} · {o.mi_hora_actual}
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.75 }}>
+                        Expira: {new Date(o.expira_en).toLocaleString('es-CO')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="citas-btn citas-btn-primary"
+                      disabled={aceptandoOferta === o.id_oferta}
+                      onClick={() => aceptarOferta(o.id_oferta)}
+                    >
+                      {aceptandoOferta === o.id_oferta ? 'Moviendo...' : 'Adelantar mi cita'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {renderMisCitas()}
+          </>
         ) : (
           <form onSubmit={handleSubmit} className="citas-form" noValidate>
 

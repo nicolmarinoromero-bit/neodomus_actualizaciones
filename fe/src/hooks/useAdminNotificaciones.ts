@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@services/api';
 import type {
   ProductoAdmin,
@@ -6,7 +6,7 @@ import type {
   SolicitudEmpleado,
 } from '../types';
 
-export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega' | 'reembolso' | 'producto' | 'promocion';
+export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega' | 'reembolso' | 'devolucion' | 'producto' | 'promocion' | 'recordatorio_cita' | 'recordatorio_producto';
 
 export interface NotifAdmin {
   id: string;
@@ -59,7 +59,15 @@ interface NotifPlataforma {
   fecha_creacion?: string | null;
 }
 
-const TIPOS_PLATAFORMA_CLIENTE: TipoNotificacion[] = ['reembolso', 'entrega', 'producto', 'promocion'];
+const TIPOS_PLATAFORMA_CLIENTE: TipoNotificacion[] = [
+  'reembolso',
+  'entrega',
+  'devolucion',
+  'producto',
+  'promocion',
+  'recordatorio_cita',
+  'recordatorio_producto',
+];
 
 interface CitaReasignar {
   id_cita: number;
@@ -136,6 +144,13 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
     rol ? usarLeidasStorage(rol) : {},
   );
 
+  // Ref espejo: el poll del intervalo captura una sola instancia de
+  // `recargar`, así que debe leer SIEMPRE el valor vigente de `leidas`.
+  const leidasRef = useRef(leidas);
+  useEffect(() => {
+    leidasRef.current = leidas;
+  }, [leidas]);
+
   const marcarLeida = (id: string) => {
     if (!rol) return;
     setLeidas((prev) => {
@@ -180,7 +195,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             mensaje: `${p.nombre_producto} quedó sin stock y ya no se muestra en la tienda`,
             fecha: formatoFecha(p.fecha_registro_producto),
             timestamp: Date.parse(p.fecha_registro_producto || '') || 0,
-            leida: Boolean(leidas[`stock-${p.id_producto}`]),
+            leida: Boolean(leidasRef.current[`stock-${p.id_producto}`]),
             accion: { to: `/admin/productos/${p.id_producto}`, label: 'Reabastecer' },
           })),
           ...solicitudes.map((s) => ({
@@ -193,7 +208,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             mensaje: s.motivo || 'El cliente envió la solicitud sin especificar un motivo.',
             fecha: formatoFecha(s.created_at),
             timestamp: Date.parse(s.created_at || '') || 0,
-            leida: s.estado !== 'pendiente' || Boolean(leidas[`solicitud-${s.id}`]),
+            leida: s.estado !== 'pendiente' || Boolean(leidasRef.current[`solicitud-${s.id}`]),
             accion: { to: '/admin/consultas#solicitudes-cuenta', label: 'Revisar solicitudes' },
           })),
           ...solicitudesEmpleados.map((s) => ({
@@ -203,7 +218,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             mensaje: 'El técnico solicitó que su cuenta sea habilitada nuevamente.',
             fecha: formatoFecha(s.created_at),
             timestamp: Date.parse(s.created_at || '') || 0,
-            leida: s.estado !== 'pendiente' || Boolean(leidas[`solicitud-emp-${s.id}`]),
+            leida: s.estado !== 'pendiente' || Boolean(leidasRef.current[`solicitud-emp-${s.id}`]),
             accion: { to: '/admin/consultas#solicitudes-cuenta', label: 'Revisar solicitudes' },
           })),
           ...porReasignar.map((c) => ({
@@ -213,7 +228,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             mensaje: `${nombreServicio(c.tipo_servicio)} el ${formatoFechaHora(c.fecha, c.hora)} a las ${c.hora} — el técnico ${c.tecnico_actual || 'asignado'} fue inhabilitado`,
             fecha: formatoFechaHora(c.fecha, c.hora),
             timestamp: timestampFechaHora(c.fecha, c.hora),
-            leida: Boolean(leidas[`reasignar-${c.id_cita}`]),
+            leida: Boolean(leidasRef.current[`reasignar-${c.id_cita}`]),
             accion: { to: '/admin/instalaciones', label: 'Reasignar' },
           })),
         ];
@@ -232,7 +247,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
           timestamp: timestampFechaHora(c.fecha, c.hora),
           leida: c.estado !== 'Pendiente' && c.estado !== 'Confirmada'
             ? true
-            : Boolean(leidas[`cita-${c.id_cita}`]),
+            : Boolean(leidasRef.current[`cita-${c.id_cita}`]),
           accion: { to: '/tecnico/citas', label: 'Ver mis citas' },
         }));
       } else {
@@ -253,8 +268,15 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             mensaje: n.mensaje,
             fecha: formatoFecha(n.fecha_creacion),
             timestamp: Date.parse(n.fecha_creacion || '') || 0,
-            leida: n.leida || Boolean(leidas[`plat-${n.id_notificacion}`]),
-            accion: { to: '/perfil?tab=reembolsos', label: 'Ver mis reembolsos' },
+            leida: n.leida || Boolean(leidasRef.current[`plat-${n.id_notificacion}`]),
+            accion:
+              n.tipo === 'devolucion'
+                ? { to: '/perfil?tab=pedidos', label: 'Ver mis devoluciones' }
+                : n.tipo === 'recordatorio_cita'
+                  ? { to: '/cliente/citas?vista=mis-citas', label: 'Calificar servicio' }
+                  : n.tipo === 'recordatorio_producto'
+                    ? { to: '/perfil?tab=pedidos', label: 'Calificar productos' }
+                    : { to: '/perfil?tab=reembolsos', label: 'Ver mis reembolsos' },
           }));
 
         notis = [
@@ -270,7 +292,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             timestamp: timestampFechaHora(c.fecha, c.hora),
             leida: c.estado !== 'Pendiente' && c.estado !== 'Confirmada'
               ? true
-              : Boolean(leidas[`cita-${c.id_cita}`]),
+              : Boolean(leidasRef.current[`cita-${c.id_cita}`]),
             accion: { to: '/cliente/citas?vista=mis-citas', label: 'Ver mis citas' },
           })),
           ...pedidos.map((p) => ({
@@ -282,7 +304,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
             timestamp: Date.parse(p.fecha || '') || 0,
             leida: p.estado !== 'Pago pendiente' && p.estado !== 'Pagado'
               ? true
-              : Boolean(leidas[`pedido-${p.id_pedido}`]),
+              : Boolean(leidasRef.current[`pedido-${p.id_pedido}`]),
             accion: { to: '/perfil?tab=pedidos', label: 'Ver mis pedidos' },
           })),
         ];
@@ -296,7 +318,7 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
       setCargando(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rol, leidas]);
+  }, [rol]);
 
   useEffect(() => {
     recargar();
