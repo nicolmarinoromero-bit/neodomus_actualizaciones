@@ -13,7 +13,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -65,6 +65,7 @@ services:
     volumes:
       - ./be:/app
       - ./scripts:/app/scripts
+      - ./fe/public/productos:/app/productos_local
       - /app/.venv
     command: >
       sh -c "uv run alembic upgrade head &&
@@ -83,7 +84,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - ./minio_data:/data
     command: server /data --console-address ":9001"
     networks:
       - neodomus_net
@@ -108,7 +109,6 @@ services:
 
 volumes:
   mysql_data:
-  minio_data:
 
 networks:
   neodomus_net:

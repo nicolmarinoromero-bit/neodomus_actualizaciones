@@ -200,9 +200,17 @@ async def forgot_password(
     request: Request,
     req: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
 ):
-    background_tasks.add_task(request_password_reset, db, req.email, request.client.host)
+    def _ejecutar():
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            import asyncio
+            asyncio.run(request_password_reset(db, req.email, request.client.host))
+        finally:
+            db.close()
+
+    background_tasks.add_task(_ejecutar)
     return {"msg": "Si el email está registrado, recibirás un código de recuperación"}
 
 @router.post("/verify-code")

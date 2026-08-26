@@ -553,22 +553,24 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                     </div>
                                   ) : (
                                     <div className="pf-resena-form">
-                                      <span className="pf-resena-label">Califica este producto:</span>
-                                      <span className="pf-stars-picker">
-                                        {[1, 2, 3, 4, 5].map((s) => (
-                                          <button
-                                            key={s}
-                                            type="button"
-                                            aria-label={`${s} estrellas`}
-                                            className={(ratingSel[item.id_producto_d!] ?? 0) >= s ? 'on' : ''}
-                                            onClick={() =>
-                                              setRatingSel((prev) => ({ ...prev, [item.id_producto_d!]: s }))
-                                            }
-                                          >
-                                            <FaStar />
-                                          </button>
-                                        ))}
-                                      </span>
+                                      <div className="pf-resena-row">
+                                        <span className="pf-resena-label">Califica este producto:</span>
+                                        <span className="pf-stars-picker">
+                                          {[1, 2, 3, 4, 5].map((s) => (
+                                            <button
+                                              key={s}
+                                              type="button"
+                                              aria-label={`${s} estrellas`}
+                                              className={(ratingSel[item.id_producto_d!] ?? 0) >= s ? 'on' : ''}
+                                              onClick={() =>
+                                                setRatingSel((prev) => ({ ...prev, [item.id_producto_d!]: s }))
+                                              }
+                                            >
+                                              <FaStar />
+                                            </button>
+                                          ))}
+                                        </span>
+                                      </div>
                                       <input
                                         type="text"
                                         className="pf-resena-comentario"
@@ -582,35 +584,37 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                           }))
                                         }
                                       />
-                                      <button
-                                        type="button"
-                                        className="pf-resena-guardar"
-                                        disabled={guardandoCalif === item.id_producto_d}
-                                        onClick={() => guardarCalificacion(pedido, item)}
-                                      >
-                                        {guardandoCalif === item.id_producto_d ? 'Enviando...' : 'Enviar'}
-                                      </button>
-                                      <input
-                                        ref={(el) => { fotoCalifRefs.current[item.id_producto_d!] = el; }}
-                                        type="file"
-                                        accept="image/*"
-                                        capture="environment"
-                                        style={{ display: 'none' }}
-                                        onChange={(ev) => {
-                                          if (ev.target.files?.[0]) {
-                                            fotosCalif.current[item.id_producto_d!] = ev.target.files[0];
-                                          }
-                                          ev.target.value = '';
-                                        }}
-                                      />
-                                      <button
-                                        type="button"
-                                        className="pf-btn pf-btn-ghost"
-                                        title="Adjuntar foto del producto"
-                                        onClick={() => fotoCalifRefs.current[item.id_producto_d!]?.click()}
-                                      >
-                                        📷
-                                      </button>
+                                      <div className="pf-resena-actions">
+                                        <button
+                                          type="button"
+                                          className="pf-resena-guardar"
+                                          disabled={guardandoCalif === item.id_producto_d}
+                                          onClick={() => guardarCalificacion(pedido, item)}
+                                        >
+                                          {guardandoCalif === item.id_producto_d ? 'Enviando...' : 'Enviar'}
+                                        </button>
+                                        <input
+                                          ref={(el) => { fotoCalifRefs.current[item.id_producto_d!] = el; }}
+                                          type="file"
+                                          accept="image/*"
+                                          capture="environment"
+                                          style={{ display: 'none' }}
+                                          onChange={(ev) => {
+                                            if (ev.target.files?.[0]) {
+                                              fotosCalif.current[item.id_producto_d!] = ev.target.files[0];
+                                            }
+                                            ev.target.value = '';
+                                          }}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="pf-btn pf-btn-ghost"
+                                          title="Adjuntar foto del producto"
+                                          onClick={() => fotoCalifRefs.current[item.id_producto_d!]?.click()}
+                                        >
+                                          📷
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
