@@ -1,8 +1,8 @@
 """Calificaciones de técnicos por parte de los clientes.
 
 Reglas:
-  - Solo se califica una cita Finalizada (obligatorio: el cliente no puede
-    agendar una nueva cita si tiene una finalizada sin calificar).
+  - Solo se califica una cita Finalizada (voluntario: el scheduler envía
+    recordatorios periódicos a los clientes con calificaciones pendientes).
   - Una cita solo se califica una vez por cliente.
   - El técnico puede ver sus calificaciones (promedio y detalle).
 """
@@ -79,6 +79,28 @@ def crear_calificacion(
     db.add(calificacion)
     db.commit()
     db.refresh(calificacion)
+
+    # Notificar al técnico que recibió una calificación
+    try:
+        from app.models.tecnico import Tecnico as TecnicoModel
+        from app.models.user import User as UserModel
+        from app.services.notificaciones import crear_notificacion
+
+        tecnico = db.query(TecnicoModel).filter(TecnicoModel.id_tecnico == cita.id_tecnico).first()
+        if tecnico and tecnico.usuario:
+            nombre_cliente = f"{client.first_name} {client.last_name}".strip() or "Un cliente"
+            crear_notificacion(
+                db,
+                id_usuario=tecnico.usuario.id_usuario,
+                tipo="calificacion_recibida",
+                titulo=f"¡Nueva calificación de {nombre_cliente}!",
+                mensaje=f"{nombre_cliente} te calificó con {data.calificacion} estrella{'s' if data.calificacion != 1 else ''} en la cita #{cita.id_cita}.",
+            )
+            db.commit()
+    except Exception:
+        # No interrumpir el flujo si falla la notificación
+        pass
+
     return {
         "id_calificacion": calificacion.id_calificacion,
         "calificacion": calificacion.calificacion,
@@ -200,7 +222,7 @@ def calificacion_pendiente(
     client: Cliente = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    """Retorna la primera cita finalizada sin calificar del cliente (para modal obligatorio)."""
+    """Primera cita finalizada sin calificar del cliente (para encuestas/recordatorios)."""
     cita = (
         db.query(Cita)
         .outerjoin(

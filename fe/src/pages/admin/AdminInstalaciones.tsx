@@ -9,6 +9,8 @@ import {
   FaMagnifyingGlass,
   FaClockRotateLeft,
   FaCalendarPlus,
+  FaXmark,
+  FaBan,
 } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
@@ -123,12 +125,16 @@ const AdminInstalaciones = () => {
   const [aplazandoId, setAplazandoId] = useState<number | null>(null);
   const [sugerencia, setSugerencia] = useState<SugerenciaAplazar | null>(null);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
+  const [citaACancelar, setCitaACancelar] = useState<CitaAdmin | null>(null);
+  const [cancelandoId, setCancelandoId] = useState<number | null>(null);
 
   const POR_PAGINA = 6;
 
-  const cargar = async () => {
-    setCargando(true);
-    setError(false);
+  const cargar = async (silencioso = false) => {
+    if (!silencioso) {
+      setCargando(true);
+      setError(false);
+    }
     try {
       const [res, resT, resTar, resH] = await Promise.all([
         api.get<CitaAdmin[]>('/citas/all-admin'),
@@ -154,7 +160,7 @@ const AdminInstalaciones = () => {
       );
       setDisponibles(mapa);
     } catch {
-      setError(true);
+      if (!silencioso) setError(true);
     } finally {
       setCargando(false);
     }
@@ -162,6 +168,10 @@ const AdminInstalaciones = () => {
 
   useEffect(() => {
     cargar();
+    // Tiempo real: refresco silencioso cada 30 s para ver datos actuales.
+    const intervalo = window.setInterval(() => cargar(true), 30000);
+    return () => window.clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const notify = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
@@ -244,6 +254,30 @@ const AdminInstalaciones = () => {
       notify(typeof msg === 'string' ? msg : t('adm.instalaciones.errorActualizarCita'), 'err');
     } finally {
       setGuardandoId(null);
+    }
+  };
+
+  const cancelarCita = async (cita: CitaAdmin) => {
+    setCancelandoId(cita.id_cita);
+    try {
+      await api.put(`/citas/admin/${cita.id_cita}`, { estado: 'Cancelada' });
+      const costo = Number(cita.costo_cita) || 0;
+      setToast({
+        msg: costo > 0
+          ? `Cita #${cita.id_cita} cancelada. Reembolso del 100% ($${costo.toLocaleString('es-CO')}) pendiente de confirmación.`
+          : `Cita #${cita.id_cita} cancelada.`,
+        tipo: 'ok',
+      });
+      setCitaACancelar(null);
+      cargar(true);
+    } catch (err: any) {
+      const msg = err.response?.data?.detail;
+      setToast({
+        msg: typeof msg === 'string' ? msg : 'No se pudo cancelar la cita',
+        tipo: 'err',
+      });
+    } finally {
+      setCancelandoId(null);
     }
   };
 
@@ -522,7 +556,7 @@ const AdminInstalaciones = () => {
             </div>
             <h3>{t('adm.instalaciones.errorTitulo')}</h3>
             <p>{t('adm.instalaciones.errorDesc')}</p>
-            <button type="button" className="ap-btn ap-btn-ghost" onClick={cargar}>
+            <button type="button" className="ap-btn ap-btn-ghost" onClick={() => cargar()}>
               {t('adm.instalaciones.reintentar')}
             </button>
           </div>
@@ -914,6 +948,22 @@ const AdminInstalaciones = () => {
                   </button>
                 )}
               </div>
+
+              {cita.estado !== 'Cancelada' && cita.estado !== 'Finalizada' && (
+                <div className="ap-form-grid" style={{ marginTop: 8 }}>
+                  <div className="ap-form-group" style={{ gridColumn: '1 / -1' }}>
+                    <button
+                      type="button"
+                      className="ap-btn"
+                      style={{ background: '#5b2f2f', color: '#f5a3a3', border: '1px solid #7a3b3b', width: '100%' }}
+                      disabled={guardandoId === cita.id_cita || cancelandoId === cita.id_cita}
+                      onClick={() => setCitaACancelar(cita)}
+                    >
+                      <FaBan /> {cancelandoId === cita.id_cita ? 'Cancelando...' : 'Cancelar cita'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -949,6 +999,44 @@ const AdminInstalaciones = () => {
           >
             {t('adm.instalaciones.siguiente')}
           </button>
+        </div>
+      )}
+
+      {citaACancelar && (
+        <div className="ap-modal-overlay" onClick={() => setCitaACancelar(null)}>
+          <div className="ap-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ap-modal-head">
+              <h3><FaBan /> Cancelar cita #{citaACancelar.id_cita}</h3>
+              <button type="button" className="ap-modal-x" onClick={() => setCitaACancelar(null)} aria-label="Cerrar">
+                <FaXmark />
+              </button>
+            </div>
+            <p style={{ color: '#c9b78f', fontSize: '0.9rem', margin: '0 0 12px' }}>
+              {citaACancelar.tipo_servicio} · {citaACancelar.fecha} · {citaACancelar.hora}
+            </p>
+            <p style={{ color: '#e5484d', fontSize: '0.88rem', margin: '0 0 12px', background: '#2e1a1a', padding: '10px 14px', borderRadius: 8, border: '1px solid #5b2f2f' }}>
+              Al cancelar esta cita se generará un <strong>reembolso del 100%</strong> del costo del servicio para el cliente.
+            </p>
+            <div style={{ background: '#1a2a1a', border: '1px solid #2f5b50', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+              <p style={{ color: '#8fd98a', fontSize: '0.85rem', margin: 0 }}>
+                El reembolso quedará pendiente de confirmación por un administrador en la sección de Devoluciones.
+              </p>
+            </div>
+            <div className="ap-modal-actions">
+              <button type="button" className="ap-btn ap-btn-ghost" onClick={() => setCitaACancelar(null)} disabled={cancelandoId === citaACancelar.id_cita}>
+                Volver
+              </button>
+              <button
+                type="button"
+                className="ap-btn"
+                style={{ background: '#5b2f2f', color: '#f5a3a3', border: '1px solid #7a3b3b' }}
+                disabled={cancelandoId === citaACancelar.id_cita}
+                onClick={() => cancelarCita(citaACancelar)}
+              >
+                {cancelandoId === citaACancelar.id_cita ? 'Cancelando...' : <><FaBan /> Confirmar cancelación</>}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

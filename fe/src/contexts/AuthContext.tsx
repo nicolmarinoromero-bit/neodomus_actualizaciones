@@ -200,6 +200,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     validarSesionInicial().finally(() => setLoading(false));
+
+    // Auto-corrección multi-pestaña: si otra pestaña inició sesión con otra
+    // cuenta, las cookies (compartidas) cambian y los endpoints de esta
+    // pestaña devuelven 401/403. El hook de notificaciones dispara este
+    // evento y aquí se re-sincroniza el rol recordado con la cookie real.
+    const revalidar = () => {
+      validarSesionInicial().finally(() => setLoading(false));
+    };
+    window.addEventListener('neodomus:revalidar-sesion', revalidar);
+    return () => window.removeEventListener('neodomus:revalidar-sesion', revalidar);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -213,7 +223,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Rotar SOLO tras un login exitoso: si las credenciales eran inválidas,
       // esta pestaña conserva cualquier sesión heredada de otra pestaña.
       rotateTabSessionId();
-      // Los tokens llegan en cookies HttpOnly; NO se guardan en JavaScript.
+      // Almacenar tokens por pestaña para soporte multi-pestaña.
+      // Cada pestaña usa sus propios tokens via Authorization header.
+      tabSet('access_token', data.access_token);
+      tabSet('refresh_token', data.refresh_token);
 
       // Usar first_name y last_name del API si están disponibles, sino fallback a nombre o email
       const firstName = data.first_name || '';
@@ -255,7 +268,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('La cuenta no tiene un rol válido asignado. Contacta al administrador.');
       }
       rotateTabSessionId();
-      // Los tokens llegan en cookies HttpOnly; NO se guardan en JavaScript.
+      // Almacenar tokens por pestaña para soporte multi-pestaña.
+      tabSet('access_token', data.access_token);
+      tabSet('refresh_token', data.refresh_token);
 
       const firstName = data.first_name || '';
       const lastName = data.last_name || '';

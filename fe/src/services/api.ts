@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { tabRemove } from '../utils/tabStorage';
+import { tabGet, tabRemove, tabSet } from '../utils/tabStorage';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -16,19 +16,27 @@ const clearSession = () => {
   }
 };
 
-// Intenta renovar la sesión con la cookie HttpOnly del refresh token.
-// Devuelve true si el servidor emitió una nueva sesión.
+// Intenta renovar la sesión usando el refresh token de la pestaña.
 const refreshAccessToken = async (): Promise<boolean> => {
+  const refreshToken = tabGet('refresh_token');
+  if (!refreshToken) return false;
   try {
-    await axios.post(
+    const res = await axios.post(
       `${BASE_URL}/auth/refresh`,
-      null,
+      { refresh_token: refreshToken },
       {
-        withCredentials: true,
+        withCredentials: false,
         headers: { 'Content-Type': 'application/json' },
         timeout: 10000,
       },
     );
+    // Almacenar los nuevos tokens en la pestaña
+    if (res.data?.access_token) {
+      tabSet('access_token', res.data.access_token);
+    }
+    if (res.data?.refresh_token) {
+      tabSet('refresh_token', res.data.refresh_token);
+    }
     return true;
   } catch {
     return false;
@@ -58,7 +66,7 @@ Object.keys(localStorage)
 
 const api = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // envía las cookies HttpOnly de sesión en cada petición
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept': 'application/json; charset=utf-8',
@@ -67,12 +75,37 @@ const api = axios.create({
   responseEncoding: 'utf8',
 });
 
+// Cuando el cuerpo es FormData (subida de archivos) hay que dejar que el
+// navegador fije multipart/form-data con su boundary: el Content-Type JSON
+// por defecto hacía que axios serializara el FormData a JSON y el backend
+// rechazara con 422 ("file required").
+api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+    if (config.headers.common) delete config.headers.common['Content-Type'];
+  }
+  // Enviar token de la pestaña via Authorization header para soporte multi-pestaña.
+  const tabToken = tabGet('access_token');
+  if (tabToken) {
+    config.headers.Authorization = `Bearer ${tabToken}`;
+  }
+  return config;
+});
+
 // Interceptor de respuesta:
-//  - En error 401 renueva la sesión (cookie de refresh) y reintenta la petición.
+//  - En error 401 renueva la sesión (refresh token de la pestaña) y reintenta.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { response, config } = error;
+
+    // FastAPI 422 devuelve `detail` como ARRAY de objetos; si alguna pantalla
+    // lo renderiza directo crashea React (pantalla en negro). Se normaliza a
+    // un string seguro para toda la app.
+    if (response?.data?.detail && typeof response.data.detail !== 'string') {
+      response.data.detail = 'La solicitud no es válida: revisa los datos o el archivo enviado.';
+    }
+
     const originalRequest: any = config;
     const url: string = originalRequest?.url || '';
 

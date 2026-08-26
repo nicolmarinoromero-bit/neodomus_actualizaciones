@@ -18,6 +18,7 @@ interface Tecnico {
   especialidad: string;
   anios_experiencia: number;
   calificacion: number;
+  total_calificaciones: number;
   disponible: boolean;
   descripcion?: string;
 }
@@ -28,6 +29,8 @@ interface TecnicoPublico {
   last_name: string;
   certificacion_t?: string | null;
   is_active: boolean;
+  calificacion?: number | null;
+  total_calificaciones?: number | null;
 }
 
 const TecnicosPage = () => {
@@ -54,7 +57,8 @@ const TecnicosPage = () => {
           foto_url: null,
           especialidad: t.certificacion_t || '',
           anios_experiencia: 0,
-          calificacion: 0,
+          calificacion: t.calificacion ?? 0,
+          total_calificaciones: t.total_calificaciones ?? 0,
           disponible: t.is_active,
         }));
         if (activo) setTecnicos(reales);
@@ -161,7 +165,11 @@ const TecnicosPage = () => {
                   {tecnico.calificacion > 0 && (
                     <span className="tecnico-meta-item estrellas">
                       {renderStars(tecnico.calificacion)}
-                      <span className="rating-value">{tecnico.calificacion.toFixed(1)}</span>
+                      <span className="rating-value">
+                        {tecnico.calificacion.toFixed(1)}
+                        {tecnico.total_calificaciones > 0 &&
+                          ` (${tecnico.total_calificaciones})`}
+                      </span>
                     </span>
                   )}
                 </div>

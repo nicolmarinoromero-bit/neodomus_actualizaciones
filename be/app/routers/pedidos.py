@@ -419,6 +419,24 @@ def asignar_entrega_admin(
         pedido.estado_entrega = "Pendiente"
         pedido.entrega_actualizada_en = datetime.now()
         db.commit()
+
+        # Notificar al cliente que se removió el técnico de entrega.
+        if cliente:
+            try:
+                from app.services.notificaciones import notificar_entrega_desasignada_cliente
+
+                nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+                notificar_entrega_desasignada_cliente(
+                    db,
+                    cliente_id=cliente.id_cliente,
+                    correo=cliente.email,
+                    cliente_nombre=nombre_cliente,
+                    pedido_id=pedido.id_pedido,
+                )
+                db.commit()
+            except Exception:
+                pass
+
         return {
             "id_pedido": pedido.id_pedido,
             "estado_entrega": pedido.estado_entrega,

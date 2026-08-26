@@ -1143,6 +1143,26 @@ def _asignar_entrega(db: Session, pedido: Pedido, cliente: Cliente) -> dict | No
             },
         )
 
+    # Notificar al cliente que su entrega fue programada.
+    try:
+        from app.services.notificaciones import notificar_entrega_asignada_cliente
+
+        notificar_entrega_asignada_cliente(
+            db,
+            cliente_id=cliente.id_cliente,
+            correo=cliente.email,
+            cliente_nombre=nombre_cliente,
+            datos={
+                "pedido": pedido.id_pedido,
+                "fecha": fecha.strftime("%d/%m/%Y"),
+                "hora": "10:00",
+                "tecnico": pedido.nombre_tecnico_entrega or "técnico",
+            },
+        )
+        db.commit()
+    except Exception:
+        pass
+
     return {
         "id_pedido": pedido.id_pedido,
         "fecha_entrega": fecha.isoformat(),
@@ -1314,6 +1334,28 @@ async def crear_pedido(
             # fecha dentro de los próximos 5 días hábiles.
             entrega = _asignar_entrega(db, pedido, cliente)
 
+    # Notificar al cliente sobre el pedido creado.
+    try:
+        from app.services.notificaciones import (
+            notificar_pedido_creado_cliente,
+        )
+
+        nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+        notificar_pedido_creado_cliente(
+            db,
+            cliente_id=cliente.id_cliente,
+            correo=cliente.email,
+            cliente_nombre=nombre_cliente,
+            datos={
+                "pedido": pedido.id_pedido,
+                "total": float(total),
+                "estado_pago": estado_pedido,
+            },
+        )
+        db.commit()
+    except Exception:
+        pass
+
     # Notificar al administrador por stock agotado en segundo plano
     # (no bloquea el checkout).
     _alertar_admin_stock_agotado(db, agotados)
@@ -1395,6 +1437,26 @@ async def confirmar_pago_pendiente(db: Session, pedido_id: int, cliente: Cliente
                 agotados.append(detalle.producto)
 
     factura = await _crear_factura_y_enviar(db, pedido, pago, cliente)
+
+    # Notificar al cliente que su pago fue confirmado.
+    try:
+        from app.services.notificaciones import notificar_pago_confirmado_cliente
+
+        nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+        notificar_pago_confirmado_cliente(
+            db,
+            cliente_id=cliente.id_cliente,
+            correo=cliente.email,
+            cliente_nombre=nombre_cliente,
+            datos={
+                "pedido": pedido.id_pedido,
+                "total": float(pedido.total_pedido or 0),
+            },
+        )
+        db.commit()
+    except Exception:
+        pass
+
     detalles_servicio = (
         db.query(DetallePedido)
         .filter(

@@ -5,6 +5,8 @@ import {
   FaLocationDot,
   FaPhone,
   FaScrewdriverWrench,
+  FaStar,
+  FaXmark,
 } from 'react-icons/fa6';
 import api from '@services/api';
 import SectionHeader from './SectionHeader';
@@ -64,12 +66,17 @@ const estadoClase = (estado: string) => {
   }
 };
 
-type CitaOrdenada = CitaCliente & { esPasada: boolean };
+type CitaOrdenada = CitaCliente & { esPasada: boolean; calificada?: boolean };
 
 const ServiciosTab = () => {
   const [citas, setCitas] = useState<CitaOrdenada[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandida, setExpandida] = useState<number | null>(null);
+  const [calificandoCita, setCalificandoCita] = useState<CitaOrdenada | null>(null);
+  const [ratingEstrellas, setRatingEstrellas] = useState(0);
+  const [ratingComentario, setRatingComentario] = useState('');
+  const [enviandoRating, setEnviandoRating] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; tipo: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     let activo = true;
@@ -112,6 +119,39 @@ const ServiciosTab = () => {
     },
     { paso: 'Servicio realizado', completado: c.estado === 'Finalizada' },
   ];
+
+  const enviarCalificacion = async () => {
+    if (!calificandoCita) return;
+    if (ratingEstrellas < 1 || ratingEstrellas > 5) {
+      setToast({ msg: 'Selecciona una calificación de 1 a 5 estrellas', tipo: 'error' });
+      return;
+    }
+    setEnviandoRating(true);
+    try {
+      await api.post('/calificaciones', {
+        id_cita: calificandoCita.id_cita,
+        calificacion: ratingEstrellas,
+        comentario: ratingComentario.trim() || undefined,
+      });
+      setToast({ msg: '¡Gracias por calificar al técnico!', tipo: 'success' });
+      setCalificandoCita(null);
+      setRatingEstrellas(0);
+      setRatingComentario('');
+      // Marcar la cita como calificada localmente
+      setCitas((prev) =>
+        prev.map((c) =>
+          c.id_cita === calificandoCita.id_cita ? { ...c, calificada: true } : c
+        )
+      );
+    } catch (err: any) {
+      setToast({
+        msg: err.response?.data?.detail || 'No se pudo guardar la calificación',
+        tipo: 'error',
+      });
+    } finally {
+      setEnviandoRating(false);
+    }
+  };
 
   return (
     <div className="pf-tab">
@@ -257,11 +297,113 @@ const ServiciosTab = () => {
                         </div>
                       </div>
                     )}
+
+                    {cita.estado === 'Finalizada' && !cita.calificada && (
+                      <div className="pf-detail-block">
+                        <button
+                          type="button"
+                          className="pf-btn pf-btn-primary"
+                          style={{ width: '100%', marginTop: 8 }}
+                          onClick={() => {
+                            setCalificandoCita(cita);
+                            setRatingEstrellas(0);
+                            setRatingComentario('');
+                          }}
+                        >
+                          <FaStar /> Calificar técnico
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de calificación */}
+      {calificandoCita && (
+        <div className="pf-modal-backdrop" onClick={() => setCalificandoCita(null)}>
+          <div className="pf-modal pf-modal-small" onClick={(e) => e.stopPropagation()}>
+            <div className="pf-modal-header">
+              <h3><FaStar /> Califica al técnico</h3>
+              <button type="button" className="pf-modal-close" onClick={() => setCalificandoCita(null)} aria-label="Cerrar">
+                <FaXmark />
+              </button>
+            </div>
+            <p style={{ color: '#c9b78f', fontSize: '0.9rem', margin: '0 0 12px' }}>
+              {calificandoCita.tecnico_nombre || calificandoCita.nombre_tecnico || 'Técnico'} · {TIPO_SERVICIO[calificandoCita.tipo_servicio] || calificandoCita.tipo_servicio}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRatingEstrellas(n)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.8rem',
+                    color: n <= ratingEstrellas ? '#ffc94d' : '#4a4236',
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, transform 0.15s',
+                    transform: n <= ratingEstrellas ? 'scale(1.1)' : 'none',
+                  }}
+                  aria-label={`${n} estrellas`}
+                >
+                  <FaStar />
+                </button>
+              ))}
+            </div>
+            {ratingEstrellas > 0 && (
+              <p style={{ textAlign: 'center', color: '#caa24d', fontSize: '0.88rem', fontWeight: 600, margin: '0 0 10px' }}>
+                {ratingEstrellas === 1 && 'Malo'}
+                {ratingEstrellas === 2 && 'Regular'}
+                {ratingEstrellas === 3 && 'Bueno'}
+                {ratingEstrellas === 4 && 'Muy bueno'}
+                {ratingEstrellas === 5 && 'Excelente'}
+              </p>
+            )}
+            <textarea
+              className="pf-form-input pf-textarea"
+              rows={3}
+              placeholder="Comentario (opcional)..."
+              value={ratingComentario}
+              onChange={(e) => setRatingComentario(e.target.value)}
+              maxLength={500}
+              style={{ resize: 'vertical', minHeight: 60 }}
+            />
+            <div className="pf-form-actions" style={{ marginTop: 12 }}>
+              <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setCalificandoCita(null)} disabled={enviandoRating}>
+                Cancelar
+              </button>
+              <button type="button" className="pf-btn pf-btn-primary" disabled={enviandoRating || ratingEstrellas < 1} onClick={enviarCalificacion}>
+                {enviandoRating ? 'Enviando...' : <><FaStar /> Enviar calificación</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 3000,
+            background: toast.tipo === 'success' ? '#1a2e1a' : '#2e1a1a',
+            color: toast.tipo === 'success' ? '#8fd98a' : '#e5484d',
+            border: `1px solid ${toast.tipo === 'success' ? '#2f5b50' : '#5b2f2f'}`,
+            borderRadius: 10,
+            padding: '12px 18px',
+            fontSize: '0.88rem',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+          }}
+        >
+          {toast.msg}
         </div>
       )}
     </div>

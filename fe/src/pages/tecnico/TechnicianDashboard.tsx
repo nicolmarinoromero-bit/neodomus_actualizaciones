@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FaBell,
   FaBoxOpen,
@@ -152,6 +152,7 @@ const TechnicianDashboard = () => {
   const [updatingEntrega, setUpdatingEntrega] = useState<number | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const { notificaciones, noLeidas, marcarLeida, leerTodas } = useTecnicoNotificaciones();
+  const navigate = useNavigate();
   const [descEvidencia, setDescEvidencia] = useState('');
   const [subiendoEvidencia, setSubiendoEvidencia] = useState(false);
   const [eliminandoEvidencia, setEliminandoEvidencia] = useState<number | null>(null);
@@ -405,7 +406,7 @@ const TechnicianDashboard = () => {
     ];
     return campos.some((v) => v.toLowerCase().includes(q));
   };
-  const citasHoy = citas.filter((c) => c.fecha === hoy && c.estado !== 'Cancelada');
+  const citasHoy = citas.filter((c) => c.fecha === hoy && c.estado !== 'Cancelada' && c.estado !== 'Finalizada');
   const citasHoyVisibles = citasHoy.filter(coincideCita);
   const citasProximas = citas.filter(
     (c) => c.fecha > hoy && ESTADOS_PROGRAMADA.includes(c.estado) && coincideCita(c)
@@ -931,6 +932,7 @@ const TechnicianDashboard = () => {
               className={`novedad-item ap-notif-item ${n.leida ? '' : 'unread'}`}
               onClick={() => {
                 if (!n.leida) marcarLeida(n.id);
+                if (n.accion?.to) navigate(n.accion.to);
               }}
               style={{ cursor: 'pointer' }}
             >

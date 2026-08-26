@@ -659,6 +659,25 @@ def desactivar_tecnico_proceso(
             db.commit()
             resumen["entregas_sin_tecnico"].append(pedido.id_pedido)
 
+            # Notificar al cliente que su entrega quedó sin técnico.
+            try:
+                from app.models.cliente import Cliente as ClienteModel
+                from app.services.notificaciones import notificar_entrega_sin_tecnico_cliente
+
+                cliente = db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
+                if cliente:
+                    nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+                    notificar_entrega_sin_tecnico_cliente(
+                        db,
+                        cliente_id=cliente.id_cliente,
+                        correo=cliente.email if cliente else None,
+                        cliente_nombre=nombre_cliente,
+                        pedido_id=pedido.id_pedido,
+                    )
+                    db.commit()
+            except Exception:
+                pass
+
     # 4) Alerta a administradores.
     notificar_admin_resultado_desactivacion(
         db,
