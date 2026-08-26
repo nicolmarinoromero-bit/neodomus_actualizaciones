@@ -129,18 +129,17 @@ def logout(response: Response):
 
 @router.get("/session")
 def session_actual(request: Request, db: Session = Depends(get_db)):
-    """Tipo y rol de la cuenta de la sesión actual (cookie HttpOnly o header).
+    """Tipo y rol de la cuenta de la sesión actual.
+    Prioriza el header Authorization (cada pestaña envía su propio token
+    desde localStorage). Si no hay header, cae a la cookie HttpOnly
+    (compatibilidad con versiones anteriores).
     401 si no hay sesión válida; lo usa el frontend al cargar para validar
-    que la cookie corresponda con la vista que quiere mostrar.
+    que la sesión corresponda con la vista que quiere mostrar.
     El rol se lee de la BD (no del claim del JWT): si el rol cambió después
     de emitirse el token, el frontend lo sabe antes de llamar a endpoints
     que exigen permisos y evita errores 403 con una vista equivocada."""
-    token = None
-    if request is not None:
-        token = request.cookies.get(ACCESS_COOKIE_NAME)
-    auth_header = request.headers.get("Authorization") if request else None
-    if not token and auth_header and auth_header.lower().startswith("bearer "):
-        token = auth_header.split(" ", 1)[1]
+    from app.utils.security import _token_desde_request
+    token = _token_desde_request(request, None)
     payload = decode_token(token) if token else None
     if not payload:
         raise HTTPException(status_code=401, detail="Sin sesión válida")

@@ -11,6 +11,8 @@ const clearSession = () => {
   tabRemove('access_token');
   tabRemove('refresh_token');
   tabRemove('user');
+  tabRemove('password_reset_required');
+  tabRemove('perfil_incompleto');
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
@@ -47,26 +49,9 @@ const refreshAccessToken = async (): Promise<boolean> => {
 // Cliente axios
 // ────────────────────────────────────────────────────────────────
 
-// Limpieza de sesiones pre-migración: los tokens ya NO viven en JavaScript.
-try {
-  localStorage.removeItem('__tab__access_token');
-  localStorage.removeItem('__tab__refresh_token');
-} catch {
-  /* noop */
-}
-Object.keys(localStorage)
-  .filter((k) => k.endsWith('__tab__access_token') || k.endsWith('__tab__refresh_token'))
-  .forEach((k) => {
-    try {
-      localStorage.removeItem(k);
-    } catch {
-      /* noop */
-    }
-  });
-
 const api = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept': 'application/json; charset=utf-8',
