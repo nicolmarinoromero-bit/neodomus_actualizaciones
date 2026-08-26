@@ -159,11 +159,12 @@ class RecomendacionRequest(BaseModel):
 @router.post("/recomendacion-tecnicos")
 def recomendacion_tecnicos(
     data: RecomendacionRequest,
+    cliente: Cliente = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
     """Analiza el carrito y recomienda técnicos según las especializaciones
     requeridas por los productos, la dificultad y el tiempo estimado.
-    Público para clientes autenticados (también usable en el checkout)."""
+    Requiere cliente autenticado."""
     from datetime import date as _date
 
     from app.services.recomendacion_service import recomendar_tecnicos

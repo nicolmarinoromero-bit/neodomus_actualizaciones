@@ -2848,14 +2848,21 @@
 /* â”€â”€ ReseÃ±a de producto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pf-resena {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 8px;
+  background: rgba(212, 165, 75, 0.04);
+  border: 1px solid rgba(212, 165, 75, 0.15);
+  border-left: 3px solid rgba(212, 165, 75, 0.5);
+  border-radius: 0 10px 10px 0;
+}
+
+.pf-resena-row {
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  margin-top: -2px;
-  background: rgba(255, 255, 255, 0.02);
-  border-left: 2px solid rgba(212, 165, 75, 0.4);
-  border-radius: 0 10px 10px 0;
+  flex-wrap: wrap;
 }
 
 .pf-stars-picker {
@@ -2864,11 +2871,11 @@
 }
 
 .pf-stars-picker button {
-  padding: 0;
+  padding: 2px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.22);
-  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.18);
+  font-size: 1.15rem;
   line-height: 1;
   cursor: pointer;
   transition: color 0.15s, transform 0.15s;
@@ -2880,6 +2887,7 @@
 
 .pf-stars-picker button.on {
   color: var(--pf-oro);
+  filter: drop-shadow(0 0 3px rgba(212, 165, 75, 0.4));
 }
 
 .pf-stars-static {
@@ -2900,18 +2908,17 @@
 }
 
 .pf-resena-comentario {
-  flex: 1;
-  min-width: 180px;
-  padding: 7px 11px;
+  width: 100%;
+  padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid var(--pf-borde);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }
 
 .pf-resena-comentario::placeholder {
-  color: var(--pf-muted);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .pf-resena-guardar {
@@ -2944,8 +2951,14 @@
 }
 
 .pf-resena-guardada em {
-  color: var(--pf-muted);
+  color: rgba(255, 255, 255, 0.4);
   font-style: italic;
+}
+
+.pf-resena-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* â”€â”€ Devoluciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -3630,6 +3643,7 @@
   font-size: 0.84rem;
   border-bottom: 1px dashed rgba(150, 150, 150, 0.2);
   padding-bottom: 6px;
+  color: #d0d0d0;
 }
 .pf-dev-item-cant { color: var(--pf-muted, #888); white-space: nowrap; }
 .pf-dev-meta p { margin: 4px 0; font-size: 0.82rem; color: var(--pf-muted, #666); }
@@ -3656,8 +3670,8 @@
   color: #7a5a14;
   font-weight: 700;
 }
-.pf-dev-body { padding: 14px 20px 20px; }
-.pf-dev-instruccion { margin: 0 0 10px; font-size: 0.86rem; color: var(--pf-muted, #555); }
+.pf-dev-body { padding: 14px 20px 20px; color: #d0d0d0; }
+.pf-dev-instruccion { margin: 0 0 10px; font-size: 0.86rem; color: #c0c0c0; }
 .pf-dev-linea {
   display: flex;
   align-items: center;
@@ -3710,6 +3724,7 @@
   padding: 10px 2px 0;
   border-top: 1px solid rgba(150, 150, 150, 0.25);
   margin-top: 4px;
+  color: #d0d0d0;
 }
 .pf-dev-motivos {
   display: grid;
@@ -3726,10 +3741,13 @@
   border: 1px solid rgba(150, 150, 150, 0.3);
   border-radius: 10px;
   cursor: pointer;
+  color: #d8d8d8;
+  background: rgba(255, 255, 255, 0.04);
 }
 .pf-dev-motivo.sel {
   border-color: rgba(212, 165, 75, 0.7);
   background: rgba(212, 165, 75, 0.09);
+  color: #fff;
 }
 .pf-dev-textarea {
   width: 100%;
@@ -3741,9 +3759,15 @@
   font-family: inherit;
   font-size: 0.85rem;
   margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8e8e8;
 }
-.pf-dev-resumen-titulo { margin: 0 0 4px; }
-.pf-dev-resumen-pedido { margin: 0 0 12px; color: var(--pf-muted, #666); }
+
+.pf-dev-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.pf-dev-resumen-titulo { margin: 0 0 4px; color: #e8e8e8; }
+.pf-dev-resumen-pedido { margin: 0 0 12px; color: #b0b0b0; }
 .pf-dev-total-estimado {
   font-size: 0.95rem;
   display: flex;
@@ -3753,5 +3777,5 @@
   border-top: 1px solid rgba(150, 150, 150, 0.3);
 }
 .pf-dev-total-estimado strong { color: #2e7d32; }
-.pf-dev-nota { font-size: 0.78rem; color: var(--pf-muted, #777); }
+.pf-dev-nota { font-size: 0.78rem; color: #909090; }
 .pf-dev-cargando { padding: 22px; text-align: center; color: var(--pf-muted, #777); }
