@@ -29,8 +29,8 @@ from app.services.notificaciones import (
     notificar_recordatorio_cita,
 )
 
-# Ventana mínima entre recordatorios del mismo tipo (el job corre cada hora).
-INTERVALO_RECORDATORIO = timedelta(minutes=55)
+# Ventana mínima entre recordatorios del mismo tipo (el job corre cada 3 h).
+INTERVALO_RECORDATORIO = timedelta(minutes=170)
 
 
 def enviar_recordatorio_si_corresponde(db: Session, cliente: Cliente, cita: Cita) -> bool:
@@ -124,6 +124,24 @@ def expirar_pagos_vencidos(db: Session) -> int:
                         "contáctanos para verificarlo."
                     ),
                 )
+                # Enviar email al cliente sobre la cancelación.
+                try:
+                    from app.models.cliente import Cliente as ClienteModel
+                    from app.services.notificaciones import notificar_pedido_cancelado_cliente
+
+                    cliente = db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
+                    if cliente and cliente.email:
+                        nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+                        notificar_pedido_cancelado_cliente(
+                            db,
+                            cliente_id=cliente.id_cliente,
+                            correo=cliente.email,
+                            cliente_nombre=nombre_cliente,
+                            pedido_id=pedido.id_pedido,
+                            motivo="El pago no fue confirmado dentro del plazo establecido",
+                        )
+                except Exception:
+                    pass
     if vencidos:
         db.commit()
     return len(vencidos)

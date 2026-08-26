@@ -23,7 +23,7 @@ from app.services.tareas_programadas import (
 )
 
 INTERVALO_MINUTOS = 15
-INTERVALO_CALIFICACION_MINUTOS = 60
+INTERVALO_CALIFICACION_MINUTOS = 180
 
 _scheduler: BackgroundScheduler | None = None
 

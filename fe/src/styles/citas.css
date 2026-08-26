@@ -1287,6 +1287,14 @@ input[type='date'].citas-input::-webkit-calendar-picker-indicator {
   color: #ffc94d;
 }
 
+.citas-rating-label {
+  margin: 0 0 6px;
+  color: #caa24d;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .citas-modal-actions {
   display: flex;
   justify-content: flex-end;

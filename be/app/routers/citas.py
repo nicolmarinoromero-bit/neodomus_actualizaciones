@@ -454,30 +454,6 @@ def _validar_franja_cita(
         )
 
 
-def _bloqueo_por_calificacion(db: Session, id_cliente: int) -> None:
-    """La calificación del técnico es obligatoria: si el cliente tiene una
-    cita Finalizada sin calificar, no puede agendar otra cita."""
-    finalizada_sin_calificar = (
-        db.query(Cita)
-        .outerjoin(
-            Calificacion,
-            (Calificacion.id_cita_c == Cita.id_cita)
-            & (Calificacion.id_cliente_c == Cita.id_cliente),
-        )
-        .filter(
-            Cita.id_cliente == id_cliente,
-            Cita.estado == "Finalizada",
-            Calificacion.id_calificacion.is_(None),
-        )
-        .first()
-    )
-    if finalizada_sin_calificar is not None:
-        raise HTTPException(
-            status_code=400,
-            detail="Debes calificar al técnico de tu última cita finalizada antes de agendar una nueva cita.",
-        )
-
-
 def _es_cliente_con_cita(db: Session, cita_id: int, id_cliente: int) -> bool:
     return (
         db.query(Cita)
@@ -518,7 +494,8 @@ def crear_cita(
         )
     duracion = duracion_base_tipo(data.tipo_servicio)
     _validar_franja_cita(data.fecha, data.hora, duracion_horas=duracion)
-    _bloqueo_por_calificacion(db, client.id_cliente)
+    # La calificación del técnico es voluntaria: ya no bloquea nuevas citas
+    # (el scheduler envía recordatorios periódicos al cliente).
     if slot_tomado(db, data.fecha, data.hora, duracion_horas=duracion):
         raise HTTPException(
             status_code=400,
@@ -870,6 +847,34 @@ def gestionar_cita_admin(
             motivo="Cancelación realizada por el administrador",
             administrador_id=current_admin.id_usuario,
         )
+
+    # Requisito: POR CADA cambio de estado se notifica al cliente (correo +
+    # plataforma) con estado nuevo, fecha/hora del cambio y descripción.
+    if data.estado is not None and data.estado != estado_previo:
+        from app.services.notificaciones import notificar_cita_estado_cliente
+
+        cliente_cambio = (
+            db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
+        )
+        if cliente_cambio:
+            notificar_cita_estado_cliente(
+                db,
+                cliente_id=cliente_cambio.id_cliente,
+                correo=cliente_cambio.email,
+                cliente_nombre=(
+                    f"{cliente_cambio.first_name} {cliente_cambio.last_name}".strip()
+                    or "Cliente"
+                ),
+                datos={
+                    "servicio": cita.tipo_servicio,
+                    "fecha": cita.fecha.strftime("%d/%m/%Y"),
+                    "hora": cita.hora,
+                    "tecnico": cita.nombre_tecnico or "Por asignar",
+                    "descripcion": cita.descripcion,
+                },
+                nuevo_estado=cita.estado,
+                motivo=reembolso_resumen and "El servicio cancelado será reembolsado.",
+            )
 
     cliente = db.query(Cliente).filter(Cliente.id_cliente == cita.id_cliente).first()
     id_comision, com_porcentaje, com_valor = _info_comision(db, cita)
@@ -1581,6 +1586,30 @@ def cancelar_cita(
 
     db.commit()
     db.refresh(cita)
+
+    # Requisito: notificar al CLIENTE el cambio de estado (Cancelada) con
+    # estado nuevo, fecha/hora del cambio y descripción del servicio.
+    from app.services.notificaciones import notificar_cita_estado_cliente
+
+    notificar_cita_estado_cliente(
+        db,
+        cliente_id=client.id_cliente,
+        correo=client.email,
+        cliente_nombre=nombre_cliente,
+        datos={
+            "servicio": cita.tipo_servicio,
+            "fecha": cita.fecha.strftime("%d/%m/%Y"),
+            "hora": cita.hora,
+            "tecnico": cita.nombre_tecnico or "Por asignar",
+            "descripcion": cita.descripcion,
+        },
+        nuevo_estado="Cancelada",
+        motivo=(
+            "Reembolso del 85% del servicio pendiente de confirmación."
+            if reembolso_info
+            else None
+        ),
+    )
 
     # El hueco liberado se ofrece a otros clientes con citas futuras
     # con el mismo técnico (prioridad por lealtad).

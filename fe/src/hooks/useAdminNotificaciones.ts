@@ -6,7 +6,7 @@ import type {
   SolicitudEmpleado,
 } from '../types';
 
-export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega' | 'reembolso' | 'devolucion' | 'producto' | 'promocion' | 'recordatorio_cita' | 'recordatorio_producto';
+export type TipoNotificacion = 'cuenta' | 'registro' | 'cita' | 'pedido' | 'stock' | 'sistema' | 'entrega' | 'reembolso' | 'devolucion' | 'producto' | 'promocion' | 'recogida' | 'recordatorio_cita' | 'recordatorio_producto';
 
 export interface NotifAdmin {
   id: string;
@@ -177,7 +177,6 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
           api.get<SolicitudEmpleado[]>('/admin/account-requests/empleados'),
           api.get<CitaReasignar[]>('/citas/admin/reasignar-pendientes'),
         ]);
-
         const solicitudes = solsRes.data || [];
         const solicitudesEmpleados = solsEmpRes.data || [];
         const productos = prodsRes.data?.data || [];
@@ -233,23 +232,45 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
           })),
         ];
       } else if (rol === 'tecnico') {
-        const citasRes = await api.get<CitaTecnico[]>('/tecnicos/mis-citas');
+        const [citasRes, notisRes] = await Promise.all([
+          api.get<CitaTecnico[]>('/tecnicos/mis-citas'),
+          api.get<NotifPlataforma[]>('/notificaciones/mias').catch(() => ({ data: [] as NotifPlataforma[] })),
+        ]);
         const citas = citasRes.data || [];
 
-        notis = citas.map((c) => ({
-          id: `cita-${c.id_cita}`,
-          tipo: 'cita' as TipoNotificacion,
-          titulo: esInstalacionNotif(c.tipo_servicio)
-            ? 'Instalación agendada'
-            : (c.estado === 'Confirmada' ? 'Cita confirmada' : 'Nueva cita asignada'),
-          mensaje: `Servicio de ${nombreServicio(c.tipo_servicio)} para ${c.cliente} el ${formatoFechaHora(c.fecha, c.hora)} a las ${c.hora}`,
-          fecha: formatoFechaHora(c.fecha, c.hora),
-          timestamp: timestampFechaHora(c.fecha, c.hora),
-          leida: c.estado !== 'Pendiente' && c.estado !== 'Confirmada'
-            ? true
-            : Boolean(leidasRef.current[`cita-${c.id_cita}`]),
-          accion: { to: '/tecnico/citas', label: 'Ver mis citas' },
+        // Notificaciones de plataforma del técnico (recogidas de devoluciones,
+        // citas, etc.) con enlace directo a su módulo.
+        const plataforma = ((notisRes.data || []) as NotifPlataforma[]).map((n) => ({
+          id: `plat-${n.id_notificacion}`,
+          tipo: (n.tipo === 'recogida' ? 'entrega' : n.tipo) as TipoNotificacion,
+          titulo: n.titulo,
+          mensaje: n.mensaje,
+          fecha: formatoFecha(n.fecha_creacion),
+          timestamp: Date.parse(n.fecha_creacion || '') || 0,
+          leida: n.leida || Boolean(leidasRef.current[`plat-${n.id_notificacion}`]),
+          accion:
+            n.tipo === 'recogida'
+              ? { to: '/tecnico/devoluciones', label: 'Ver devoluciones' }
+              : { to: '/tecnico/citas', label: 'Ver mis citas' },
         }));
+
+        notis = [
+          ...plataforma,
+          ...citas.map((c) => ({
+            id: `cita-${c.id_cita}`,
+            tipo: 'cita' as TipoNotificacion,
+            titulo: esInstalacionNotif(c.tipo_servicio)
+              ? 'Instalación agendada'
+              : (c.estado === 'Confirmada' ? 'Cita confirmada' : 'Nueva cita asignada'),
+            mensaje: `Servicio de ${nombreServicio(c.tipo_servicio)} para ${c.cliente} el ${formatoFechaHora(c.fecha, c.hora)} a las ${c.hora}`,
+            fecha: formatoFechaHora(c.fecha, c.hora),
+            timestamp: timestampFechaHora(c.fecha, c.hora),
+            leida: c.estado !== 'Pendiente' && c.estado !== 'Confirmada'
+              ? true
+              : Boolean(leidasRef.current[`cita-${c.id_cita}`]),
+            accion: { to: '/tecnico/citas', label: 'Ver mis citas' },
+          })),
+        ];
       } else {
         const [citasRes, pedidosRes, notisRes] = await Promise.all([
           api.get<CitaCliente[]>('/citas/mis-citas'),
@@ -312,8 +333,16 @@ export const useNotificacionesRol = (rol: RolNotificaciones | null) => {
 
       const ordenadas = notis.sort((a, b) => b.timestamp - a.timestamp);
       setNotificaciones(ordenadas.slice(0, 60));
-    } catch {
+    } catch (err: any) {
       setNotificaciones([]);
+      // 401/403 en los endpoints del rol = la cookie del navegador pertenece a
+      // OTRA cuenta (se inició sesión en otra pestaña). Se pide a AuthContext
+      // revalidar la pestaña para que deje de sondear con un rol que ya no es
+      // suyo (evita los bucles de 403 en el panel administrativo).
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        window.dispatchEvent(new CustomEvent('neodomus:revalidar-sesion'));
+      }
     } finally {
       setCargando(false);
     }

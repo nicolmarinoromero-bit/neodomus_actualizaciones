@@ -298,6 +298,31 @@ def auto_en_camino(db: Session, pedido) -> None:
         pedido.estado_entrega = "En camino"
         db.commit()
 
+        # Notificar al cliente que su pedido va en camino.
+        try:
+            from app.models.cliente import Cliente as ClienteModel
+            from app.services.notificaciones import notificar_en_camino_cliente
+
+            cliente = db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
+            if cliente and cliente.email:
+                nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+                notificar_en_camino_cliente(
+                    db,
+                    cliente_id=cliente.id_cliente,
+                    correo=cliente.email,
+                    cliente_nombre=nombre_cliente,
+                    datos={
+                        "pedido": pedido.id_pedido,
+                        "fecha": pedido.fecha_entrega.strftime("%d/%m/%Y") if pedido.fecha_entrega else "-",
+                        "hora": pedido.hora_entrega or "-",
+                        "tecnico": pedido.nombre_tecnico_entrega or "técnico",
+                        "telefono_tecnico": None,
+                    },
+                )
+                db.commit()
+        except Exception:
+            pass
+
 
 def tecnico_ocupado(
     db: Session,

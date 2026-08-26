@@ -317,7 +317,7 @@ def notificar_cita_finalizada_cliente(correo: str, cliente_nombre: str, datos: d
     ]
     body = _plantilla(
         "CITA FINALIZADA",
-        f"Hola {cliente_nombre}, tu cita fue completada. Ahora puedes calificar al técnico {datos['tecnico']} desde la sección Mis citas (es obligatorio para poder agendar una nueva cita).",
+        f"Hola {cliente_nombre}, tu cita fue completada. Puedes calificar al técnico {datos['tecnico']} desde la sección Mis citas; tu opinión ayuda a otros clientes.",
         filas,
         "¡Gracias por usar Neodomus!",
         color="#1a2e1a",
@@ -496,6 +496,271 @@ def notificar_pedido_entregado_cliente(
     programar_correo(correo, subject, body)
 
 
+def notificar_pedido_creado_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando se crea un pedido.
+    ``datos`` debe contener: pedido, total, estado_pago."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="pedido",
+            titulo=f"Pedido #{datos['pedido']} registrado",
+            mensaje=(
+                f"Tu pedido #{datos['pedido']} por ${datos['total']:,.0f} fue registrado "
+                f"con estado: {datos['estado_pago']}. Te mantendremos informado sobre "
+                "cada cambio de estado."
+            ),
+        )
+    subject = f"Tu pedido Neodomus #{datos['pedido']} fue registrado"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Total", f"${datos['total']:,.0f} COP"),
+        ("Estado del pago", datos["estado_pago"]),
+    ]
+    nota = (
+        "Tu pedido está siendo procesado. Te enviaremos actualizaciones sobre "
+        "el estado de tu pago y entrega."
+    )
+    if datos["estado_pago"] == "Pago rechazado":
+        nota = (
+            "El pago no fue aprobado. Si crees que es un error, intenta "
+            "nuevamente desde Mis pedidos o contacta soporte."
+        )
+    elif datos["estado_pago"] == "Pago pendiente":
+        nota = (
+            "Tu pago está pendiente de confirmación. Completa el pago desde "
+            "Mis pedidos para que procesemos tu pedido."
+        )
+    body = _plantilla(
+        "PEDIDO REGISTRADO",
+        f"Hola {cliente_nombre}, tu pedido #{datos['pedido']} fue registrado exitosamente.",
+        filas,
+        nota,
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_pago_confirmado_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma cuando un pago pendiente se confirma.
+    ``datos`` debe contener: pedido, total."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="pedido",
+            titulo=f"Pago confirmado - Pedido #{datos['pedido']}",
+            mensaje=(
+                f"El pago de tu pedido #{datos['pedido']} por ${datos['total']:,.0f} "
+                "fue confirmado. Tu pedido está siendo preparado para entrega."
+            ),
+        )
+    subject = f"Pago confirmado - Pedido Neodomus #{datos['pedido']}"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Total", f"${datos['total']:,.0f} COP"),
+        ("Estado", "Pagado"),
+    ]
+    body = _plantilla(
+        "PAGO CONFIRMADO",
+        f"Hola {cliente_nombre}, confirmamos el pago de tu pedido #{datos['pedido']}.",
+        filas,
+        "Tu pedido será preparado y asignado a un técnico de entrega pronto. "
+        "Te notificaremos cuando tenga fecha de entrega.",
+        color="#1a2e1a",
+        acento="#8fd98a",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_entrega_asignada_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando se asigna
+    automáticamente un técnico de entrega (productos sin instalación).
+    ``datos`` debe contener: pedido, fecha, hora, tecnico."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="Entrega programada",
+            mensaje=(
+                f"Tu pedido #{datos['pedido']} será entregado el {datos['fecha']} "
+                f"a las {datos['hora']} por {datos['tecnico']}."
+            ),
+        )
+    subject = "Tu pedido Neodomus ya tiene fecha de entrega"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Fecha de entrega", datos["fecha"]),
+        ("Hora de entrega", datos["hora"]),
+        ("Técnico asignado", datos["tecnico"]),
+    ]
+    body = _plantilla(
+        "ENTREGA PROGRAMADA",
+        f"Hola {cliente_nombre}, tu pedido #{datos['pedido']} fue asignado al técnico "
+        f"{datos['tecnico']}. Te avisaremos cuando salga hacia tu dirección.",
+        filas,
+        "Puedes hacer seguimiento del estado de tu entrega desde Mis pedidos.",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_recogido_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando el técnico recoge
+    el pedido para entregarlo.
+    ``datos`` debe contener: pedido, tecnico."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="Pedido recogido para entrega",
+            mensaje=(
+                f"El técnico {datos['tecnico']} recogió tu pedido #{datos['pedido']} "
+                "y se prepara para entregarlo."
+            ),
+        )
+    subject = f"Tu pedido Neodomus #{datos['pedido']} está en camino"
+    filas = [
+        ("Pedido", f"#{datos['pedido']}"),
+        ("Técnico", datos["tecnico"]),
+    ]
+    body = _plantilla(
+        "PEDIDO RECOGIDO",
+        f"Hola {cliente_nombre}, el técnico {datos['tecnico']} recogió tu pedido "
+        f"#{datos['pedido']} y se dirige a tu dirección.",
+        filas,
+        "Te notificaremos cuando esté en camino. Puedes hacer seguimiento desde Mis pedidos.",
+        color="#1a2e1a",
+        acento="#8fd98a",
+    )
+    programar_correo(correo, subject, body)
+
+
+def notificar_en_camino_cliente(
+    db, cliente_id: int | None, correo: str, cliente_nombre: str, datos: dict
+) -> None:
+    """Correo + notificación de plataforma al cliente cuando su pedido está
+    En camino (tanto automático como manual).
+    ``datos`` debe contener: pedido, fecha, hora, tecnico, telefono_tecnico."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="¡Tu pedido va en camino!",
+            mensaje=(
+                f"El técnico {datos['tecnico']} va en camino con tu pedido "
+                f"#{datos['pedido']}. Verifica su identidad al momento de recibir."
+            ),
+        )
+    notificar_aviso_entrega_cliente(correo, cliente_nombre, datos)
+
+
+def notificar_entrega_desasignada_cliente(
+    db, cliente_id: int | None, correo: str | None, cliente_nombre: str, pedido_id: int
+) -> None:
+    """Notificación al cliente cuando se quita el técnico de entrega (queda Pendiente)."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo="Técnico de entrega removido",
+            mensaje=(
+                f"El técnico de entrega de tu pedido #{pedido_id} fue removido. "
+                "Estamos buscando un nuevo técnico. Te notificaremos cuando se reasigne."
+            ),
+        )
+    if correo:
+        subject = f"Cambio en la entrega de tu pedido Neodomus #{pedido_id}"
+        filas = [("Pedido", f"#{pedido_id}")]
+        body = _plantilla(
+            "CAMBIO EN ENTREGA",
+            f"Hola {cliente_nombre}, se realizó un cambio en la entrega de tu pedido #{pedido_id}.",
+            filas,
+            "Estamos buscando un nuevo técnico para tu entrega. Te notificaremos "
+            "cuando se reasigne con la nueva fecha y hora.",
+        )
+        programar_correo(correo, subject, body)
+
+
+def notificar_pedido_cancelado_cliente(
+    db, cliente_id: int | None, correo: str | None, cliente_nombre: str, pedido_id: int, motivo: str
+) -> None:
+    """Correo + notificación de plataforma cuando un pedido se cancela
+    (por expiración de pago u otra razón)."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="pedido",
+            titulo=f"Pedido #{pedido_id} cancelado",
+            mensaje=(
+                f"Tu pedido #{pedido_id} fue cancelado. Motivo: {motivo}. "
+                "Si crees que es un error, contacta soporte."
+            ),
+        )
+    if correo:
+        subject = f"Pedido Neodomus #{pedido_id} cancelado"
+        filas = [
+            ("Pedido", f"#{pedido_id}"),
+            ("Motivo", motivo),
+        ]
+        body = _plantilla(
+            "PEDIDO CANCELADO",
+            f"Hola {cliente_nombre}, tu pedido #{pedido_id} fue cancelado.",
+            filas,
+            "Si ya realizaste el pago o crees que esto es un error, por favor "
+            "contáctanos para verificarlo.",
+        )
+        programar_correo(correo, subject, body)
+
+
+def notificar_entrega_sin_tecnico_cliente(
+    db, cliente_id: int | None, correo: str | None, cliente_nombre: str, pedido_id: int
+) -> None:
+    """Notificación al cliente cuando la entrega queda sin técnico
+    (por desactivación del técnico sin reemplazo disponible)."""
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo=f"Entrega del pedido #{pedido_id} pendiente",
+            mensaje=(
+                f"La entrega de tu pedido #{pedido_id} quedó pendiente de asignación. "
+                "Estamos buscando un nuevo técnico. Te notificaremos cuando se reasigne."
+            ),
+        )
+    if correo:
+        subject = f"Entrega de tu pedido Neodomus #{pedido_id} pendiente"
+        filas = [("Pedido", f"#{pedido_id}")]
+        body = _plantilla(
+            "ENTREGA PENDIENTE",
+            f"Hola {cliente_nombre}, la entrega de tu pedido #{pedido_id} quedó pendiente de asignación.",
+            filas,
+            "Nuestro equipo está buscando un nuevo técnico para entregar tu pedido. "
+            "Te notificaremos tan pronto como se reasigne.",
+        )
+        programar_correo(correo, subject, body)
+
+
 def notificar_admin_devolucion_solicitada(
     db, pedido_id: int, cliente_nombre: str, producto_nombre: str, motivo: str | None
 ) -> None:
@@ -612,7 +877,7 @@ _ESTADO_TEXTO = {
     "Confirmada":   ("CITA CONFIRMADA",
                      "El técnico confirmó tu cita. Se presentará en la fecha y hora acordadas."),
     "Finalizada":   ("CITA FINALIZADA",
-                     "Tu cita fue completada. Ahora puedes calificar al técnico desde Mis citas (es obligatorio para poder agendar una nueva cita)."),
+                     "Tu cita fue completada. Puedes calificar al técnico desde Mis citas; tu opinión ayuda a otros clientes."),
     "Cancelada":    ("CITA CANCELADA",
                      "El técnico no pudo completar tu cita. Puedes reagendarla desde Mis citas."),
 }
@@ -639,17 +904,22 @@ def notificar_cita_estado_cliente(
     )
     color, acento = _ESTADO_COLORES.get(nuevo_estado, ("#1f1a12", "#ffd98a"))
 
+    from datetime import datetime as _dt
+
+    cambio_txt = _dt.now().strftime("%d/%m/%Y %H:%M")
     filas = [
         ("Servicio", datos["servicio"]),
         ("Fecha", datos["fecha"]),
         ("Técnico", datos["tecnico"]),
         ("Nuevo estado", nuevo_estado),
+        ("Fecha y hora del cambio", cambio_txt),
     ]
+    if datos.get("descripcion"):
+        filas.append(("Descripción del servicio", datos["descripcion"]))
 
     if nuevo_estado == "Finalizada":
         body_text += (
-            " Ahora necesitas calificar al técnico. "
-            "Es obligatorio: no podrás agendar nuevas citas hasta que completes la calificación."
+            " Te invitamos a calificar al técnico desde Mis citas; tu opinión ayuda a otros clientes."
         )
     elif nuevo_estado == "Cancelada":
         if motivo:
@@ -673,10 +943,10 @@ def notificar_cita_estado_cliente(
         titulo=f"Cita {nuevo_estado.lower()}",
         mensaje=(
             f"Tu cita de {datos['servicio']} para el {datos['fecha']} "
-            f"fue marcada como {nuevo_estado}."
+            f"fue marcada como {nuevo_estado} el {cambio_txt}."
             + (
-                " Debes calificar al técnico para poder agendar nuevas citas."
-                if nuevo_estado == "Finalizada"
+                f" Descripción: {datos['descripcion']}"
+                if datos.get("descripcion")
                 else ""
             )
             + (f" {motivo}" if motivo else "")

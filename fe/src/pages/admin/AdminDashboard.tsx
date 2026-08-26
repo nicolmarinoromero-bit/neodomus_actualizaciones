@@ -106,14 +106,16 @@ const AdminDashboard = () => {
   const [datos, setDatos] = useState<ReporteResumen | null>(null);
   const [operativo, setOperativo] = useState<OperativoMetricas | null>(null);
 
-  const cargar = async () => {
-    setCargando(true);
-    setError(false);
+  const cargar = async (silencioso = false) => {
+    if (!silencioso) {
+      setCargando(true);
+      setError(false);
+    }
     try {
       const report = await api.get<ReporteResumen>('/reports/resumen');
       setDatos(report.data);
     } catch {
-      setError(true);
+      if (!silencioso) setError(true);
     } finally {
       setCargando(false);
     }
@@ -127,6 +129,10 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     cargar();
+    // Tiempo real: refresco silencioso cada 30 s para ver datos actuales.
+    const intervalo = window.setInterval(() => cargar(true), 30000);
+    return () => window.clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hoy = new Date().toLocaleDateString(idioma === 'en' ? 'en-US' : 'es-CO', {
@@ -151,7 +157,7 @@ const AdminDashboard = () => {
           <p className="ap-subtitle">{t('adm.dashboard.subtitulo', { hoy })}</p>
         </div>
         <div className="ap-header-right">
-          <button type="button" className="ap-btn ap-btn-ghost" onClick={cargar} disabled={cargando}>
+          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => cargar()} disabled={cargando}>
             <FaRotate className={cargando ? 'spin' : ''} /> {t('adm.dashboard.actualizar')}
           </button>
         </div>
@@ -164,7 +170,7 @@ const AdminDashboard = () => {
               <FaCircleInfo />
             </div>
             <h3>{t('adm.dashboard.errorCargar')}</h3>
-            <button type="button" className="ap-btn ap-btn-ghost" onClick={cargar}>
+            <button type="button" className="ap-btn ap-btn-ghost" onClick={() => cargar()}>
               {t('adm.dashboard.reintentar')}
             </button>
           </div>

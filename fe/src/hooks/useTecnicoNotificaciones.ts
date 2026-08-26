@@ -11,7 +11,13 @@ interface NotifPlataforma {
   fecha_creacion?: string | null;
 }
 
-const TIPOS_PLATAFORMA: TipoNotificacion[] = ['entrega', 'cita', 'reembolso'];
+const TIPOS_PLATAFORMA: TipoNotificacion[] = ['entrega', 'cita', 'recogida', 'reembolso'];
+
+const rutaPorTipo = (tipo: string): { to: string; label: string } => {
+  if (tipo === 'recogida') return { to: '/tecnico/devoluciones', label: 'Ver devoluciones' };
+  if (tipo === 'cita' || tipo === 'entrega') return { to: '/tecnico/citas', label: 'Ver mis citas' };
+  return { to: '/dashboard/tecnico', label: 'Ver panel' };
+};
 
 const formatoFecha = (iso?: string | null) => {
   if (!iso) return '';
@@ -40,7 +46,7 @@ export const useTecnicoNotificaciones = () => {
         fecha: formatoFecha(n.fecha_creacion),
         timestamp: Date.parse(n.fecha_creacion || '') || 0,
         leida: n.leida,
-        accion: { to: '/dashboard/tecnico', label: 'Ver panel' },
+        accion: rutaPorTipo(n.tipo),
       }));
       setNotificaciones(items);
     } catch {

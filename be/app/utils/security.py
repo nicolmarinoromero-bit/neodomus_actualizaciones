@@ -115,14 +115,16 @@ def clear_auth_cookies(response: Response) -> None:
 
 
 def _token_desde_request(request: Optional[Request], token: Optional[str]) -> Optional[str]:
-    """Prioriza la cookie HttpOnly (web); si no hay, usa el header
-    Authorization (móvil). Así un residuo viejo en el navegador no pisa una
-    sesión válida por cookie."""
+    """Prioriza el header Authorization (multi-pestaña: cada pestaña envía su
+    propio token via localStorage). Si no hay header, cae a la cookie HttpOnly
+    (compatibilidad con versiones anteriores o apps móviles)."""
+    if token:
+        return token
     if request is not None:
         cookie_token = request.cookies.get(ACCESS_COOKIE_NAME)
         if cookie_token:
             return cookie_token
-    return token
+    return None
 
 
 async def get_current_user(

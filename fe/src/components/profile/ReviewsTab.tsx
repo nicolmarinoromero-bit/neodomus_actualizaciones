@@ -19,6 +19,17 @@ interface ResenaTecnico {
   hora_cita?: string | null;
 }
 
+interface CitaPendiente {
+  id_cita: number;
+  estado: string;
+  calificada?: boolean;
+  nombre_tecnico?: string | null;
+  tecnico_foto_url?: string | null;
+  tipo_servicio?: string | null;
+  fecha?: string | null;
+  hora?: string | null;
+}
+
 const productosSugeridos = [
   'Kit domótica Neodomus Smart Home',
   'Cámara IP 4K exterior',
@@ -45,17 +56,69 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
   const [calificacion, setCalificacion] = useState(5);
   const [comentario, setComentario] = useState('');
 
+  // Técnicos pendientes de calificar (citas finalizadas sin reseña).
+  const [pendientes, setPendientes] = useState<CitaPendiente[]>([]);
+  const [ratingPend, setRatingPend] = useState<Record<number, number>>({});
+  const [comentarioPend, setComentarioPend] = useState<Record<number, string>>({});
+  const [guardandoPend, setGuardandoPend] = useState<number | null>(null);
+
+  const cargarResenasTecnicos = async () => {
+    const res = await api.get<ResenaTecnico[]>('/calificaciones/mis-dadas');
+    setResenasTecnicos(res.data || []);
+  };
+
   useEffect(() => {
-    api
-      .get<ResenaTecnico[]>('/calificaciones/mis-dadas')
-      .then((res) => setResenasTecnicos(res.data || []))
+    cargarResenasTecnicos()
       .catch((err) => {
         console.error(err);
         notify('No se pudieron cargar tus reseñas de técnicos.', 'error');
       })
       .finally(() => setLoadingTecnicos(false));
+
+    api
+      .get<CitaPendiente[]>('/citas/mis-citas')
+      .then((res) => {
+        setPendientes(
+          (res.data || []).filter((c) => c.estado === 'Finalizada' && c.calificada === false),
+        );
+      })
+      .catch((err) => console.error(err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const guardarCalificacionTecnico = async (cita: CitaPendiente) => {
+    const nota = ratingPend[cita.id_cita] || 0;
+    if (!nota) {
+      notify('Selecciona una cantidad de estrellas antes de guardar.', 'error');
+      return;
+    }
+    setGuardandoPend(cita.id_cita);
+    try {
+      await api.post('/calificaciones', {
+        id_cita: cita.id_cita,
+        calificacion: nota,
+        comentario: comentarioPend[cita.id_cita]?.trim() || undefined,
+      });
+      notify('¡Gracias por calificar al técnico!', 'success');
+      setPendientes((prev) => prev.filter((c) => c.id_cita !== cita.id_cita));
+      setRatingPend((prev) => {
+        const next = { ...prev };
+        delete next[cita.id_cita];
+        return next;
+      });
+      setComentarioPend((prev) => {
+        const next = { ...prev };
+        delete next[cita.id_cita];
+        return next;
+      });
+      await cargarResenasTecnicos();
+    } catch (err) {
+      console.error(err);
+      notify('No se pudo enviar tu calificación.', 'error');
+    } finally {
+      setGuardandoPend(null);
+    }
+  };
 
   const eliminar = (id: string) => {
     const next = resenas.filter((r) => r.id !== id);
@@ -115,6 +178,82 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
 
       {seccion === 'tecnicos' ? (
         <div className="pf-resenas-seccion">
+          {pendientes.length > 0 && (
+            <>
+              <h3 className="pf-resenas-subtitulo">
+                <FaStar /> Técnicos por calificar
+              </h3>
+              <div className="pf-review-list">
+                {pendientes.map((cita) => (
+                  <div className="pf-review-item" key={`p-${cita.id_cita}`}>
+                    <div className="pf-review-main">
+                      <span className="pf-review-img pf-review-avatar">
+                        {cita.tecnico_foto_url ? (
+                          <img
+                            src={cita.tecnico_foto_url}
+                            alt={cita.nombre_tecnico || 'Técnico'}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <FaUserTie />
+                        )}
+                      </span>
+                      <div className="pf-review-body">
+                        <div className="pf-review-top">
+                          <strong className="pf-review-producto">
+                            {cita.nombre_tecnico || 'Técnico'}
+                            {cita.tipo_servicio ? ` · ${cita.tipo_servicio}` : ''}
+                          </strong>
+                          <span className="pf-review-fecha">
+                            {cita.fecha ? `${formatearFecha(cita.fecha)}${cita.hora ? ` · ${cita.hora}` : ''}` : ''}
+                          </span>
+                        </div>
+                        <div className="pf-stars-picker">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              aria-label={`${s} estrellas`}
+                              className={(ratingPend[cita.id_cita] ?? 0) >= s ? 'on' : ''}
+                              onClick={() =>
+                                setRatingPend((prev) => ({ ...prev, [cita.id_cita]: s }))
+                              }
+                            >
+                              <FaStar />
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          className="pf-resena-comentario"
+                          placeholder="Cuéntanos tu experiencia (opcional)"
+                          maxLength={500}
+                          value={comentarioPend[cita.id_cita] || ''}
+                          onChange={(e) =>
+                            setComentarioPend((prev) => ({
+                              ...prev,
+                              [cita.id_cita]: e.target.value,
+                            }))
+                          }
+                        />
+                        <div className="pf-form-actions" style={{ marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="pf-btn pf-btn-primary"
+                            disabled={guardandoPend === cita.id_cita}
+                            onClick={() => guardarCalificacionTecnico(cita)}
+                          >
+                            {guardandoPend === cita.id_cita ? 'Guardando...' : 'Guardar calificación'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           <h3 className="pf-resenas-subtitulo">
             <FaUserTie /> Técnicos que atendieron tus citas
           </h3>
@@ -125,7 +264,7 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
               <span className="pf-empty-icon"><FaRegStar /></span>
               <p>Aún no has calificado a ningún técnico.</p>
               <p className="pf-empty-hint">
-                Cuando completes una cita podrás calificar la atención del técnico desde la sección de citas.
+                Cuando completes una cita, el técnico aparecerá aquí para que lo califiques.
               </p>
             </div>
           ) : (

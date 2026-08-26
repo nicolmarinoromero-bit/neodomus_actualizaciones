@@ -42,8 +42,8 @@ const AdminPedidos = () => {
   const [busqueda, setBusqueda] = useState('');
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
-  const cargar = async () => {
-    setCargando(true);
+  const cargar = async (silencioso = false) => {
+    if (!silencioso) setCargando(true);
     try {
       const [entregasRes, tecnicosRes] = await Promise.all([
         api.get<PedidoEntrega[]>('/pedidos/admin/entregas'),
@@ -52,7 +52,7 @@ const AdminPedidos = () => {
       setPedidos(entregasRes.data);
       setTecnicos(tecnicosRes.data);
     } catch {
-      setToast({ msg: t('adm.pedidos.errorCargar'), tipo: 'err' });
+      if (!silencioso) setToast({ msg: t('adm.pedidos.errorCargar'), tipo: 'err' });
     } finally {
       setCargando(false);
     }
@@ -60,6 +60,9 @@ const AdminPedidos = () => {
 
   useEffect(() => {
     cargar();
+    // Tiempo real: refresco silencioso cada 30 s para ver datos actuales.
+    const intervalo = window.setInterval(() => cargar(true), 30000);
+    return () => window.clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

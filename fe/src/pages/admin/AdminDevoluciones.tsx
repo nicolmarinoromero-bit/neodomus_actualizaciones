@@ -134,8 +134,8 @@ const AdminDevoluciones = () => {
     window.setTimeout(() => setToast(null), 3200);
   };
 
-  const cargar = async (): Promise<SolicitudItem[]> => {
-    setCargando(true);
+  const cargar = async (silencioso = false): Promise<SolicitudItem[]> => {
+    if (!silencioso) setCargando(true);
     setError(false);
     try {
       const [resS, resR, resE, resT] = await Promise.all([
@@ -163,7 +163,7 @@ const AdminDevoluciones = () => {
       );
       return fresh;
     } catch {
-      setError(true);
+      if (!silencioso) setError(true);
       return [];
     } finally {
       setCargando(false);
@@ -172,6 +172,10 @@ const AdminDevoluciones = () => {
 
   useEffect(() => {
     cargar();
+    // Tiempo real: refresco silencioso cada 30 s para ver datos actuales.
+    const intervalo = window.setInterval(() => cargar(true), 30000);
+    return () => window.clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cambiarEstado = async (
@@ -331,7 +335,7 @@ const AdminDevoluciones = () => {
           <p className="ap-subtitle">{t('adm.devoluciones.subtitulo')}</p>
         </div>
         <div className="ap-header-right">
-          <button type="button" className="ap-btn ap-btn-ghost" onClick={cargar} disabled={cargando}>
+          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => cargar()} disabled={cargando}>
             <FaRotate className={cargando ? 'spin' : ''} /> {t('adm.consultas.actualizar')}
           </button>
         </div>
@@ -374,7 +378,7 @@ const AdminDevoluciones = () => {
             </div>
             <h3>{t('adm.instalaciones.errorTitulo')}</h3>
             <p>{t('adm.instalaciones.errorDesc')}</p>
-            <button type="button" className="ap-btn ap-btn-ghost" onClick={cargar}>
+            <button type="button" className="ap-btn ap-btn-ghost" onClick={() => cargar()}>
               {t('adm.instalaciones.reintentar')}
             </button>
           </div>

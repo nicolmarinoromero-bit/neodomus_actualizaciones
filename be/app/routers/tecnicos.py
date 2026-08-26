@@ -156,12 +156,18 @@ class TecnicoPublicoResponse(BaseModel):
     telefono: int | None = None
     foto_url: str | None = None
     calificacion: float | None = None
+    total_calificaciones: int = 0
 
 
 def _serializar_publico(db: Session, t: Tecnico) -> TecnicoPublicoResponse:
     u = t.usuario
     promedio = (
         db.query(func.avg(Calificacion.calificacion))
+        .filter(Calificacion.id_tecnico_c == t.id_tecnico)
+        .scalar()
+    )
+    total = (
+        db.query(func.count(Calificacion.id_calificacion))
         .filter(Calificacion.id_tecnico_c == t.id_tecnico)
         .scalar()
     )
@@ -175,6 +181,7 @@ def _serializar_publico(db: Session, t: Tecnico) -> TecnicoPublicoResponse:
         telefono=u.telefono_usuario if u else None,
         foto_url=u.foto_url if u else None,
         calificacion=round(float(promedio), 2) if promedio is not None else None,
+        total_calificaciones=int(total or 0),
     )
 
 
@@ -831,6 +838,7 @@ def actualizar_estado_cita_tecnico(
             "servicio": cita.tipo_servicio,
             "fecha": cita.fecha.strftime("%d/%m/%Y"),
             "tecnico": cita.nombre_tecnico or "técnico",
+            "descripcion": cita.descripcion,
         }
         notificar_cita_estado_cliente(
             db,
@@ -1280,19 +1288,41 @@ def actualizar_estado_entrega_tecnico(
     db.commit()
     db.refresh(pedido)
 
-    if estado == "En camino":
-        from app.models.cliente import Cliente
-        from app.services.notificaciones import notificar_aviso_entrega_cliente
+    if estado == "Recogido":
+        from app.models.cliente import Cliente as ClienteModel
+        from app.services.notificaciones import notificar_recogido_cliente
 
         cliente = (
-            db.query(Cliente).filter(Cliente.id_cliente == pedido.id_cliente_pe).first()
+            db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
         )
         if cliente and cliente.email:
             nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
-            notificar_aviso_entrega_cliente(
-                cliente.email,
-                nombre_cliente,
-                {
+            notificar_recogido_cliente(
+                db,
+                cliente_id=cliente.id_cliente,
+                correo=cliente.email,
+                cliente_nombre=nombre_cliente,
+                datos={
+                    "pedido": pedido.id_pedido,
+                    "tecnico": pedido.nombre_tecnico_entrega or "técnico",
+                },
+            )
+
+    if estado == "En camino":
+        from app.models.cliente import Cliente as ClienteModel
+        from app.services.notificaciones import notificar_en_camino_cliente
+
+        cliente = (
+            db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
+        )
+        if cliente and cliente.email:
+            nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
+            notificar_en_camino_cliente(
+                db,
+                cliente_id=cliente.id_cliente,
+                correo=cliente.email,
+                cliente_nombre=nombre_cliente,
+                datos={
                     "pedido": pedido.id_pedido,
                     "fecha": pedido.fecha_entrega.strftime("%d/%m/%Y") if pedido.fecha_entrega else "-",
                     "hora": pedido.hora_entrega or "-",

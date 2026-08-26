@@ -125,6 +125,7 @@ const CitasPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tipo: 'success' | 'error' } | null>(null);
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
+  const [diaCompleto, setDiaCompleto] = useState(false);
   const [citas, setCitas] = useState<Cita[]>([]);
   const [ofertas, setOfertas] = useState<OfertaHorario[]>([]);
   const [aceptandoOferta, setAceptandoOferta] = useState<number | null>(null);
@@ -271,8 +272,9 @@ const CitasPage = () => {
           .get<OfertaHorario[]>('/citas/ofertas-pendientes')
           .catch(() => ({ data: [] as OfertaHorario[] })),
       ]);
-      // Las citas canceladas no se muestran al cliente.
-      setCitas((res.data || []).filter((c) => c.estado !== 'Cancelada'));
+      // Las citas canceladas y finalizadas no se muestran al cliente en "Mis citas".
+      // Las finalizadas se ven en Perfil > Mis servicios.
+      setCitas((res.data || []).filter((c) => c.estado !== 'Cancelada' && c.estado !== 'Finalizada'));
       setOfertas(resOf.data || []);
     } catch (err) {
       console.error('Error cargando citas:', err);
@@ -313,19 +315,16 @@ const CitasPage = () => {
   useEffect(() => {
     if (!form.fecha || vista !== 'agendar') {
       setHorasDisponibles([]);
+      setDiaCompleto(false);
       return;
     }
+    setDiaCompleto(false);
     const [año, mes, dia] = (form.fecha || '').split('-').map(Number);
     const diaSemana = año ? new Date(año, mes - 1, dia).getDay() : -1;
     // Solo el domingo está bloqueado: los servicios van de lunes a sábado.
     if (diaSemana === 0) {
       setHorasDisponibles([]);
       return;
-    }
-    // Franjas de 1 hora (08:00-18:00): el backend devuelve solo las libres.
-    const horas: string[] = [];
-    for (let h = 8; h <= 18; h++) {
-      horas.push(`${h.toString().padStart(2, '0')}:00`);
     }
     let activo = true;
     const cargarHoras = async () => {
@@ -338,15 +337,20 @@ const CitasPage = () => {
         // Al editar, se excluye la propia cita para que su hora siga visible.
         if (editandoId !== null) params.set('excluir_cita_id', String(editandoId));
         const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
+        // SOLO las horas libres que devuelve el backend: si el día está
+        // completo (lista vacía), no se muestra ninguna franja ocupada y el
+        // día queda marcado como completo.
         const libres = Array.isArray(res.data) ? res.data : [];
-        const finales = libres.length > 0 ? libres : horas;
         if (!activo) return;
-        setHorasDisponibles(finales);
-        if (!finales.includes(form.hora)) setForm((prev) => ({ ...prev, hora: '' }));
+        setDiaCompleto(libres.length === 0);
+        setHorasDisponibles(libres);
+        if (!libres.includes(form.hora)) setForm((prev) => ({ ...prev, hora: '' }));
       } catch {
         if (!activo) return;
-        setHorasDisponibles(horas);
-        if (!horas.includes(form.hora)) setForm((prev) => ({ ...prev, hora: '' }));
+        // Ante un error de red tampoco se ofrecen horas ocupadas.
+        setDiaCompleto(false);
+        setHorasDisponibles([]);
+        setForm((prev) => ({ ...prev, hora: '' }));
       }
     };
     cargarHoras();
@@ -733,7 +737,7 @@ const CitasPage = () => {
                         setRatingComentario('');
                       }}
                     >
-                      <FaStar /> Calificar técnico (obligatorio)
+                      <FaStar /> Calificar técnico
                     </button>
                   )}
                   {editable ? (
@@ -1029,6 +1033,12 @@ const CitasPage = () => {
                       <FaCheck /> {formatDate(form.fecha)}
                     </p>
                   )}
+                  {form.fecha && diaCompleto && (
+                    <div className="citas-no-horas" role="alert">
+                      <FaExclamation /> Este día ya está completamente reservado. Selecciona
+                      otra fecha en el calendario.
+                    </div>
+                  )}
                   <p className="citas-hint">{t('citas.horarioLunVie')}</p>
                 </div>
 
@@ -1308,6 +1318,14 @@ const CitasPage = () => {
         {calificandoCita && (
           <div className="citas-modal-overlay">
             <div className="citas-modal" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="citas-modal-close-x"
+                aria-label="Cerrar"
+                onClick={() => setCalificandoCita(null)}
+              >
+                <FaXmark />
+              </button>
               {calificandoCita.tecnico_foto_url && (
                 <img
                   src={calificandoCita.tecnico_foto_url}
@@ -1333,15 +1351,16 @@ const CitasPage = () => {
                   </button>
                 ))}
               </div>
-              <p className="citas-hint">Esta calificación es obligatoria para poder agendar una nueva cita.</p>
-              {calificandoCita.tecnico_foto_url && (
-                <img
-                  src={calificandoCita.tecnico_foto_url}
-                  alt={calificandoCita.nombre_tecnico || 'Técnico'}
-                  className="citas-modal-foto"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
+              {ratingEstrellas > 0 && (
+                <p className="citas-rating-label">
+                  {ratingEstrellas === 1 && 'Malo'}
+                  {ratingEstrellas === 2 && 'Regular'}
+                  {ratingEstrellas === 3 && 'Bueno'}
+                  {ratingEstrellas === 4 && 'Muy bueno'}
+                  {ratingEstrellas === 5 && 'Excelente'}
+                </p>
               )}
+              <p className="citas-hint">Tu opinión ayuda a otros clientes y a mejorar nuestro servicio.</p>
               {calificandoCita.id_tecnico && (
                 <button
                   type="button"
@@ -1354,7 +1373,7 @@ const CitasPage = () => {
               )}
               <textarea
                 className="citas-textarea"
-                rows={4}
+                rows={3}
                 placeholder="Comentario (opcional)..."
                 value={ratingComentario}
                 onChange={(e) => setRatingComentario(e.target.value)}
