@@ -47,7 +47,7 @@ app-example
 /android
 
 # Python
-__pycache__/
+alembic/__pycache__/
 *.py[cod]
 .venv/
 

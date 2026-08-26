@@ -331,6 +331,12 @@ const ProductosPublicos = () => {
                             <span className="badge-descuento">-{producto.descuento_activo}%</span>
                           )}
                         </div>
+                        {esPorMetros && (
+                          <span className="total-por-metros" aria-live="polite">
+                            Total {cantidad} × {cantidadMetros} m:{' '}
+                            <strong>${(precioFinal * cantidadMetros * cantidad).toLocaleString()} COP</strong>
+                          </span>
+                        )}
                         {/* Bloque inferior anclado: misma línea base en todas
                             las tarjetas, con o sin opciones de metros. */}
                         <div className="tarjeta-inferior">
@@ -364,13 +370,6 @@ const ProductosPublicos = () => {
                               </div>
                             </div>
                           </div>
-
-                          {esPorMetros && (
-                            <span className="total-por-metros" aria-live="polite">
-                              Total {cantidad} × {cantidadMetros} m:{' '}
-                              <strong>${(precioFinal * cantidadMetros * cantidad).toLocaleString()} COP</strong>
-                            </span>
-                          )}
 
                           <button
                             className="btn-agregar"
