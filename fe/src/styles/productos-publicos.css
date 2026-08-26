@@ -395,14 +395,14 @@
    ============================================================ */
 
 /* ============================================================
-   BLOQUE INFERIOR DE LA TARJETA (opciones + total + botón)
+   BLOQUE INFERIOR DE LA TARJETA (opciones + botón)
    Anclado con margin-top:auto: todas las tarjetas terminan en
    la misma línea base, sin importar su contenido intermedio.
    ============================================================ */
 
 .tarjeta-inferior {
   margin-top: auto;
-  padding-top: 14px;
+  padding-top: 6px;
   display: flex;
   flex-direction: column;
 }
@@ -494,14 +494,17 @@
 }
 
 /* Total dinámico de productos vendidos por metro:
-   tono secundario para no competir con el precio amarillo */
+   ritmo vertical unificado con el resto de la tarjeta:
+   2px bajo el precio · 4px sobre los controles */
 .total-por-metros {
   display: block;
-  margin-top: 8px;
+  margin-top: 2px;
+  margin-bottom: 4px;
   color: #a89f8d;
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.2px;
+  line-height: 1.25;
 }
 
 .total-por-metros strong {

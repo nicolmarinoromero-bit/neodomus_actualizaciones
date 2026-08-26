@@ -203,6 +203,11 @@
   font-size: 13px;
 }
 
+.carrito-item-metros {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
 .carrito-item-controls {
   display: flex;
   align-items: center;
@@ -235,7 +240,8 @@
   color: #ffd700;
 }
 
-.carrito-cantidad span {
+/* Solo para el modo simple (sin grupos): el valor entre botones */
+.carrito-cantidad:not(.doble) > span {
   min-width: 34px;
   height: 40px;
   display: flex;
@@ -251,6 +257,7 @@
 .carrito-cantidad.doble {
   flex-direction: column;
   align-items: stretch;
+  justify-content: center;
   gap: 8px;
   border: none;
   background: transparent;
@@ -264,12 +271,16 @@
 }
 
 .carrito-control-label {
+  display: inline-flex;
+  align-items: center;
   color: #9c9c9c;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   min-width: 78px;
+  height: auto;
+  border: none;
 }
 
 .carrito-stepper {
