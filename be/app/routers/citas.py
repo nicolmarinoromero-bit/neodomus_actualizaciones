@@ -447,6 +447,21 @@ def _validar_franja_cita(
             status_code=400,
             detail="Las citas solo se pueden agendar de lunes a sábado.",
         )
+    if fecha == date.today():
+        ahora = datetime.now()
+        try:
+            hora_cita = datetime.strptime(hora, "%H:%M").time()
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="La hora de la cita no tiene un formato válido (HH:MM).",
+            )
+        fecha_hora_cita = datetime.combine(fecha, hora_cita)
+        if fecha_hora_cita <= ahora:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede agendar una cita a las {hora} porque esa hora ya pasó. Elige una hora posterior a las {ahora.strftime('%H:%M')}.",
+            )
     if hora not in horas_laborales(fecha, duracion_horas):
         raise HTTPException(
             status_code=400,
@@ -486,11 +501,15 @@ def crear_cita(
     con el simulador académico local."""
     if data.fecha < datetime.now().date():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
-    minimo = datetime.now().date() + timedelta(days=3)
-    if data.fecha < minimo:
+    try:
+        hora_cita = datetime.strptime(data.hora, "%H:%M").time()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="La hora de la cita no tiene un formato válido (HH:MM)")
+    fecha_hora_cita = datetime.combine(data.fecha, hora_cita)
+    if fecha_hora_cita < datetime.now() + timedelta(hours=3):
         raise HTTPException(
             status_code=400,
-            detail=f"Las citas deben agendarse con al menos 3 días de anticipación (a partir del {minimo.strftime('%d/%m/%Y')})",
+            detail="Las citas deben agendarse con al menos 3 horas de anticipación",
         )
     duracion = duracion_base_tipo(data.tipo_servicio)
     _validar_franja_cita(data.fecha, data.hora, duracion_horas=duracion)
@@ -641,12 +660,21 @@ def horas_disponibles_cita(
             for t in tecnicos_activos
         )
 
-    return [
+    horas = [
         h
         for h in horas_laborales(fecha, duracion)
         if not slot_tomado(db, fecha, h, excluir_cita_id, duracion_horas=duracion)
         and _hay_disponibilidad(h)
     ]
+
+    if fecha == date.today():
+        ahora = datetime.now()
+        horas = [
+            h for h in horas
+            if datetime.combine(fecha, datetime.strptime(h, "%H:%M").time()) > ahora
+        ]
+
+    return horas
 
 
 @router.get("/tecnico-ocupado")
@@ -1456,10 +1484,11 @@ def editar_cita(
     if cita.estado not in ESTADOS_EDITABLES:
         raise HTTPException(status_code=400, detail="No se puede modificar una cita finalizada o cancelada")
     update_data = data.model_dump(exclude_unset=True)
-    if "fecha" in update_data and update_data["fecha"] < datetime.now().date() + timedelta(days=3):
-        raise HTTPException(status_code=400, detail="Las citas deben reagendarse con al menos 3 días de anticipación")
     nueva_fecha = update_data.get("fecha", cita.fecha)
     nueva_hora = update_data.get("hora", cita.hora)
+    fecha_hora_cita = datetime.combine(nueva_fecha, datetime.strptime(nueva_hora, "%H:%M").time())
+    if fecha_hora_cita < datetime.now() + timedelta(hours=3):
+        raise HTTPException(status_code=400, detail="Las citas deben reagendarse con al menos 3 horas de anticipación")
     duracion_cita = duracion_estimada_cita(db, cita)
     _validar_franja_cita(nueva_fecha, nueva_hora, duracion_horas=duracion_cita)
     if slot_tomado(db, nueva_fecha, nueva_hora, excluir_cita_id=cita.id_cita, duracion_horas=duracion_cita):

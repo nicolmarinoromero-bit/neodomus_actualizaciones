@@ -372,6 +372,21 @@ def serializar_solicitud(db: Session, s: SolicitudDevolucion) -> dict:
             .all()
         )
         tecnicos_map = {t.id_tecnico: u for t, u in filas_tec}
+    # Calificaciones ya dejadas del producto de cambio de cada línea.
+    califs_cambio = {}
+    ids_lineas = [l.id_devolucion for l in lineas]
+    if ids_lineas:
+        from app.models.calificacion_producto_cambio import CalificacionProductoCambio as CPC
+
+        filas_cal = (
+            db.query(CPC)
+            .filter(
+                CPC.id_devolucion_cc.in_(ids_lineas),
+                CPC.id_cliente_cc == s.id_cliente_s,
+            )
+            .all()
+        )
+        califs_cambio = {c.id_devolucion_cc: c for c in filas_cal}
     for l in lineas:
         prod = productos_map.get(l.id_producto_d)
         det = detalles_map.get(l.id_producto_d)
@@ -379,6 +394,7 @@ def serializar_solicitud(db: Session, s: SolicitudDevolucion) -> dict:
         if l.recogida_estado == "Recogida":
             recogidos += 1
         usuario_tec = tecnicos_map.get(l.id_tecnico_recogida)
+        cal_cambio = califs_cambio.get(l.id_devolucion)
         items.append({
             "id_devolucion": l.id_devolucion,
             "id_producto": l.id_producto_d,
@@ -396,6 +412,20 @@ def serializar_solicitud(db: Session, s: SolicitudDevolucion) -> dict:
             ),
             "evidencia_recogida_url": None,
             "fecha_recogida": l.fecha_recogida.isoformat() if l.fecha_recogida else None,
+            "preferencia": l.preferencia,
+            "resolucion_linea": l.resolucion,
+            "fecha_entrega_cambio": (
+                l.fecha_entrega_cambio.isoformat() if l.fecha_entrega_cambio else None
+            ),
+            "calificacion_cambio": (
+                {
+                    "calificada": True,
+                    "calificacion": cal_cambio.calificacion,
+                    "comentario": cal_cambio.comentario,
+                }
+                if cal_cambio
+                else {"calificada": False, "calificacion": None, "comentario": None}
+            ),
         })
 
     todos_recogidos = bool(items) and recogidos == len(items)

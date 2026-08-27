@@ -34,6 +34,7 @@ interface Cita {
 }
 
 const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '');
+const urlEvidencia = (url: string) => (url.startsWith('http') ? url : `${API_HOST}${url}`);
 
 interface EntregaHistorial {
   id_pedido: number;
@@ -327,9 +328,9 @@ const TecnicoHistorial = () => {
                         {e.evidencias_entrega && e.evidencias_entrega.length > 0 ? (
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {e.evidencias_entrega.slice(0, 3).map((url) => (
-                              <a key={url} href={`${API_HOST}${url}`} target="_blank" rel="noopener noreferrer">
+                              <a key={url} href={urlEvidencia(url)} target="_blank" rel="noopener noreferrer">
                                 <img
-                                  src={`${API_HOST}${url}`}
+                                  src={urlEvidencia(url)}
                                   alt="Evidencia"
                                   style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
                                 />
@@ -434,12 +435,12 @@ const TecnicoHistorial = () => {
                               {cita.evidencias.slice(0, 3).map((ev) => (
                                 <a
                                   key={ev.url_archivo}
-                                  href={`${API_HOST}/static/evidencias/${ev.url_archivo}`}
+                                  href={urlEvidencia(ev.url_archivo)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
                                   <img
-                                    src={`${API_HOST}/static/evidencias/${ev.url_archivo}`}
+                                    src={urlEvidencia(ev.url_archivo)}
                                     alt="Evidencia"
                                     style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
                                   />

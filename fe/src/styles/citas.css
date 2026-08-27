@@ -1351,7 +1351,7 @@ input[type='date'].citas-input::-webkit-calendar-picker-indicator {
   align-items: center;
   font-size: 0.85rem;
 }
-.citas-cancel-montos span { color: #9f9f9f; }
+.citas-cancel-montos span { color: #d1d1d1; }
 .citas-cancel-montos strong.ok { color: #46d06f; }
 .citas-cancel-montos strong.ret { color: #ff8b96; }
 

@@ -55,6 +55,7 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
   const [producto, setProducto] = useState(productosSugeridos[0]);
   const [calificacion, setCalificacion] = useState(5);
   const [comentario, setComentario] = useState('');
+  const [tienePedidos, setTienePedidos] = useState(false);
 
   // Técnicos pendientes de calificar (citas finalizadas sin reseña).
   const [pendientes, setPendientes] = useState<CitaPendiente[]>([]);
@@ -66,6 +67,19 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
     const res = await api.get<ResenaTecnico[]>('/calificaciones/mis-dadas');
     setResenasTecnicos(res.data || []);
   };
+
+  useEffect(() => {
+    const verificarPedidos = async () => {
+      try {
+        const res = await api.get('/pedidos/mis-pedidos');
+        const pedidos = Array.isArray(res.data) ? res.data : [];
+        setTienePedidos(pedidos.length > 0);
+      } catch {
+        setTienePedidos(false);
+      }
+    };
+    verificarPedidos();
+  }, []);
 
   useEffect(() => {
     cargarResenasTecnicos()
@@ -223,11 +237,11 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
                             </button>
                           ))}
                         </div>
-                        <input
-                          type="text"
+                        <textarea
                           className="pf-resena-comentario"
                           placeholder="Cuéntanos tu experiencia (opcional)"
                           maxLength={500}
+                          rows={3}
                           value={comentarioPend[cita.id_cita] || ''}
                           onChange={(e) =>
                             setComentarioPend((prev) => ({
@@ -315,7 +329,9 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
             <button
               type="button"
               className="pf-btn pf-btn-primary"
+              disabled={!tienePedidos}
               onClick={() => setMostrarForm((v) => !v)}
+              title={!tienePedidos ? 'Debes tener al menos un pedido confirmado para escribir reseñas' : ''}
             >
               {mostrarForm ? (
                 'Cancelar'
@@ -327,7 +343,15 @@ const ReviewsTab = ({ notify }: { notify: NotifyFn }) => {
             </button>
           </div>
 
-          {mostrarForm && (
+          {!tienePedidos && (
+            <div className="pf-empty" style={{ padding: '16px 0' }}>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
+                Debes tener al menos un pedido confirmado para poder escribir reseñas de productos.
+              </p>
+            </div>
+          )}
+
+          {mostrarForm && tienePedidos && (
             <form className="pf-review-form" onSubmit={agregar}>
               <div className="pf-form-grid">
                 <div className="pf-form-group">

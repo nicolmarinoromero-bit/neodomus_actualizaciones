@@ -421,7 +421,8 @@ async def subir_foto_calificacion_producto(
 
     import uuid as _uuid
     nombre = f"{_uuid.uuid4().hex}{ext}"
-    url = minio_service.subir_imagen("calificaciones_productos", nombre, contenido)
+    clave = minio_service.subir_imagen("calificaciones_productos", nombre, contenido)
+    url = minio_service.url_publica(clave)
 
     ya.foto_url = url
     db.commit()
@@ -467,4 +468,176 @@ def calificaciones_de_mi_pedido(
             }
             for f in filas
         ],
+    }
+
+
+# ──────────────────────────────────────────────────────────────────
+# ⭐ Calificaciones del producto de cambio de una devolución
+# ──────────────────────────────────────────────────────────────────
+
+
+class CalificacionProductoCambioCreate(BaseModel):
+    id_devolucion: int
+    calificacion: int = Field(ge=1, le=5)
+    comentario: Optional[str] = None
+
+
+def _devolucion_cambio_entregada_propia(
+    db: Session, id_devolucion: int, id_cliente: int
+):
+    """Devolution propia del cliente, resuelta como 'Cambio' y con el
+    producto nuevo ya entregado (evidencia_cambio + fecha_entrega_cambio)."""
+    from app.models.devolucion import Devolucion
+
+    dev = (
+        db.query(Devolucion)
+        .filter(
+            Devolucion.id_devolucion == id_devolucion,
+            Devolucion.id_cliente_d == id_cliente,
+        )
+        .first()
+    )
+    if not dev:
+        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+    if (dev.resolucion or "").strip().lower() != "cambio":
+        raise HTTPException(
+            status_code=400,
+            detail="Esta devolución no tiene resolución de cambio de producto",
+        )
+    if not dev.evidencia_cambio or not dev.fecha_entrega_cambio:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto de cambio aún no ha sido entregado",
+        )
+    return dev
+
+
+@router.post("/producto-cambio")
+def calificar_producto_cambio(
+    data: CalificacionProductoCambioCreate,
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El cliente califica (1-5 estrellas) el producto de cambio que el
+    técnico le entregó en una devolución resuelta como 'Cambio'."""
+    from app.models.calificacion_producto_cambio import CalificacionProductoCambio as CPC
+    from app.models.producto import Producto
+
+    dev = _devolucion_cambio_entregada_propia(db, data.id_devolucion, client.id_cliente)
+
+    ya = (
+        db.query(CPC)
+        .filter(
+            CPC.id_devolucion_cc == dev.id_devolucion,
+            CPC.id_cliente_cc == client.id_cliente,
+        )
+        .first()
+    )
+    if ya:
+        raise HTTPException(
+            status_code=400, detail="Ya calificaste el producto de cambio de esta devolución"
+        )
+
+    calificacion = CPC(
+        id_cliente_cc=client.id_cliente,
+        id_devolucion_cc=dev.id_devolucion,
+        id_producto_cc=dev.id_producto_d,
+        calificacion=data.calificacion,
+        comentario=(data.comentario or "").strip() or None,
+    )
+    db.add(calificacion)
+    db.commit()
+    db.refresh(calificacion)
+
+    producto = (
+        db.query(Producto).filter(Producto.id_producto == dev.id_producto_d).first()
+    )
+    return {
+        "id_calificacion_cambio": calificacion.id_calificacion_cambio,
+        "id_devolucion": dev.id_devolucion,
+        "id_producto": dev.id_producto_d,
+        "nombre_producto": producto.nombre_producto if producto else None,
+        "calificacion": calificacion.calificacion,
+        "comentario": calificacion.comentario,
+        "created_at": calificacion.created_at.isoformat() if calificacion.created_at else None,
+    }
+
+
+@router.post("/producto-cambio/{id_devolucion}/foto")
+async def subir_foto_calificacion_producto_cambio(
+    id_devolucion: int,
+    file: UploadFile = File(...),
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Foto opcional junto a la calificación del producto de cambio."""
+    from app.models.calificacion_producto_cambio import CalificacionProductoCambio as CPC
+    from app.services import minio_service
+
+    dev = _devolucion_cambio_entregada_propia(db, id_devolucion, client.id_cliente)
+    ya = (
+        db.query(CPC)
+        .filter(
+            CPC.id_devolucion_cc == dev.id_devolucion,
+            CPC.id_cliente_cc == client.id_cliente,
+        )
+        .first()
+    )
+    if not ya:
+        raise HTTPException(status_code=404, detail="Califica primero el producto de cambio para poder adjuntar foto")
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise HTTPException(status_code=400, detail="Formato no permitido (JPG, PNG, WEBP)")
+    contenido = await file.read()
+    if not contenido:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen supera los 5 MB")
+
+    import uuid as _uuid
+    nombre = f"{_uuid.uuid4().hex}{ext}"
+    clave = minio_service.subir_imagen("calificaciones_productos", nombre, contenido)
+    url = minio_service.url_publica(clave)
+
+    ya.foto_url = url
+    db.commit()
+
+    return {"msg": "Foto guardada", "foto_url": url}
+
+
+@router.get("/producto-cambio/{id_devolucion}")
+def estado_calificacion_producto_cambio(
+    id_devolucion: int,
+    client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Estado de la calificación del producto de cambio de una devolución
+    propia (para que la UI sepa si ya fue calificada)."""
+    from app.models.calificacion_producto_cambio import CalificacionProductoCambio as CPC
+    from app.models.devolucion import Devolucion
+
+    dev = (
+        db.query(Devolucion)
+        .filter(
+            Devolucion.id_devolucion == id_devolucion,
+            Devolucion.id_cliente_d == client.id_cliente,
+        )
+        .first()
+    )
+    if not dev:
+        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+    cal = (
+        db.query(CPC)
+        .filter(
+            CPC.id_devolucion_cc == dev.id_devolucion,
+            CPC.id_cliente_cc == client.id_cliente,
+        )
+        .first()
+    )
+    return {
+        "calificada": cal is not None,
+        "calificacion": cal.calificacion if cal else None,
+        "comentario": cal.comentario if cal else None,
+        "created_at": cal.created_at.isoformat() if cal and cal.created_at else None,
     }

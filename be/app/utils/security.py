@@ -121,6 +121,9 @@ def _token_desde_request(request: Optional[Request], token: Optional[str]) -> Op
     if token:
         return token
     if request is not None:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return auth_header[7:]
         cookie_token = request.cookies.get(ACCESS_COOKIE_NAME)
         if cookie_token:
             return cookie_token

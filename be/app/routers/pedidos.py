@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -597,7 +597,9 @@ def seguimiento_pedido(
     auto_en_camino(db, pedido)
 
     estado_entrega = pedido.estado_entrega
-    confirmado = bool(pedido.estado_pedido and pedido.estado_pedido.lower().startswith("pag"))
+    confirmado = bool(
+        pedido.estado_pedido and pedido.estado_pedido.strip().lower() == "pagado"
+    )
     asignado = pedido.id_tecnico_entrega is not None
     recogido = estado_entrega in ("Recogido", "En camino", "Entregado")
     en_camino = estado_entrega == "En camino"
@@ -620,20 +622,30 @@ def seguimiento_pedido(
         }
 
     ubicacion_data = None
+    ubicacion_desactualizada = False
     if en_camino and pedido.id_tecnico_entrega is not None:
         ub = (
             db.query(UbicacionTecnico)
             .filter(UbicacionTecnico.id_tecnico_ut == pedido.id_tecnico_entrega)
             .first()
         )
-        if ub:
-            ubicacion_data = {
-                "latitud": ub.latitud,
-                "longitud": ub.longitud,
-                "actualizado_en": (
-                    ub.actualizado_en.isoformat() if ub.actualizado_en else None
-                ),
-            }
+        if ub and ub.latitud and ub.longitud:
+            # Solo se muestra la posición si es reciente; si pasaron más de
+            # 15 minutos desde la última actualización se marca como
+            # desactualizada para no mostrar coordenadas antiguas.
+            fresca = ub.actualizado_en is not None and (
+                datetime.utcnow() - ub.actualizado_en.replace(tzinfo=None)
+            ) <= timedelta(minutes=15)
+            if fresca:
+                ubicacion_data = {
+                    "latitud": ub.latitud,
+                    "longitud": ub.longitud,
+                    "actualizado_en": (
+                        ub.actualizado_en.isoformat() if ub.actualizado_en else None
+                    ),
+                }
+            else:
+                ubicacion_desactualizada = True
 
     return {
         "id_pedido": pedido.id_pedido,
@@ -651,6 +663,7 @@ def seguimiento_pedido(
         ),
         "tecnico": tecnico_data,
         "ubicacion": ubicacion_data,
+        "ubicacion_desactualizada": ubicacion_desactualizada,
         "entrega_actualizada_en": (
             pedido.entrega_actualizada_en.isoformat()
             if pedido.entrega_actualizada_en

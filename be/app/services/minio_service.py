@@ -71,11 +71,14 @@ def _asegurar_bucket(client: Minio) -> None:
 
 def url_publica(objeto: str) -> str:
     """URL pública de un objeto del bucket (para <img src=...>)."""
+    # Si ya es una URL completa, devolverla tal cual (compatibilidad con datos existentes)
+    if objeto.startswith("http://") or objeto.startswith("https://"):
+        return objeto
     return f"{settings.MINIO_PUBLIC_ENDPOINT}/{settings.MINIO_BUCKET}/{objeto}"
 
 
 def subir_imagen(carpeta: str, nombre_archivo: str, contenido: bytes) -> str:
-    """Sube un archivo al bucket bajo '{carpeta}/{nombre_archivo}' y devuelve su URL pública."""
+    """Sube un archivo al bucket bajo '{carpeta}/{nombre_archivo}' y devuelve la clave del objeto."""
     cliente = _cliente()
     objeto = f"{carpeta.strip('/')}/{nombre_archivo}"
     ext = Path(nombre_archivo).suffix.lower()
@@ -89,7 +92,7 @@ def subir_imagen(carpeta: str, nombre_archivo: str, contenido: bytes) -> str:
         )
     except S3Error as e:
         raise RuntimeError(f"Error subiendo '{objeto}' a MinIO: {e}") from e
-    return url_publica(objeto)
+    return objeto
 
 
 def eliminar_objeto(objeto: str) -> None:

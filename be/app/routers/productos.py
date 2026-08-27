@@ -787,7 +787,8 @@ async def subir_imagen_producto(
     except Exception:
         raise HTTPException(status_code=400, detail="El archivo no es una imagen válida")
     nombre = f"{uuid.uuid4().hex}{ext}"
-    url = minio_service.subir_imagen("productos", nombre, contenido)
+    clave = minio_service.subir_imagen("productos", nombre, contenido)
+    url = minio_service.url_publica(clave)
     return {"url": url, "filename": nombre}
 
 

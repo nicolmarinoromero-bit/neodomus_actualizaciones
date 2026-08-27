@@ -14,6 +14,7 @@ from .solicitud_habilitacion_empleado import SolicitudHabilitacionEmpleado
 from .proveedor import Proveedor
 from .pedido import Pedido, DetallePedido
 from .calificacion_producto import CalificacionProducto
+from .calificacion_producto_cambio import CalificacionProductoCambio
 from .ubicacion_tecnico import UbicacionTecnico
 from .devolucion import Devolucion
 from .solicitud_devolucion import SolicitudDevolucion

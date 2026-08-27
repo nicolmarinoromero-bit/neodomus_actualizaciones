@@ -5,6 +5,7 @@ Lógica de negocio para autenticación en Neodomus.
 
 import json
 import random
+import secrets
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException
@@ -511,11 +512,15 @@ async def request_email_change(
 
     code = str(random.randint(100000, 999999))
     expires = datetime.utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    # La columna token es única; se guarda además un valor aleatorio para
+    # evitar colisiones con solicitudes previas (aunque ya estén usadas).
     token_record = PasswordResetToken(
         email=email_actual,
         user_type=user_type,
         code=code,
-        token=json.dumps({"nuevo_email": nuevo, "intentos": 0}),
+        token=json.dumps(
+            {"nuevo_email": nuevo, "intentos": 0, "rnd": secrets.token_hex(6)}
+        ),
         expires_at=expires,
         ip_used=ip,
     )

@@ -95,7 +95,7 @@ api.interceptors.response.use(
     const url: string = originalRequest?.url || '';
 
     const isAuthEndpoint =
-      url.includes('/auth/login') || url.includes('/auth/refresh');
+      url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/session');
 
     if (
       response?.status === 401 &&

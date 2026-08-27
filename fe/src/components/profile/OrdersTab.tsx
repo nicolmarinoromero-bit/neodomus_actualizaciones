@@ -84,6 +84,7 @@ interface Seguimiento {
   rango_entrega?: string | null;
   tecnico?: { nombre?: string; telefono?: string; foto?: string } | null;
   ubicacion?: { latitud: number; longitud: number; actualizado_en: string } | null;
+  ubicacion_desactualizada?: boolean;
 }
 
 interface CalificacionProducto {
@@ -103,6 +104,14 @@ interface ItemDevolucion {
   estado_linea: string;
   recogida_estado?: string | null;
   fecha_recogida?: string | null;
+  preferencia?: string | null;
+  resolucion_linea?: string | null;
+  fecha_entrega_cambio?: string | null;
+  calificacion_cambio?: {
+    calificada: boolean;
+    calificacion?: number | null;
+    comentario?: string | null;
+  } | null;
 }
 
 interface SolicitudDevolucion {
@@ -225,6 +234,10 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
   const [comentarioTxt, setComentarioTxt] = useState('');
   const [enviandoDev, setEnviandoDev] = useState(false);
   const [detalleSolAbierta, setDetalleSolAbierta] = useState<number | null>(null);
+
+  const [ratingCambioSel, setRatingCambioSel] = useState<Record<number, number>>({});
+  const [comentarioCambioSel, setComentarioCambioSel] = useState<Record<number, string>>({});
+  const [guardandoCambio, setGuardandoCambio] = useState<number | null>(null);
 
   const fotoCalifRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const fotosCalif = useRef<Record<number, File>>({});
@@ -461,6 +474,48 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
     }
   };
 
+  const recargarSolicitudesDev = async () => {
+    try {
+      const res = await api.get<SolicitudDevolucion[]>('/devoluciones/mis-solicitudes');
+      setSolicitudesDev(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const guardarCalificacionCambio = async (item: ItemDevolucion) => {
+    const nota = ratingCambioSel[item.id_devolucion];
+    if (!nota) {
+      notify('Selecciona una cantidad de estrellas antes de enviar.', 'error');
+      return;
+    }
+    setGuardandoCambio(item.id_devolucion);
+    try {
+      await api.post('/calificaciones/producto-cambio', {
+        id_devolucion: item.id_devolucion,
+        calificacion: nota,
+        comentario: comentarioCambioSel[item.id_devolucion]?.trim() || undefined,
+      });
+      notify('¡Gracias por calificar tu producto de cambio!', 'success');
+      setRatingCambioSel((prev) => {
+        const next = { ...prev };
+        delete next[item.id_devolucion];
+        return next;
+      });
+      setComentarioCambioSel((prev) => {
+        const next = { ...prev };
+        delete next[item.id_devolucion];
+        return next;
+      });
+      await recargarSolicitudesDev();
+    } catch (err: any) {
+      const detalle = err.response?.data?.detail;
+      notify(typeof detalle === 'string' ? detalle : 'No se pudo enviar tu calificación.', 'error');
+    } finally {
+      setGuardandoCambio(null);
+    }
+  };
+
   return (
     <div className="pf-tab">
       <SectionHeader
@@ -674,11 +729,94 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                         )}
                                         <ul className="pf-dev-items">
                                           {s.items.map((it) => (
-                                            <li key={it.id_devolucion}>
-                                              <span>{it.producto}</span>
-                                              <span className="pf-dev-item-cant">× {it.cantidad}</span>
-                                              <span>{formatoPeso(it.subtotal_linea)}</span>
-                                            </li>
+                                            <Fragment key={it.id_devolucion}>
+                                              <li>
+                                                <span>{it.producto}</span>
+                                                <span className="pf-dev-item-cant">× {it.cantidad}</span>
+                                                <span>{formatoPeso(it.subtotal_linea)}</span>
+                                              </li>
+                                              {it.resolucion_linea === 'Cambio' &&
+                                                it.fecha_entrega_cambio && (
+                                                  <li className="pf-resena">
+                                                    {it.calificacion_cambio?.calificada ? (
+                                                      <div className="pf-resena-guardada">
+                                                        <span
+                                                          className="pf-stars-static"
+                                                          aria-label={`${it.calificacion_cambio.calificacion} de 5`}
+                                                        >
+                                                          {[1, 2, 3, 4, 5].map((s) => (
+                                                            <FaStar
+                                                              key={s}
+                                                              className={
+                                                                s <= (it.calificacion_cambio?.calificacion || 0)
+                                                                  ? 'on'
+                                                                  : ''
+                                                              }
+                                                            />
+                                                          ))}
+                                                        </span>
+                                                        Calificaste tu producto de cambio
+                                                        {it.calificacion_cambio?.comentario ? (
+                                                          <em>“{it.calificacion_cambio.comentario}”</em>
+                                                        ) : null}
+                                                      </div>
+                                                    ) : (
+                                                      <div className="pf-resena-form">
+                                                        <div className="pf-resena-row">
+                                                          <span className="pf-resena-label">
+                                                            Califica tu producto de cambio:
+                                                          </span>
+                                                          <span className="pf-stars-picker">
+                                                            {[1, 2, 3, 4, 5].map((s) => (
+                                                              <button
+                                                                key={s}
+                                                                type="button"
+                                                                aria-label={`${s} estrellas`}
+                                                                className={
+                                                                  (ratingCambioSel[it.id_devolucion] ?? 0) >= s
+                                                                    ? 'on'
+                                                                    : ''
+                                                                }
+                                                                onClick={() =>
+                                                                  setRatingCambioSel((prev) => ({
+                                                                    ...prev,
+                                                                    [it.id_devolucion]: s,
+                                                                  }))
+                                                                }
+                                                              >
+                                                                <FaStar />
+                                                              </button>
+                                                            ))}
+                                                          </span>
+                                                        </div>
+                                                        <input
+                                                          type="text"
+                                                          className="pf-resena-comentario"
+                                                          placeholder="Cuéntanos tu experiencia con el producto de cambio (opcional)"
+                                                          maxLength={500}
+                                                          value={comentarioCambioSel[it.id_devolucion] || ''}
+                                                          onChange={(e) =>
+                                                            setComentarioCambioSel((prev) => ({
+                                                              ...prev,
+                                                              [it.id_devolucion]: e.target.value,
+                                                            }))
+                                                          }
+                                                        />
+                                                        <button
+                                                          type="button"
+                                                          className="pf-resena-guardar"
+                                                          disabled={guardandoCambio === it.id_devolucion}
+                                                          onClick={() => guardarCalificacionCambio(it)}
+                                                        >
+                                                          {guardandoCambio === it.id_devolucion
+                                                            ? 'Enviando...'
+                                                            : 'Enviar calificación'}
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                  </li>
+                                                )}
+                                            </Fragment>
                                           ))}
                                         </ul>
                                         <div className="pf-dev-meta">
@@ -843,6 +981,10 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
                                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${seguimiento.ubicacion.longitud - 0.008}%2C${seguimiento.ubicacion.latitud - 0.005}%2C${seguimiento.ubicacion.longitud + 0.008}%2C${seguimiento.ubicacion.latitud + 0.005}&layer=mapnik&marker=${seguimiento.ubicacion.latitud}%2C${seguimiento.ubicacion.longitud}`}
                                 />
                               </>
+                            ) : seguimiento.ubicacion_desactualizada ? (
+                              <p className="pf-tracker-actualizado">
+                                La ubicación del técnico no está actualizada. Pídele que comparta su ubicación en tiempo real.
+                              </p>
                             ) : (
                               <p className="pf-tracker-actualizado">
                                 El técnico aún no ha compartido su ubicación.

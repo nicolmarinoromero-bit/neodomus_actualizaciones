@@ -895,7 +895,7 @@ def horas_disponibles_tecnico(
     la cita actual. Se usa para sugerir horas al técnico al reagendar."""
     tecnico = _ficha_tecnico_actual(db, current_user)
     cita = _cita_asignada_a_mi(db, tecnico, cita_id)
-    return [
+    horas = [
         h
         for h in horas_laborales(fecha)
         if not slot_tomado(db, fecha, h, excluir_cita_id=cita.id_cita)
@@ -903,6 +903,15 @@ def horas_disponibles_tecnico(
             db, tecnico.id_tecnico, fecha, h, excluir_cita_id=cita.id_cita
         )
     ]
+
+    if fecha == date.today():
+        ahora = datetime.now()
+        horas = [
+            h for h in horas
+            if datetime.combine(fecha, datetime.strptime(h, "%H:%M").time()) > ahora
+        ]
+
+    return horas
 
 
 @router.put("/citas/{cita_id}/reagendar", response_model=TecnicoCitaResponse)

@@ -468,6 +468,7 @@ const CitasPage = () => {
   const [aplazandoFecha, setAplazandoFecha] = useState('');
   const [aplazandoHora, setAplazandoHora] = useState('');
   const [aplazando, setAplazando] = useState(false);
+  const [horasAplazo, setHorasAplazo] = useState<string[]>([]);
 
   const iniciarAplazo = (cita: Cita) => {
     setAplazandoId(cita.id_cita);
@@ -479,7 +480,33 @@ const CitasPage = () => {
     setAplazandoId(null);
     setAplazandoFecha('');
     setAplazandoHora('');
+    setHorasAplazo([]);
   };
+
+  useEffect(() => {
+    if (!aplazandoFecha || !aplazandoId) {
+      setHorasAplazo([]);
+      return;
+    }
+    let activo = true;
+    const cargarHoras = async () => {
+      try {
+        const params = new URLSearchParams({ fecha: aplazandoFecha });
+        if (aplazandoId) params.set('excluir_cita_id', String(aplazandoId));
+        const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
+        if (!activo) return;
+        const libres = Array.isArray(res.data) ? res.data : [];
+        setHorasAplazo(libres);
+        if (!libres.includes(aplazandoHora)) setAplazandoHora('');
+      } catch {
+        if (!activo) return;
+        setHorasAplazo([]);
+        setAplazandoHora('');
+      }
+    };
+    cargarHoras();
+    return () => { activo = false; };
+  }, [aplazandoFecha, aplazandoId]);
 
   const confirmarAplazo = async (id: number) => {
     if (!aplazandoFecha || !aplazandoHora) return;
@@ -506,7 +533,7 @@ const CitasPage = () => {
       const reembolso = res.data?.reembolso;
       setToast({
         msg: reembolso
-          ? `Cita cancelada. Quedó registrado un reembolso de ${formatoPeso(reembolso.monto)} (85% del servicio) pendiente de confirmación.`
+          ? `Cita cancelada. Se registró un reembolso de ${formatoPeso(reembolso.monto)} (85% del servicio) pendiente de aprobación por un administrador.`
           : t('citas.exitoCancelada'),
         tipo: 'success',
       });
@@ -755,13 +782,24 @@ const CitasPage = () => {
                             onChange={(e) => setAplazandoFecha(e.target.value)}
                             aria-label={t('tec.fecha')}
                           />
-                          <input
-                            type="time"
-                            value={aplazandoHora}
-                            step={1800}
-                            onChange={(e) => setAplazandoHora(e.target.value)}
-                            aria-label={t('tec.hora')}
-                          />
+                          {aplazandoFecha && horasAplazo.length > 0 && (
+                            <div className="citas-horas-grid" role="radiogroup" aria-label={t('tec.hora')}>
+                              {horasAplazo.map((h) => (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  className={`citas-hora-btn ${aplazandoHora === h ? 'selected' : ''}`}
+                                  onClick={() => setAplazandoHora(h)}
+                                >
+                                  {h}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {aplazandoFecha && horasAplazo.length === 0 && (
+                            <p className="citas-no-horas">No hay horas disponibles para esa fecha.</p>
+                          )}
+                          {!aplazandoFecha && <p className="citas-hint">Selecciona una fecha para ver las horas disponibles.</p>}
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button
                               type="button"
@@ -1417,7 +1455,8 @@ const CitasPage = () => {
               </h3>
               <p className="citas-hint" style={{ marginTop: 8 }}>
                 Ten en cuenta que <strong>no se devolverá todo el dinero</strong>: nos
-                quedaremos con un <strong>15% del servicio pagado</strong>.
+                quedaremos con un <strong>15% del servicio pagado</strong>. El reembolso
+                del 85% restante será revisado y aprobado por un administrador.
               </p>
               {citaACancelar.costo_cita != null && citaACancelar.estado_pago === 'aprobado' && (
                 <div className="citas-cancel-montos">

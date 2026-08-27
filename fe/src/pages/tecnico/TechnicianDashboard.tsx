@@ -757,9 +757,9 @@ const TechnicianDashboard = () => {
                   (e.evidencias_entrega || []).length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {(e.evidencias_entrega || []).slice(0, 3).map((url) => (
-                        <a key={url} href={`${API_HOST}${url}`} target="_blank" rel="noopener noreferrer">
+                        <a key={url} href={urlEvidencia(url)} target="_blank" rel="noopener noreferrer">
                           <img
-                            src={`${API_HOST}${url}`}
+                            src={urlEvidencia(url)}
                             alt="Evidencia"
                             style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }}
                           />
