@@ -953,16 +953,19 @@ const CheckoutPage = () => {
                     <p className="checkout-nota">
                       Prueba: 4242 4242 4242 4242 (aprobada) · 4242 4242 4242 0001 (rechazada)
                     </p>
-                    <label>Cuotas</label>
-                    <select
-                      value={pago.cuotas}
-                      onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
-                    >
-                      <option value={1}>1 cuota</option>
-                      <option value={3}>3 cuotas</option>
-                      <option value={6}>6 cuotas</option>
-                      <option value={12}>12 cuotas</option>
-                    </select>
+                    <div className="checkout-field checkout-cuotas">
+                      <label className="checkout-cuotas-label">Cuotas</label>
+                      <select
+                        className="checkout-cuotas-select"
+                        value={pago.cuotas}
+                        onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
+                      >
+                        <option value={1}>1 cuota</option>
+                        <option value={3}>3 cuotas</option>
+                        <option value={6}>6 cuotas</option>
+                        <option value={12}>12 cuotas</option>
+                      </select>
+                    </div>
                   </>
                 )}
 
