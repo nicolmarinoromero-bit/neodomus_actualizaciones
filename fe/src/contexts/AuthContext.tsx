@@ -196,8 +196,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const status = err?.response?.status;
         if (status === 401) {
           // Access token expiró: intentar refrescar antes de cerrar sesión
-          const renovada = await refreshAccessToken();
-          if (renovada) {
+          const resultado = await refreshAccessToken();
+          if (resultado.ok) {
             try {
               const ses2 = await api.get('/auth/session');
               const rolRecordado = (base.rol || '').toLowerCase();
@@ -222,12 +222,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               // Refresh funcionó pero la sesión sigue inválida
             }
           }
-          ['user', 'access_token', 'refresh_token', PASSWORD_RESET_KEY, PERFIL_INCOMPLETO_KEY].forEach(
-            (k) => tabRemove(k),
-          );
-          setUser(null);
-          setRol(null);
-          setIsAuthenticated(false);
+          // Solo cerrar sesión si el refresh token es inválido (401).
+          // Si es error de red (backend reiniciándose), mantener la sesión
+          // para que al recargar la página siga viva.
+          if (resultado.authError) {
+            ['user', 'access_token', 'refresh_token', PASSWORD_RESET_KEY, PERFIL_INCOMPLETO_KEY].forEach(
+              (k) => tabRemove(k),
+            );
+            setUser(null);
+            setRol(null);
+            setIsAuthenticated(false);
+          } else {
+            // Error de red: confiar en los datos almacenados
+            setUser(base);
+            setRol(base.rol);
+            setIsAuthenticated(true);
+          }
         } else if (err?.message === 'La sesión pertenece a otra cuenta') {
           ['user', 'access_token', 'refresh_token', PASSWORD_RESET_KEY, PERFIL_INCOMPLETO_KEY].forEach(
             (k) => tabRemove(k),

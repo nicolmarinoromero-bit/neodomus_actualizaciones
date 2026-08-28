@@ -21,9 +21,9 @@ const clearSession = () => {
 };
 
 // Intenta renovar la sesión usando el refresh token de la pestaña.
-export const refreshAccessToken = async (): Promise<boolean> => {
+export const refreshAccessToken = async (): Promise<{ ok: boolean; authError: boolean }> => {
   const refreshToken = tabGet('refresh_token');
-  if (!refreshToken) return false;
+  if (!refreshToken) return { ok: false, authError: false };
   try {
     const res = await axios.post(
       `${BASE_URL}/auth/refresh`,
@@ -41,9 +41,14 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (res.data?.refresh_token) {
       tabSet('refresh_token', res.data.refresh_token);
     }
-    return true;
-  } catch {
-    return false;
+    return { ok: true, authError: false };
+  } catch (err: any) {
+    // Si el backend respondió 401, el refresh token es inválido → borrar sesión
+    if (err.response?.status === 401) {
+      return { ok: false, authError: true };
+    }
+    // Cualquier otro error (red, timeout, 500, backend reiniciándose) → NO borrar
+    return { ok: false, authError: false };
   }
 };
 
@@ -106,13 +111,14 @@ api.interceptors.response.use(
       !isAuthEndpoint
     ) {
       originalRequest._retry = true;
-      const renovada = await refreshAccessToken();
-      if (renovada) {
+      const resultado = await refreshAccessToken();
+      if (resultado.ok) {
         return api(originalRequest);
       }
-      // No se pudo renovar la sesión -> cerrar sesión
-      // Pero NO si estamos en la validación inicial (AuthContext se encarga)
-      if (!(window as any).__neodomus_validando_sesion) {
+      // Solo borrar sesión si el refresh token es realmente inválido (401).
+      // Si es error de red (backend reiniciándose, timeout, 500), mantener
+      // los tokens para que al recargar la página la sesión siga viva.
+      if (resultado.authError && !(window as any).__neodomus_validando_sesion) {
         clearSession();
       }
     }
