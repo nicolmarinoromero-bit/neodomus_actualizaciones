@@ -226,7 +226,7 @@ const CheckoutPage = () => {
   }, [servicios.map((s) => `${s.id}-${s.fecha}-${s.tipo}`).join('|')]);
 
   const firmaItems = items
-    .map((i) => `${i.id_producto}-${i.venta_por_metros ? i.metros : i.cantidad}`)
+    .map((i) => `${i.id_producto}-${i.venta_por_metros ? `${i.metros}x${i.cantidad}` : i.cantidad}`)
     .join('|');
   const servicioInstalacion = servicios.find((s) => s.tipo === 'Instalación');
   useEffect(() => {
@@ -240,7 +240,7 @@ const CheckoutPage = () => {
         items: items.map((i) => ({
           id_producto: i.id_producto,
           cantidad: i.venta_por_metros ? 1 : i.cantidad,
-          metros: i.venta_por_metros ? i.metros : undefined,
+          metros: i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : undefined,
         })),
         fecha: servicioInstalacion?.fecha || undefined,
         hora: servicioInstalacion?.hora || undefined,
@@ -373,7 +373,7 @@ const CheckoutPage = () => {
         items: items.map((i) => ({
           id_producto: i.id_producto,
           cantidad: i.venta_por_metros ? 1 : i.cantidad,
-          metros: i.venta_por_metros ? i.metros : undefined,
+          metros: i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : undefined,
           color: i.color,
           tamaño: i.tamaño,
           id_variante: i.id_variante ?? undefined,
@@ -1008,16 +1008,19 @@ const CheckoutPage = () => {
                     <p className="checkout-nota">
                       Prueba: 4242 4242 4242 4242 (aprobada) · 4242 4242 4242 0001 (rechazada)
                     </p>
-                    <label>Cuotas</label>
-                    <select
-                      value={pago.cuotas}
-                      onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
-                    >
-                      <option value={1}>1 cuota</option>
-                      <option value={3}>3 cuotas</option>
-                      <option value={6}>6 cuotas</option>
-                      <option value={12}>12 cuotas</option>
-                    </select>
+                    <div className="checkout-field">
+                      <label>Cuotas</label>
+                      <select
+                        className="checkout-cuotas-select"
+                        value={pago.cuotas}
+                        onChange={(e) => setPago({ ...pago, cuotas: Number(e.target.value) })}
+                      >
+                        <option value={1}>1 cuota</option>
+                        <option value={3}>3 cuotas</option>
+                        <option value={6}>6 cuotas</option>
+                        <option value={12}>12 cuotas</option>
+                      </select>
+                    </div>
                   </>
                 )}
 
@@ -1103,14 +1106,15 @@ const CheckoutPage = () => {
             <h2>Resumen del pedido</h2>
             <div className="checkout-resumen-items">
               {items.map((item) => {
-                const importe = item.precio_venta_producto * (item.venta_por_metros ? item.metros || 0 : item.cantidad);
+                const totalM = item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : 0;
+                const importe = item.precio_venta_producto * (item.venta_por_metros ? totalM : item.cantidad);
                 const tecnicosReq = Number(item.tecnicos_requeridos) || 1;
                 return (
-                  <div className="checkout-resumen-item" key={item.id_producto}>
+                  <div className="checkout-resumen-item" key={`${item.id_producto}-${item.metros || 0}-${item.cantidad}`}>
                     <span className="checkout-resumen-nombre">
                       {item.nombre_producto}
                       {item.venta_por_metros
-                        ? ` · ${item.metros} m`
+                        ? ` · ${item.metros} m × ${item.cantidad} = ${totalM} m`
                         : item.cantidad > 1
                           ? ` × ${item.cantidad}`
                           : ''}

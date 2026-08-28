@@ -23,8 +23,9 @@ const CarritoPage = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string }) =>
-    [item.id_producto, item.color?.toLowerCase(), (item.medida || item.tamaño || '').toLowerCase()].filter(Boolean).join('-');
+  const METROS_OPCIONES = [10, 20, 30, 40, 50];
+  const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string; metros?: number; venta_por_metros?: boolean }) =>
+    [item.id_producto, item.color?.toLowerCase(), (item.medida || item.tamaño || '').toLowerCase(), item.venta_por_metros && item.metros ? `${item.metros}m` : null].filter(Boolean).join('-');
 
   const validarStockBackend = useCallback(async () => {
     for (const item of items) {
@@ -53,7 +54,9 @@ const CarritoPage = () => {
     params.set('editar', key);
     if (item.color) params.set('color', item.color);
     if (item.metros != null) params.set('metros', String(item.metros));
-    if (!item.venta_por_metros) params.set('cantidad', String(item.cantidad));
+    if (item.venta_por_metros) params.set('cantidad', String(item.cantidad));
+    else params.set('cantidad', String(item.cantidad));
+    if (item.venta_por_metros) params.set('unidades', String(item.cantidad));
     navigate(`/producto/${item.id_producto}?${params.toString()}`);
   };
 
@@ -86,10 +89,9 @@ const CarritoPage = () => {
     if (error) showToast(error, 'error');
   };
 
-  const handleMetrosChange = (item: CartItem, delta: number) => {
+  const handleMetrosChange = (item: CartItem, nuevoMetros: number) => {
     const key = itemKey(item);
-    const nuevosMetros = Math.max(0.5, Number(((item.metros || 1) + delta).toFixed(1)));
-    const error = updateMetros(key, nuevosMetros);
+    const error = updateMetros(key, nuevoMetros);
     if (error) showToast(error, 'error');
   };
 
@@ -153,7 +155,9 @@ const CarritoPage = () => {
                         ${item.precio_venta_producto.toLocaleString()} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
                       </span>
                       {item.venta_por_metros && item.metros != null && (
-                        <span className="carrito-item-metros">{item.metros} m</span>
+                        <span className="carrito-item-metros">
+                          {item.metros} m × {item.cantidad} {item.cantidad === 1 ? 'unidad' : 'unidades'} = {(item.metros * item.cantidad)} m total
+                        </span>
                       )}
                       {item.tecnicos_requeridos != null && (
                         <span className="carrito-item-tecnicos">
@@ -165,23 +169,36 @@ const CarritoPage = () => {
                     <div className="carrito-item-controls">
                     <div className="carrito-cantidad">
                       {item.venta_por_metros ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleMetrosChange(item, -1)}
-                            aria-label="Reducir metros"
+                        <div className="carrito-metros-unidades">
+                          <select
+                            className="carrito-metros-select"
+                            value={item.metros}
+                            onChange={(e) => handleMetrosChange(item, Number(e.target.value))}
+                            aria-label="Metros por unidad"
                           >
-                            −
-                          </button>
-                          <span>{item.metros} m</span>
-                          <button
-                            type="button"
-                            onClick={() => handleMetrosChange(item, 1)}
-                            aria-label="Aumentar metros"
-                          >
-                            +
-                          </button>
-                        </>
+                            {METROS_OPCIONES.map(m => (
+                              <option key={m} value={m}>{m} m</option>
+                            ))}
+                          </select>
+                          <div className="carrito-unidades-control">
+                            <button
+                              type="button"
+                              onClick={() => handleCantidadChange(item, -1)}
+                              aria-label="Reducir unidades"
+                            >
+                              −
+                            </button>
+                            <span>{item.cantidad} u.</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCantidadChange(item, 1)}
+                              disabled={item.stock_maximo != null && item.stock_maximo < Infinity && (item.metros || 0) * (item.cantidad + 1) > item.stock_maximo}
+                              aria-label="Aumentar unidades"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <>
                           <button
@@ -231,21 +248,21 @@ const CarritoPage = () => {
 
                       {item.stock_maximo != null && item.stock_maximo < Infinity && (
                         (() => {
-                          const actual = item.venta_por_metros ? (item.metros || 0) : item.cantidad;
+                          const actual = item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : item.cantidad;
                           const excede = actual > item.stock_maximo;
                           return (
                             <span className={`carrito-stock-badge ${excede ? 'excede' : 'ok'}`}>
                               <FaTriangleExclamation />
                               {excede
-                                ? `Excede stock (${item.stock_maximo} disp.)`
-                                : `${item.stock_maximo} disp.`}
+                                ? `Excede stock (${item.stock_maximo} ${item.venta_por_metros ? 'm' : 'u.'} disp.)`
+                                : `${item.stock_maximo} ${item.venta_por_metros ? 'm' : 'u.'} disp.`}
                             </span>
                           );
                         })()
                       )}
 
                       <span className="carrito-item-subtotal">
-                        ${(item.precio_venta_producto * (item.venta_por_metros ? item.metros || 0 : item.cantidad)).toLocaleString()} COP
+                        ${(item.precio_venta_producto * (item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : item.cantidad)).toLocaleString()} COP
                       </span>
 
                       <button

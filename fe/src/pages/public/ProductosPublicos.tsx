@@ -58,6 +58,8 @@ const ProductosPublicos = () => {
   const [cantidades, setCantidades] = useState<Record<number, number>>({});
   const [displayValues, setDisplayValues] = useState<Record<number, string>>({});
   const [metros, setMetros] = useState<Record<number, number>>({});
+  const [unidadesMetros, setUnidadesMetros] = useState<Record<number, number>>({});
+  const [displayUnidades, setDisplayUnidades] = useState<Record<number, string>>({});
 
   // Cargar categorías
   useEffect(() => {
@@ -149,6 +151,14 @@ const ProductosPublicos = () => {
     const precio = producto.precio_final ?? producto.precio_venta_producto;
     if (producto.venta_por_metros) {
       const m = metros[id] || 10;
+      const u = unidadesMetros[id] || 1;
+      const total = m * u;
+      const stock = stockDe(producto);
+      if (total > stock) {
+        setCartMessage(`Stock insuficiente: solo ${stock} m disponibles`);
+        setTimeout(() => setCartMessage(''), 3000);
+        return;
+      }
       addItem(
         {
           id_producto: producto.id_producto,
@@ -156,11 +166,13 @@ const ProductosPublicos = () => {
           precio_venta_producto: precio,
           imagen: getImagen(producto),
           venta_por_metros: true,
+          stock_maximo: stock,
+          metros: m,
         },
-        1,
+        u,
         m
       );
-      setCartMessage(`${m} m x ${producto.nombre_producto}`);
+      setCartMessage(`${u} × ${m} m (${total} m) — ${producto.nombre_producto}`);
     } else {
       addItem(
         {
@@ -198,11 +210,37 @@ const ProductosPublicos = () => {
     });
   };
 
-  const setMetrosProducto = (id: number, metros: number) => {
+  const setMetrosProducto = (id: number, m: number) => {
     setMetros(prev => ({
       ...prev,
-      [id]: metros,
+      [id]: m,
     }));
+    // Ajusta unidades si excede stock al cambiar la longitud
+    const prod = productos.find(p => p.id_producto === id);
+    if (prod) {
+      const stock = stockDe(prod);
+      const u = unidadesMetros[id] || 1;
+      if (m * u > stock) {
+        const maxU = Math.max(1, Math.floor(stock / m) || 1);
+        if (u > maxU) setUnidadesMetros(prev => ({ ...prev, [id]: maxU }));
+      }
+    }
+  };
+
+  const disminuirUnidades = (id: number) => {
+    setUnidadesMetros(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) - 1),
+    }));
+  };
+
+  const aumentarUnidades = (id: number, stock: number, metrosVal: number) => {
+    setUnidadesMetros(prev => {
+      const actual = prev[id] || 1;
+      const maxU = Math.max(1, Math.floor(stock / metrosVal) || 1);
+      if (actual >= maxU) return prev;
+      return { ...prev, [id]: actual + 1 };
+    });
   };
 
   // Imagen basada en ID
@@ -278,6 +316,8 @@ const ProductosPublicos = () => {
                   const esFavorito = favoritos.has(producto.id_producto);
                   const esPorMetros = Boolean(producto.venta_por_metros);
                   const cantidadMetros = metros[producto.id_producto] || 10;
+                  const unidadesVal = unidadesMetros[producto.id_producto] || 1;
+                  const totalMetrosCard = cantidadMetros * unidadesVal;
                   const tieneDescuento = producto.precio_final != null && producto.descuento_activo && producto.descuento_activo > 0;
                   const precioFinal = producto.precio_final ?? producto.precio_venta_producto;
                   return (
@@ -320,69 +360,134 @@ const ProductosPublicos = () => {
                         <span className="categoria-producto">
                           {`Requiere ${producto.tecnicos_requeridos && producto.tecnicos_requeridos > 1 ? producto.tecnicos_requeridos + ' técnicos' : '1 técnico'}`}
                         </span>
-                        <div className="precio-producto">
-                          {tieneDescuento && (
-                            <span className="precio-original">
-                              ${(producto.precio_venta_producto * (esPorMetros ? cantidadMetros : 1)).toLocaleString()}
-                            </span>
-                          )}
-                          <span className="precio-monto">
-                            ${(precioFinal * (esPorMetros ? cantidadMetros : 1)).toLocaleString()}
-                          </span>
-                          <span className="precio-sufijo">COP</span>
-                          {tieneDescuento && (
-                            <span className="badge-descuento">-{producto.descuento_activo}%</span>
-                          )}
-                        </div>
-                        {esPorMetros && (
-                          <span className="precio-metro-hint">
-                            {precioFinal.toLocaleString()} COP / metro
-                          </span>
-                        )}
-                        {(producto.variantes?.length ?? 0) > 0 && (
-                          <div className="combos-mini">
-                            {producto.variantes!.slice(0, 4).map((v) => {
-                              const medida = v.etiqueta_medida || v.tamaño || '';
-                              const agotada = (v.stock || 0) <= 0;
-                              return (
-                                <span
-                                  key={v.id}
-                                  className={`combo-chip ${agotada ? 'agotado' : ''}`}
-                                  title={`${v.nombre}${medida ? ` · ${medida}` : ''} — ${
-                                    agotada ? 'Sin stock' : `${v.stock} u.`
-                                  }`}
-                                >
-                                  <i
-                                    className="combo-dot"
-                                    style={{ background: v.hex || '#d4a54b' }}
-                                  />
-                                  {medida && <b>{medida}</b>}
-                                  {agotada ? ' ✕' : ` · ${v.stock}`}
-                                </span>
-                              );
-                            })}
-                            {(producto.variantes!.length > 4) && (
-                              <span className="combo-chip mas">
-                                +{producto.variantes!.length - 4}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="acciones-producto">
-                          <div className="cantidad-control">
+                        <div className="producto-footer">
+                          <div className="precio-bloque">
                             {esPorMetros ? (
-                              <select
-                                className="metros-select"
-                                value={cantidadMetros}
-                                onChange={(e) => setMetrosProducto(producto.id_producto, Number(e.target.value))}
-                                aria-label="Metros"
-                              >
-                                {METROS_OPCIONES.map(m => (
-                                  <option key={m} value={m}>{m} m</option>
-                                ))}
-                              </select>
+                              <>
+                                <span className="precio-unitario">{precioFinal.toLocaleString()} COP / metro</span>
+                                <div className="precio-producto">
+                                  {tieneDescuento && (
+                                    <span className="precio-original">
+                                      ${(producto.precio_venta_producto * totalMetrosCard).toLocaleString()}
+                                    </span>
+                                  )}
+                                  <span className="precio-monto">
+                                    ${(precioFinal * totalMetrosCard).toLocaleString()}
+                                  </span>
+                                  <span className="precio-sufijo">COP</span>
+                                  {tieneDescuento && (
+                                    <span className="badge-descuento">-{producto.descuento_activo}%</span>
+                                  )}
+                                </div>
+                                <span className="precio-seleccion-detalle">{cantidadMetros} m × {unidadesVal} {unidadesVal === 1 ? 'unidad' : 'unidades'} = {totalMetrosCard} m total</span>
+                              </>
                             ) : (
                               <>
+                                <span className="precio-unitario precio-unitario--placeholder" aria-hidden="true">—</span>
+                                <div className="precio-producto">
+                                  {tieneDescuento && (
+                                    <span className="precio-original">
+                                      ${producto.precio_venta_producto.toLocaleString()}
+                                    </span>
+                                  )}
+                                  <span className="precio-monto">
+                                    ${precioFinal.toLocaleString()}
+                                  </span>
+                                  <span className="precio-sufijo">COP</span>
+                                  {tieneDescuento && (
+                                    <span className="badge-descuento">-{producto.descuento_activo}%</span>
+                                  )}
+                                </div>
+                                <span className="precio-seleccion-detalle precio-seleccion-detalle--placeholder" aria-hidden="true">—</span>
+                              </>
+                            )}
+                          </div>
+                          {(producto.variantes?.length ?? 0) > 0 ? (
+                            <div className="combos-mini">
+                              {producto.variantes!.slice(0, 4).map((v) => {
+                                const medida = v.etiqueta_medida || v.tamaño || '';
+                                const agotada = (v.stock || 0) <= 0;
+                                return (
+                                  <span
+                                    key={v.id}
+                                    className={`combo-chip ${agotada ? 'agotado' : ''}`}
+                                    title={`${v.nombre}${medida ? ` · ${medida}` : ''} — ${
+                                      agotada ? 'Sin stock' : `${v.stock} u.`
+                                    }`}
+                                  >
+                                    <i
+                                      className="combo-dot"
+                                      style={{ background: v.hex || '#d4a54b' }}
+                                    />
+                                    {medida && <b>{medida}</b>}
+                                    {agotada ? ' ✕' : ` · ${v.stock}`}
+                                  </span>
+                                );
+                              })}
+                              {(producto.variantes!.length > 4) && (
+                                <span className="combo-chip mas">
+                                  +{producto.variantes!.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="combos-mini combos-mini--placeholder" aria-hidden="true">
+                              <span className="combo-chip" style={{ visibility: 'hidden' }}>.</span>
+                            </div>
+                          )}
+                          <div className="selectores-bloque">
+                            {esPorMetros ? (
+                              <div className="metros-control-grid">
+                                <select
+                                  className="metros-select"
+                                  value={cantidadMetros}
+                                  onChange={(e) => setMetrosProducto(producto.id_producto, Number(e.target.value))}
+                                  aria-label="Metros"
+                                >
+                                  {METROS_OPCIONES.map(m => (
+                                    <option key={m} value={m}>{m} m</option>
+                                  ))}
+                                </select>
+                                <div className="cantidad-row">
+                                  <span className="cantidad-label">Cantidad:</span>
+                                  <div className="cantidad-control">
+                                    <button type="button" onClick={() => disminuirUnidades(producto.id_producto)} aria-label="Reducir unidades">−</button>
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      className="cantidad-input"
+                                      value={displayUnidades[producto.id_producto] ?? String(unidadesVal)}
+                                      onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setDisplayUnidades(prev => ({ ...prev, [producto.id_producto]: val }));
+                                      }}
+                                      onBlur={(e) => {
+                                        const num = parseInt(e.target.value, 10);
+                                        const stock = stockDe(producto);
+                                        const mVal = cantidadMetros;
+                                        const maxU = Math.max(1, Math.floor(stock / mVal) || 1);
+                                        if (isNaN(num) || num < 1) {
+                                          setUnidadesMetros(prev => ({ ...prev, [producto.id_producto]: 1 }));
+                                        } else {
+                                          setUnidadesMetros(prev => ({ ...prev, [producto.id_producto]: num > maxU ? maxU : num }));
+                                        }
+                                        setDisplayUnidades(prev => ({ ...prev, [producto.id_producto]: '' }));
+                                      }}
+                                      aria-label="Unidades"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => aumentarUnidades(producto.id_producto, stockDe(producto), cantidadMetros)}
+                                      disabled={unidadesVal >= Math.max(1, Math.floor(stockDe(producto) / cantidadMetros) || 1)}
+                                      aria-label="Aumentar unidades"
+                                    >+</button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="cantidad-row">
+                                <span className="cantidad-label">Cantidad:</span>
+                                <div className="cantidad-control">
                                 <button type="button" onClick={() => disminuirCantidad(producto.id_producto)} aria-label="Reducir cantidad">−</button>
                                 <input
                                   type="text"
@@ -413,11 +518,12 @@ const ProductosPublicos = () => {
                                   disabled={(cantidades[producto.id_producto] || 1) >= stockDe(producto)}
                                   aria-label="Aumentar cantidad"
                                 >+</button>
-                              </>
+                                </div>
+                              </div>
                             )}
                           </div>
                           <button
-                            className="btn-agregar"
+                            className="btn-agregar btn-agregar--footer"
                             onClick={() => handleAddToCart(producto.id_producto)}
                           >
                             <span>{t('productos.agregarCarrito')}</span>

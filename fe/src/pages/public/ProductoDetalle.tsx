@@ -157,6 +157,8 @@ const ProductoDetalle = () => {
   const [cantidad, setCantidad] = useState(1);
   const [displayValue, setDisplayValue] = useState('');
   const [metros, setMetros] = useState(10);
+  const [unidadesMetros, setUnidadesMetros] = useState(1);
+  const [displayUnidades, setDisplayUnidades] = useState('');
   const [toast, setToast] = useState('');
 
   const showToast = (msg: string) => {
@@ -190,6 +192,8 @@ const ProductoDetalle = () => {
   const precioUnitario = varianteActiva?.precio ?? precioBase;
   const precioFinal = precioUnitario;
   const tieneDescuento = producto?.precio_final != null && Boolean(producto?.descuento_activo && producto.descuento_activo > 0);
+  const totalMetros = (producto?.venta_por_metros ? metros * unidadesMetros : 0);
+  const maxUnidades = producto?.venta_por_metros && metros > 0 ? Math.max(1, Math.floor((stockDisponible || 0) / metros) || 1) : 99;
   const imagen =
     varianteActiva?.imagen_url || producto?.imagen_url || `/productos/${producto?.id_producto}.jpg`;
 
@@ -244,8 +248,11 @@ const ProductoDetalle = () => {
         setTamano('');
       }
       const paramMetros = searchParams.get('metros');
-      if (producto.venta_por_metros && paramMetros) {
-        setMetros(METROS_OPCIONES.includes(Number(paramMetros)) ? Number(paramMetros) : 10);
+      if (producto.venta_por_metros) {
+        if (paramMetros) setMetros(METROS_OPCIONES.includes(Number(paramMetros)) ? Number(paramMetros) : 10);
+        const paramUnidades = searchParams.get('unidades') || searchParams.get('cantidad');
+        if (paramUnidades) setUnidadesMetros(Math.max(1, Number(paramUnidades) || 1));
+        else setUnidadesMetros(1);
       }
       const paramCantidad = searchParams.get('cantidad');
       if (!producto.venta_por_metros && paramCantidad) {
@@ -301,6 +308,15 @@ const ProductoDetalle = () => {
         showToast('Ingresa una cantidad de metros válida');
         return;
       }
+      if (!unidadesMetros || unidadesMetros < 1) {
+        showToast('Ingresa una cantidad de unidades válida');
+        return;
+      }
+      const totalSolicitado = metros * unidadesMetros;
+      if (totalSolicitado > stockDisponible) {
+        showToast(`Stock insuficiente: solo hay ${stockDisponible} m disponibles`);
+        return;
+      }
       if (editarKey) removeItem(editarKey);
       const error = addItem(
         {
@@ -309,17 +325,22 @@ const ProductoDetalle = () => {
           precio_venta_producto: precioFinal,
           imagen,
           venta_por_metros: true,
+          color,
+          tamaño: tamano,
+          medida: tamano,
+          id_variante: varianteActiva?.id,
           tecnicos_requeridos: producto.tecnicos_requeridos || 1,
           stock_maximo: stockDisponible,
+          metros,
         },
-        1,
+        unidadesMetros,
         metros
       );
       if (error) { showToast(error); return; }
       if (editarKey) {
         navigate('/carrito');
       } else {
-        showToast(`${metros} m x ${producto.nombre_producto} ${t('productos.agregadoAlCarrito')}`);
+        showToast(`${unidadesMetros} × ${metros} m (${totalSolicitado} m) — ${producto.nombre_producto} ${t('productos.agregadoAlCarrito')}`);
       }
       return;
     }
@@ -391,31 +412,51 @@ const ProductoDetalle = () => {
             <h1 className="detalle-nombre">{producto.nombre_producto}</h1>
             {producto.marca && <span className="detalle-marca">Marca: {producto.marca}</span>}
 
-            <div className="detalle-precio">
-              {tieneDescuento && (
-                <span className="detalle-precio-original">
-                  ${(
-                    producto.precio_venta_producto *
-                    (producto.venta_por_metros ? metros : 1)
-                  ).toLocaleString()}
-                </span>
-              )}
-              <span className="detalle-precio-monto">
-                ${(
-                  precioFinal *
-                  (producto.venta_por_metros ? metros : 1)
-                ).toLocaleString()}
-              </span>
-              <span className="detalle-precio-sufijo">COP{producto.venta_por_metros ? ` / metro (${metros} m)` : ''}</span>
-              {tieneDescuento && (
-                <span className="detalle-badge-descuento">-{producto.descuento_activo}%</span>
+            <div className={`detalle-precio ${producto.venta_por_metros ? 'detalle-precio--metros' : ''}`}>
+              {producto.venta_por_metros ? (
+                <>
+                  <div className="detalle-precio-total-row">
+                    {tieneDescuento && (
+                      <span className="detalle-precio-original">
+                        ${(producto.precio_venta_producto * totalMetros).toLocaleString()}
+                      </span>
+                    )}
+                    <span className="detalle-precio-monto">
+                      ${(precioFinal * totalMetros).toLocaleString()}
+                    </span>
+                    <span className="detalle-precio-sufijo">COP</span>
+                    {tieneDescuento && (
+                      <span className="detalle-badge-descuento">-{producto.descuento_activo}%</span>
+                    )}
+                  </div>
+                  <span className="detalle-precio-unitario">
+                    ${precioFinal.toLocaleString()} COP / metro · {metros} m × {unidadesMetros} {unidadesMetros === 1 ? 'unidad' : 'unidades'} = {totalMetros} m total
+                  </span>
+                </>
+              ) : (
+                <>
+                  {tieneDescuento && (
+                    <span className="detalle-precio-original">
+                      ${(producto.precio_venta_producto).toLocaleString()}
+                    </span>
+                  )}
+                  <span className="detalle-precio-monto">
+                    ${precioFinal.toLocaleString()}
+                  </span>
+                  <span className="detalle-precio-sufijo">COP</span>
+                  {tieneDescuento && (
+                    <span className="detalle-badge-descuento">-{producto.descuento_activo}%</span>
+                  )}
+                </>
               )}
             </div>
 
             <div className={`detalle-disponibilidad ${stockDisponible <= 0 ? 'agotado' : ''}`}>
               {stockDisponible > 0 ? <FaCheck /> : <FaRotateLeft />}
               {stockDisponible > 0
-                ? `Disponible · ${stockDisponible} u.${variantes.length ? ' en esta combinación' : ''}`
+                ? producto.venta_por_metros
+                  ? `Disponible · ${stockDisponible} m${variantes.length ? ' en esta combinación' : ''} · ${totalMetros} m seleccionados`
+                  : `Disponible · ${stockDisponible} u.${variantes.length ? ' en esta combinación' : ''}`
                 : 'Sin stock en esta combinación'}
             </div>
 
@@ -525,20 +566,86 @@ const ProductoDetalle = () => {
 
               <div className="detalle-cantidad-row">
                 {producto.venta_por_metros ? (
-                  <div className="detalle-metros">
-                    <span className="detalle-metros-titulo">Elige cuántos metros quieres:</span>
-                    <div className="detalle-metros-opciones">
-                      {METROS_OPCIONES.map(m => (
-                        <button
-                          key={m}
-                          type="button"
-                          className={`detalle-metro-chip ${metros === m ? 'activo' : ''}`}
-                          onClick={() => setMetros(m)}
-                          aria-label={`${m} metros`}
-                        >
-                          {m} m
-                        </button>
-                      ))}
+                  <div className="detalle-metros-bloque">
+                    <div className="detalle-metros-controles">
+                      <div className="detalle-metros-campo">
+                        <span className="detalle-metros-label">Metros por unidad</span>
+                        <div className="detalle-metros-select-wrap">
+                          <select
+                            className="detalle-metros-select"
+                            value={metros}
+                            onChange={(e) => {
+                              const nuevo = Number(e.target.value);
+                              setMetros(nuevo);
+                              if (nuevo * unidadesMetros > stockDisponible) {
+                                const maxU = Math.max(1, Math.floor(stockDisponible / nuevo) || 1);
+                                if (unidadesMetros > maxU) setUnidadesMetros(maxU);
+                              }
+                            }}
+                            aria-label="Metros por unidad"
+                          >
+                            {METROS_OPCIONES.map(m => (
+                              <option key={m} value={m}>{m} m</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="detalle-metros-campo detalle-unidades-campo">
+                        <span className="detalle-metros-label">Unidades</span>
+                        <div className="detalle-cantidad detalle-cantidad--compact">
+                          <button
+                            type="button"
+                            onClick={() => setUnidadesMetros(Math.max(1, unidadesMetros - 1))}
+                            aria-label="Reducir unidades"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="cantidad-input"
+                            value={displayUnidades || String(unidadesMetros)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, '');
+                              setDisplayUnidades(val);
+                            }}
+                            onBlur={(e) => {
+                              const num = parseInt(e.target.value, 10);
+                              if (isNaN(num) || num < 1) {
+                                setUnidadesMetros(1);
+                              } else {
+                                const maxU = Math.max(1, Math.floor(stockDisponible / metros) || 99);
+                                setUnidadesMetros(num > maxU ? maxU : num);
+                              }
+                              setDisplayUnidades('');
+                            }}
+                            aria-label="Unidades"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setUnidadesMetros(Math.min(unidadesMetros + 1, maxUnidades))}
+                            disabled={unidadesMetros >= maxUnidades}
+                            aria-label="Aumentar unidades"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="detalle-precio-desglose">
+                      <div className="detalle-precio-desglose-fila">
+                        <span>Precio por metro</span>
+                        <strong>${precioUnitario.toLocaleString()} COP</strong>
+                      </div>
+                      <div className="detalle-precio-desglose-fila">
+                        <span>Selección</span>
+                        <span>{metros} m × {unidadesMetros} {unidadesMetros === 1 ? 'unidad' : 'unidades'}</span>
+                      </div>
+                      <div className="detalle-precio-desglose-fila detalle-precio-desglose-total">
+                        <span>Total</span>
+                        <strong>${(precioUnitario * totalMetros).toLocaleString()} COP</strong>
+                      </div>
+                      <span className="detalle-precio-desglose-meta">{totalMetros} m en total · ${precioUnitario.toLocaleString()} / m</span>
                     </div>
                   </div>
                 ) : (
@@ -599,11 +706,13 @@ const ProductoDetalle = () => {
                 <strong>
                   $
                   {(
-                    precioUnitario *
-                    (producto.venta_por_metros ? metros : cantidad)
+                    producto.venta_por_metros ? precioUnitario * totalMetros : precioUnitario * cantidad
                   ).toLocaleString()}{' '}
                   COP
                 </strong>
+                {producto.venta_por_metros && (
+                  <span className="detalle-subtotal-detalle"> · ${precioUnitario.toLocaleString()} / m · {totalMetros} m</span>
+                )}
               </p>
             </div>
 

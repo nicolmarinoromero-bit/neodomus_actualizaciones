@@ -269,6 +269,72 @@
   cursor: not-allowed;
 }
 
+.carrito-metros-unidades {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.carrito-metros-select {
+  height: 40px;
+  padding: 0 28px 0 10px;
+  border-radius: 10px;
+  border: 1px solid #3a3a3a;
+  background: rgba(0, 0, 0, 0.35) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23d3ac4d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 12px;
+  color: #ffd700;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.carrito-metros-select option {
+  background: #111111;
+  color: #ffffff;
+}
+.carrito-unidades-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+.carrito-unidades-control button {
+  width: 32px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 15px;
+}
+.carrito-unidades-control button:hover {
+  background: rgba(211, 172, 77, 0.25);
+  color: #ffd700;
+}
+.carrito-unidades-control button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.carrito-unidades-control span {
+  min-width: 36px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  border-left: 1px solid #2e2e2e;
+  border-right: 1px solid #2e2e2e;
+}
+.carrito-item-metros {
+  color: #c9c9c9;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .carrito-item-subtotal {
   color: #ffd700;
   font-weight: 700;
