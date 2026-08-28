@@ -46,9 +46,9 @@ const AdminProductos = () => {
   const proveedorId = searchParams.get('proveedor');
   const nombreProveedor = productos[0]?.nombre_proveedor || t('adm.productos.proveedorSeleccionado');
 
-  const cargar = async (search = '') => {
-    setCargando(true);
-    setError(false);
+  const cargar = async (search = '', silencioso = false) => {
+    if (!silencioso) setCargando(true);
+    if (!silencioso) setError(false);
     try {
       const params = new URLSearchParams({ limit: '100' });
       params.set('estado', filtroEstado);
@@ -59,9 +59,9 @@ const AdminProductos = () => {
       setProductos(res.data.data || []);
       setTotal(res.data.total ?? 0);
     } catch {
-      setError(true);
+      if (!silencioso) setError(true);
     } finally {
-      setCargando(false);
+      if (!silencioso) setCargando(false);
     }
   };
 
@@ -72,11 +72,28 @@ const AdminProductos = () => {
 
   useEffect(() => {
     cargar('');
-    const handler = () => cargar('');
+    const handler = () => cargar('', true);
     window.addEventListener('admin-producto-updated', handler);
     return () => window.removeEventListener('admin-producto-updated', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tiempo real: stock/precio/visibilidad se actualiza solo cada 15 s y al volver a la pestaña (cliente y admin sincronizados tras una compra).
+  useEffect(() => {
+    const refetch = () => cargar(busqueda, true);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refetch();
+    };
+    window.addEventListener('focus', refetch);
+    document.addEventListener('visibilitychange', onVisibility);
+    const interval = window.setInterval(refetch, 15000);
+    return () => {
+      window.removeEventListener('focus', refetch);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda, filtroEstado, categoriaId, proveedorId]);
 
   useEffect(() => {
     api

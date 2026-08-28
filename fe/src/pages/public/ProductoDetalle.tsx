@@ -218,9 +218,11 @@ const ProductoDetalle = () => {
     };
     window.addEventListener('focus', refetch);
     document.addEventListener('visibilitychange', onVisibility);
+    const interval = window.setInterval(refetch, 15000);
     return () => {
       window.removeEventListener('focus', refetch);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
     };
   }, [id]);
 

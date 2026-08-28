@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaTags, FaCircleInfo, FaBoxOpen, FaPen, FaArrowRight, FaPlus, FaMagnifyingGlass } from 'react-icons/fa6';
+import { FaTags, FaCircleInfo, FaBoxOpen, FaPen, FaArrowRight, FaPlus, FaMagnifyingGlass, FaEye, FaEyeSlash, FaCircleCheck, FaTriangleExclamation } from 'react-icons/fa6';
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
@@ -22,6 +22,7 @@ const AdminCatalogo = () => {
   const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
   useEffect(() => {
     const cargar = () => {
@@ -41,6 +42,28 @@ const AdminCatalogo = () => {
     window.addEventListener('admin-producto-updated', handler);
     return () => window.removeEventListener('admin-producto-updated', handler);
   }, []);
+
+  const notify = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
+    setToast({ msg, tipo });
+    window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const toggleVisibilidad = async (producto: ProductoAdmin) => {
+    const previo = producto.visible_cliente !== false;
+    setProductos((prev) => prev.map((p) => (p.id_producto === producto.id_producto ? { ...p, visible_cliente: !previo } : p)));
+    try {
+      const res = await api.put(`/productos/${producto.id_producto}/visibilidad`);
+      const nuevo = res.data?.visible_cliente;
+      if (typeof nuevo === 'boolean') {
+        setProductos((prev) => prev.map((p) => (p.id_producto === producto.id_producto ? { ...p, visible_cliente: nuevo } : p)));
+      }
+      notify(res.data?.mensaje || (nuevo ?? !previo ? 'Producto visible en tienda' : 'Producto oculto de la tienda'));
+      window.dispatchEvent(new CustomEvent('admin-producto-updated'));
+    } catch (err: any) {
+      setProductos((prev) => prev.map((p) => (p.id_producto === producto.id_producto ? { ...p, visible_cliente: previo } : p)));
+      notify(err.response?.data?.detail || 'Error al cambiar visibilidad', 'err');
+    }
+  };
 
   const conteoPorCategoria = (id: number) => productos.filter((p) => p.id_cate_pr === id).length;
   const formatoPrecio = (valor: number) => `$${valor.toLocaleString('es-CO')}`;
@@ -204,6 +227,7 @@ const AdminCatalogo = () => {
                   <th>{t('adm.catalogo.colCategoria')}</th>
                   <th>{t('adm.catalogo.colStock')}</th>
                   <th>{t('adm.catalogo.colPrecio')}</th>
+                  <th>Visible</th>
                   <th>{t('adm.catalogo.colAcciones')}</th>
                 </tr>
               </thead>
@@ -244,6 +268,19 @@ const AdminCatalogo = () => {
                       <span className="muted">COP</span>
                     </td>
                     <td>
+                      <label className="ap-toggle" title={producto.visible_cliente !== false ? 'Ocultar del catálogo público' : 'Mostrar en catálogo público'}>
+                        <input
+                          type="checkbox"
+                          checked={producto.visible_cliente !== false}
+                          onChange={() => toggleVisibilidad(producto)}
+                        />
+                        <span className="ap-toggle-slider" />
+                        <span className="ap-toggle-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {producto.visible_cliente !== false ? <FaEye /> : <FaEyeSlash />} {producto.visible_cliente !== false ? 'Visible' : 'Oculto'}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
                       <Link to={`/admin/productos/${producto.id_producto}`} className="ap-btn ap-btn-ghost">
                         <FaPen /> {t('adm.catalogo.gestionar')}
                       </Link>
@@ -253,6 +290,12 @@ const AdminCatalogo = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+      {toast && (
+        <div className={`ap-toast ${toast.tipo}`}>
+          {toast.tipo === 'ok' ? <FaCircleCheck /> : <FaTriangleExclamation />}
+          {toast.msg}
         </div>
       )}
     </motion.section>

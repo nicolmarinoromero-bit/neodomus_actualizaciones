@@ -124,6 +124,19 @@ const AdminInstalaciones = () => {
   const [disponibles, setDisponibles] = useState<Record<number, TecnicoDisp[]>>({});
   const [aplazandoId, setAplazandoId] = useState<number | null>(null);
   const [sugerencia, setSugerencia] = useState<SugerenciaAplazar | null>(null);
+  const [aplazarFecha, setAplazarFecha] = useState('');
+  const [aplazarHora, setAplazarHora] = useState('');
+  const [aplazarHoras, setAplazarHoras] = useState<string[]>([]);
+  const [aplazarCargandoHoras, setAplazarCargandoHoras] = useState(false);
+  // Horarios para técnico 2 y 3 al aplazar
+  const [aplazarFecha2, setAplazarFecha2] = useState('');
+  const [aplazarHora2, setAplazarHora2] = useState('');
+  const [aplazarHoras2, setAplazarHoras2] = useState<string[]>([]);
+  const [aplazarCargandoHoras2, setAplazarCargandoHoras2] = useState(false);
+  const [aplazarFecha3, setAplazarFecha3] = useState('');
+  const [aplazarHora3, setAplazarHora3] = useState('');
+  const [aplazarHoras3, setAplazarHoras3] = useState<string[]>([]);
+  const [aplazarCargandoHoras3, setAplazarCargandoHoras3] = useState(false);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
   const [citaACancelar, setCitaACancelar] = useState<CitaAdmin | null>(null);
   const [cancelandoId, setCancelandoId] = useState<number | null>(null);
@@ -173,6 +186,135 @@ const AdminInstalaciones = () => {
     return () => window.clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Horarios disponibles para técnico 1 al aplazar: se recargan al cambiar fecha.
+  useEffect(() => {
+    if (!sugerencia || !aplazarFecha) {
+      setAplazarHoras([]);
+      return;
+    }
+    const cita = citas.find((c) => c.id_cita === sugerencia.id_cita);
+    const tecnicoId = sugerencia.id_tecnico || cita?.id_tecnico;
+    if (!tecnicoId) {
+      setAplazarHoras([]);
+      return;
+    }
+    let activo = true;
+    const cargarHoras = async () => {
+      setAplazarCargandoHoras(true);
+      try {
+        const params = new URLSearchParams({
+          fecha: aplazarFecha,
+          tecnico_id: String(tecnicoId),
+          excluir_cita_id: String(sugerencia.id_cita),
+        });
+        if (cita?.tipo_servicio) params.set('tipo_servicio', cita.tipo_servicio);
+        const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
+        if (!activo) return;
+        const horas = Array.isArray(res.data) ? res.data : [];
+        setAplazarHoras(horas);
+        if (horas.length && !horas.includes(aplazarHora)) setAplazarHora(horas[0]);
+        if (!horas.length) setAplazarHora('');
+      } catch {
+        if (activo) {
+          setAplazarHoras([]);
+          setAplazarHora('');
+        }
+      } finally {
+        if (activo) setAplazarCargandoHoras(false);
+      }
+    };
+    cargarHoras();
+    return () => {
+      activo = false;
+    };
+  }, [aplazarFecha, sugerencia, citas]);
+
+  // Horarios para técnico 2
+  useEffect(() => {
+    if (!sugerencia || !aplazarFecha2) {
+      setAplazarHoras2([]);
+      return;
+    }
+    const cita = citas.find((c) => c.id_cita === sugerencia.id_cita);
+    const tecnicoId = cita?.id_tecnico_2;
+    if (!tecnicoId) {
+      setAplazarHoras2([]);
+      return;
+    }
+    let activo = true;
+    const cargarHoras = async () => {
+      setAplazarCargandoHoras2(true);
+      try {
+        const params = new URLSearchParams({
+          fecha: aplazarFecha2,
+          tecnico_id: String(tecnicoId),
+          excluir_cita_id: String(sugerencia.id_cita),
+        });
+        if (cita?.tipo_servicio) params.set('tipo_servicio', cita.tipo_servicio);
+        const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
+        if (!activo) return;
+        const horas = Array.isArray(res.data) ? res.data : [];
+        setAplazarHoras2(horas);
+        if (horas.length && !horas.includes(aplazarHora2)) setAplazarHora2(horas[0]);
+        if (!horas.length) setAplazarHora2('');
+      } catch {
+        if (activo) {
+          setAplazarHoras2([]);
+          setAplazarHora2('');
+        }
+      } finally {
+        if (activo) setAplazarCargandoHoras2(false);
+      }
+    };
+    cargarHoras();
+    return () => {
+      activo = false;
+    };
+  }, [aplazarFecha2, sugerencia, citas]);
+
+  // Horarios para técnico 3
+  useEffect(() => {
+    if (!sugerencia || !aplazarFecha3) {
+      setAplazarHoras3([]);
+      return;
+    }
+    const cita = citas.find((c) => c.id_cita === sugerencia.id_cita);
+    const tecnicoId = cita?.id_tecnico_3;
+    if (!tecnicoId) {
+      setAplazarHoras3([]);
+      return;
+    }
+    let activo = true;
+    const cargarHoras = async () => {
+      setAplazarCargandoHoras3(true);
+      try {
+        const params = new URLSearchParams({
+          fecha: aplazarFecha3,
+          tecnico_id: String(tecnicoId),
+          excluir_cita_id: String(sugerencia.id_cita),
+        });
+        if (cita?.tipo_servicio) params.set('tipo_servicio', cita.tipo_servicio);
+        const res = await api.get<string[]>(`/citas/horas-disponibles?${params.toString()}`);
+        if (!activo) return;
+        const horas = Array.isArray(res.data) ? res.data : [];
+        setAplazarHoras3(horas);
+        if (horas.length && !horas.includes(aplazarHora3)) setAplazarHora3(horas[0]);
+        if (!horas.length) setAplazarHora3('');
+      } catch {
+        if (activo) {
+          setAplazarHoras3([]);
+          setAplazarHora3('');
+        }
+      } finally {
+        if (activo) setAplazarCargandoHoras3(false);
+      }
+    };
+    cargarHoras();
+    return () => {
+      activo = false;
+    };
+  }, [aplazarFecha3, sugerencia, citas]);
 
   const notify = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
     setToast({ msg, tipo });
@@ -306,11 +448,32 @@ const AdminInstalaciones = () => {
   const sugerirAplazamiento = async (cita: CitaAdmin) => {
     setAplazandoId(cita.id_cita);
     setSugerencia(null);
+    setAplazarFecha('');
+    setAplazarHora('');
+    setAplazarHoras([]);
+    setAplazarFecha2('');
+    setAplazarHora2('');
+    setAplazarHoras2([]);
+    setAplazarFecha3('');
+    setAplazarHora3('');
+    setAplazarHoras3([]);
     try {
       const res = await api.get<Omit<SugerenciaAplazar, 'id_cita'>>(
         `/citas/admin/${cita.id_cita}/proxima-fecha`,
       );
-      setSugerencia({ id_cita: cita.id_cita, ...res.data });
+      const sug = { id_cita: cita.id_cita, ...res.data } as SugerenciaAplazar;
+      setSugerencia(sug);
+      setAplazarFecha(sug.fecha);
+      setAplazarHora(sug.hora);
+      // Inicializar fechas para técnico 2 y 3 con la misma sugerencia si están asignados
+      if (cita.id_tecnico_2) {
+        setAplazarFecha2(sug.fecha);
+        setAplazarHora2(sug.hora);
+      }
+      if (cita.id_tecnico_3) {
+        setAplazarFecha3(sug.fecha);
+        setAplazarHora3(sug.hora);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail;
       notify(typeof msg === 'string' ? msg : t('adm.instalaciones.sinFechaDisponible'), 'err');
@@ -321,15 +484,24 @@ const AdminInstalaciones = () => {
 
   const confirmarAplazamiento = async () => {
     if (!sugerencia) return;
+    const fecha = aplazarFecha || sugerencia.fecha;
+    const hora = aplazarHora || sugerencia.hora;
+    if (!fecha || !hora) {
+      notify('Selecciona fecha y hora para aplazar', 'err');
+      return;
+    }
     setGuardandoId(sugerencia.id_cita);
     try {
       const res = await api.post<CitaAdmin>(`/citas/admin/${sugerencia.id_cita}/reasignar`, {
         id_tecnico: sugerencia.id_tecnico,
-        fecha: sugerencia.fecha,
-        hora: sugerencia.hora,
+        fecha,
+        hora,
       });
       setCitas((prev) => prev.map((c) => (c.id_cita === sugerencia.id_cita ? res.data : c)));
       setSugerencia(null);
+      setAplazarFecha('');
+      setAplazarHora('');
+      setAplazarHoras([]);
       notify(t('adm.instalaciones.reasignada'));
     } catch (err: any) {
       const msg = err.response?.data?.detail;
@@ -513,20 +685,20 @@ const AdminInstalaciones = () => {
       )}
 
       {!cargando && historial.length > 0 && (
-        <div className="ap-card">
+        <div className="ap-card ap-historial-card">
           <div className="ap-card-head">
             <h3><FaClockRotateLeft /> {t('adm.instalaciones.historialTitulo')}</h3>
             <p>{t('adm.instalaciones.historialDesc')}</p>
           </div>
-          <div className="ap-tarifas-grid">
+          <div className="ap-historial-grid">
             {historial.map((h) => (
-              <div className="ap-tarifa-item" key={h.id_historial} style={{ alignItems: 'flex-start' }}>
-                <div>
-                  <span className="ap-tarifa-nombre" style={{ display: 'block' }}>
+              <div className="ap-historial-item" key={h.id_historial}>
+                <div className="ap-historial-main">
+                  <span className="ap-historial-title">
                     #{h.id_cita} · {t(TIPO_EVENTO_TRAD[h.accion] || h.accion)}
                     {h.cliente_nombre ? ` · ${h.cliente_nombre}` : ''}
                   </span>
-                  <span style={{ fontSize: '0.8rem', color: '#9a8f78' }}>
+                  <span className="ap-historial-meta">
                     {h.created_at ? formatFecha(h.created_at.split('T')[0]) : ''}
                     {h.tecnico_anterior_nombre || h.tecnico_nuevo_nombre
                       ? ` — ${h.tecnico_anterior_nombre || '—'} → ${h.tecnico_nuevo_nombre || '—'}`
@@ -584,9 +756,9 @@ const AdminInstalaciones = () => {
           </div>
         </div>
       ) : (
-        <div className="ap-grid">
+        <div className="ap-grid ap-grid--citas">
           {citasPagina.map((cita) => (
-            <div className="ap-grid-item" key={cita.id_cita}>
+            <div className="ap-grid-item ap-grid-item--citas" key={cita.id_cita}>
               <div className="ap-grid-item-top">
                 <span className="ap-initials">
                   {(cita.cliente_nombre || '?').split(/\s+/).filter(Boolean).map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
@@ -598,7 +770,7 @@ const AdminInstalaciones = () => {
                 <p>{cita.cliente_email}</p>
               </div>
 
-              <div className="ap-def-list" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+              <div className="ap-def-list">
                 <div className="ap-def">
                   <div className="ap-def-label">{t('adm.instalaciones.colServicio')}</div>
                   <div className="ap-def-value">{t(NOMBRE_SERVICIO[cita.tipo_servicio] || cita.tipo_servicio)}</div>
@@ -705,19 +877,91 @@ const AdminInstalaciones = () => {
               )}
 
               {sugerencia && sugerencia.id_cita === cita.id_cita && (
-                <div className="ap-reasignar-sugerencia" style={{ marginTop: 12 }}>
-                  <FaCalendarPlus />
-                  <div>
-                    <strong>{t('adm.instalaciones.sugerenciaTitulo')}</strong>
-                    <span>
-                      {t('adm.instalaciones.sugerencia', {
-                        fecha: formatFecha(sugerencia.fecha),
-                        hora: sugerencia.hora,
-                        tecnico: sugerencia.nombre_tecnico,
-                      })}
-                    </span>
+                <div className="ap-reasignar-sugerencia" style={{ marginTop: 12, flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FaCalendarPlus />
+                    <div>
+                      <strong>{t('adm.instalaciones.sugerenciaTitulo')}</strong>
+                      <span>
+                        {t('adm.instalaciones.sugerencia', {
+                          fecha: formatFecha(sugerencia.fecha),
+                          hora: sugerencia.hora,
+                          tecnico: sugerencia.nombre_tecnico,
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  {/* Horarios disponibles por técnico - se actualizan al cambiar fecha */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                    <div className="ap-form-group">
+                      <label className="ap-form-label">Técnico 1: {sugerencia.nombre_tecnico}</label>
+                      <input
+                        type="date"
+                        className="ap-form-input"
+                        value={aplazarFecha}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setAplazarFecha(e.target.value)}
+                      />
+                      {aplazarCargandoHoras ? (
+                        <span style={{ fontSize: '0.8rem', color: '#9a8f78' }}>Cargando horarios...</span>
+                      ) : aplazarHoras.length ? (
+                        <select className="ap-form-select" value={aplazarHora} onChange={(e) => setAplazarHora(e.target.value)}>
+                          {aplazarHoras.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span style={{ fontSize: '0.8rem', color: '#e5484d' }}>Sin horarios para esta fecha</span>
+                      )}
+                    </div>
+                    {cita.id_tecnico_2 && (
+                      <div className="ap-form-group">
+                        <label className="ap-form-label">Técnico 2: {cita.nombre_tecnico_2 || 'Técnico 2'}</label>
+                        <input
+                          type="date"
+                          className="ap-form-input"
+                          value={aplazarFecha2}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setAplazarFecha2(e.target.value)}
+                        />
+                        {aplazarCargandoHoras2 ? (
+                          <span style={{ fontSize: '0.8rem', color: '#9a8f78' }}>Cargando...</span>
+                        ) : aplazarHoras2.length ? (
+                          <select className="ap-form-select" value={aplazarHora2} onChange={(e) => setAplazarHora2(e.target.value)}>
+                            {aplazarHoras2.map((h) => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: '#e5484d' }}>{aplazarFecha2 ? 'Sin horarios' : 'Elige fecha'}</span>
+                        )}
+                      </div>
+                    )}
+                    {cita.id_tecnico_3 && (
+                      <div className="ap-form-group">
+                        <label className="ap-form-label">Técnico 3: {cita.nombre_tecnico_3 || 'Técnico 3'}</label>
+                        <input
+                          type="date"
+                          className="ap-form-input"
+                          value={aplazarFecha3}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setAplazarFecha3(e.target.value)}
+                        />
+                        {aplazarCargandoHoras3 ? (
+                          <span style={{ fontSize: '0.8rem', color: '#9a8f78' }}>Cargando...</span>
+                        ) : aplazarHoras3.length ? (
+                          <select className="ap-form-select" value={aplazarHora3} onChange={(e) => setAplazarHora3(e.target.value)}>
+                            {aplazarHoras3.map((h) => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: '#e5484d' }}>{aplazarFecha3 ? 'Sin horarios' : 'Elige fecha'}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="ap-btn ap-btn-primary"
@@ -732,11 +976,20 @@ const AdminInstalaciones = () => {
                       type="button"
                       className="ap-btn ap-btn-ghost"
                       disabled={guardandoId === cita.id_cita}
-                      onClick={() => setSugerencia(null)}
+                      onClick={() => {
+                        setSugerencia(null);
+                        setAplazarFecha('');
+                        setAplazarHora('');
+                        setAplazarFecha2('');
+                        setAplazarFecha3('');
+                      }}
                     >
                       {t('adm.instalaciones.cancelar')}
                     </button>
                   </div>
+                  <p style={{ fontSize: '0.75rem', color: '#9a8f78', margin: 0 }}>
+                    Al confirmar se notificará al cliente por correo y el horario anterior ya no aparecerá como disponible para agendar.
+                  </p>
                 </div>
               )}
 

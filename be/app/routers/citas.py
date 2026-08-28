@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select, or_, text
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,11 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import json
 from pydantic import BaseModel
+try:
+    from zoneinfo import ZoneInfo
+    _BOGOTA_TZ = ZoneInfo("America/Bogota")
+except Exception:
+    _BOGOTA_TZ = None
 
 from app.database import get_db
 from app.models.cliente import Cliente
@@ -47,7 +52,7 @@ from app.services.especialidades import (
 from app.services import pagos_service
 from app.services.notificaciones import crear_notificacion, notificar_cita_asignada_tecnico, notificar_recordatorio_cita, notificar_cita_reasignada_cliente
 from app.models.calificacion import Calificacion
-from app.utils.security import get_current_client, get_current_employee
+from app.utils.security import get_current_client, get_current_employee, oauth2_scheme, decode_token
 
 router = APIRouter(prefix="/citas", tags=["Citas"])
 
@@ -57,6 +62,57 @@ ESTADOS_CITA = ("Pendiente", "Confirmada", "Finalizada", "Cancelada")
 
 # Ventana (horas) que tiene un cliente para aceptar una oferta de horario liberado.
 OFERTA_VENTANA_HORAS = 6
+
+# Umbral para considerar cliente preferencial/frecuente con un técnico
+PUNTAJE_PREFERENCIAL_MIN = 2
+
+
+def _es_cliente_preferencial(db, id_cliente: int, id_tecnico: int | None) -> bool:
+    """True si el cliente es frecuente con el técnico (historial de compras + servicios)."""
+    if id_tecnico is None:
+        return False
+    try:
+        compras = (
+            db.execute(
+                text(
+                    "SELECT COUNT(*) FROM pedidos WHERE id_cliente_pe = :c "
+                    "AND id_tecnico_entrega = :t AND estado_pedido = 'Pagado'"
+                ),
+                {"c": id_cliente, "t": id_tecnico},
+            ).scalar()
+            or 0
+        )
+        servicios = (
+            db.execute(
+                text(
+                    "SELECT COUNT(*) FROM citas WHERE id_cliente = :c AND id_tecnico = :t"
+                ),
+                {"c": id_cliente, "t": id_tecnico},
+            ).scalar()
+            or 0
+        )
+        return int(compras) + int(servicios) >= PUNTAJE_PREFERENCIAL_MIN
+    except Exception:
+        return False
+
+
+def _tiene_oferta_activa(db, id_cliente: int, fecha, hora: str, id_tecnico: int | None) -> bool:
+    """True si el cliente tiene una oferta activa para ese hueco exacto."""
+    if id_tecnico is None:
+        return False
+    return (
+        db.query(OfertaHorario)
+        .filter(
+            OfertaHorario.id_cliente == id_cliente,
+            OfertaHorario.fecha == fecha,
+            OfertaHorario.hora == hora,
+            OfertaHorario.id_tecnico == id_tecnico,
+            OfertaHorario.estado == "Ofrecida",
+            OfertaHorario.expira_en > datetime.now(),
+        )
+        .first()
+        is not None
+    )
 
 
 def _generar_ofertas_por_cancelacion(
@@ -608,6 +664,8 @@ def horas_disponibles_cita(
     excluir_cita_id: Optional[int] = None,
     tipo_servicio: Optional[str] = None,
     items: Optional[str] = None,
+    request: Request = None,  # inyectado sin requerir auth; permite extraer cliente opcional
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
     """Franjas horarias libres para la fecha indicada: no cruzadas por otra
@@ -618,8 +676,17 @@ def horas_disponibles_cita(
     real según los productos (máx. 2.5 h por desplazamiento); sin items se
     usa la duración base del tipo de servicio. Vacío si la fecha es fin de
     semana o pasada."""
-    if not _dia_es_laboral(fecha) or fecha < date.today():
+    # Hora actual en Colombia (America/Bogota) para filtrar franjas pasadas de hoy.
+    if _BOGOTA_TZ is not None:
+        ahora = datetime.now(_BOGOTA_TZ)
+    else:
+        ahora = datetime.now() - timedelta(hours=5)
+    hoy = ahora.date()
+    if not _dia_es_laboral(fecha) or fecha < hoy:
         return []
+    # Si la fecha es hoy, se requieren 3 h de anticipación: una cita a las
+    # 13:00 solo puede agendarse desde las 16:00 en adelante. También se
+    # descartan las horas ya pasadas.
     duracion = DURACION_MIN
     if items:
         try:
@@ -630,6 +697,33 @@ def horas_disponibles_cita(
         duracion = duracion_base_tipo(tipo_servicio)
 
     tecnicos_activos = _tecnicos_activos(db)
+
+    # Cliente opcional para exención 3h por oferta (no falla si no autenticado)
+    # Se intenta obtener desde Authorization header / cookie sin exigir autenticación.
+    cliente_oferta: Optional[Cliente] = None
+    try:
+        hdr_token = token
+        if not hdr_token and request is not None:
+            hdr_token = request.cookies.get("access_token")
+            if not hdr_token:
+                auth = request.headers.get("Authorization") or request.headers.get("authorization")
+                if auth and auth.lower().startswith("bearer "):
+                    hdr_token = auth.split(None, 1)[1].strip()
+        if hdr_token:
+            payload = decode_token(hdr_token)
+            if payload and payload.get("user_type") == "client":
+                uid = payload.get("uid")
+                if uid is not None:
+                    try:
+                        cliente_oferta = db.query(Cliente).filter(Cliente.id_cliente == int(uid)).first()
+                    except Exception:
+                        cliente_oferta = None
+                if cliente_oferta is None and payload.get("sub"):
+                    cliente_oferta = db.query(Cliente).filter(Cliente.email == payload.get("sub")).first()
+                if cliente_oferta is not None and not cliente_oferta.is_active:
+                    cliente_oferta = None
+    except Exception:
+        cliente_oferta = None
 
     def _hay_disponibilidad(hora: str) -> bool:
         """True si el intervalo [hora, hora+duracion) es agendable."""
@@ -643,10 +737,89 @@ def horas_disponibles_cita(
             for t in tecnicos_activos
         )
 
+    def _es_hora_pasada(h: str) -> bool:
+        """True si la franja 'h' ya no puede empezar hoy: requiere 3 h de
+        anticipación (13:00 → 16:00) y descarta horas pasadas.
+        Exención: cliente preferencial (puntaje >=2 con el técnico) que tenga
+        una oferta activa para fecha/hora/tecnico exactos ve el hueco aunque
+        esté dentro de las 3 h; es para reagendamiento vía oferta sin bloqueo
+        de tiempo (mismo servicio, mismo técnico).
+        """
+        if fecha != hoy:
+            return False
+        try:
+            hora_franja = int(h.split(":")[0])
+        except (ValueError, IndexError):
+            return False
+        ahora_min = ahora.hour * 60 + ahora.minute
+        # 3 horas = 180 min de anticipación mínima para agendar hoy
+        if hora_franja * 60 < ahora_min + 180:
+            # Exención 3h para cliente preferencial con oferta activa en este hueco exacto
+            if cliente_oferta is not None:
+                try:
+                    if tecnico_id is not None:
+                        # Verificar oferta activa exacta para tecnico_id
+                        if _es_cliente_preferencial(db, cliente_oferta.id_cliente, tecnico_id) and _tiene_oferta_activa(
+                            db, cliente_oferta.id_cliente, fecha, h, tecnico_id
+                        ):
+                            # Si se filtra por tipo_servicio, asegurar coherencia del servicio ofertado
+                            if tipo_servicio:
+                                of = (
+                                    db.query(OfertaHorario)
+                                    .filter(
+                                        OfertaHorario.id_cliente == cliente_oferta.id_cliente,
+                                        OfertaHorario.fecha == fecha,
+                                        OfertaHorario.hora == h,
+                                        OfertaHorario.id_tecnico == tecnico_id,
+                                        OfertaHorario.estado == "Ofrecida",
+                                        OfertaHorario.expira_en > datetime.now(),
+                                    )
+                                    .first()
+                                )
+                                if of is not None and of.tipo_servicio.lower().strip() != tipo_servicio.lower().strip():
+                                    pass
+                                else:
+                                    return False
+                            else:
+                                return False
+                    else:
+                        # Sin tecnico_id elegido: si el cliente tiene alguna oferta activa para este hueco
+                        # con algún técnico donde sea preferencial, no filtrar.
+                        ofertas = (
+                            db.query(OfertaHorario)
+                            .filter(
+                                OfertaHorario.id_cliente == cliente_oferta.id_cliente,
+                                OfertaHorario.fecha == fecha,
+                                OfertaHorario.hora == h,
+                                OfertaHorario.estado == "Ofrecida",
+                                OfertaHorario.expira_en > datetime.now(),
+                            )
+                            .all()
+                        )
+                        for of in ofertas:
+                            if _es_cliente_preferencial(db, cliente_oferta.id_cliente, of.id_tecnico):
+                                if tipo_servicio and of.tipo_servicio.lower().strip() != tipo_servicio.lower().strip():
+                                    continue
+                                return False
+                except Exception:
+                    pass
+            return True
+        return False
+
+    # Si se filtra por técnico específico, la disponibilidad es solo si ESE técnico está libre
+    # (no se bloquea por citas de otros técnicos en ese horario).
+    if tecnico_id is not None:
+        return [
+            h
+            for h in horas_laborales(fecha, duracion)
+            if not _es_hora_pasada(h)
+            and not tecnico_ocupado(db, tecnico_id, fecha, h, excluir_cita_id, duracion_horas=duracion)
+        ]
     return [
         h
         for h in horas_laborales(fecha, duracion)
-        if not slot_tomado(db, fecha, h, excluir_cita_id, duracion_horas=duracion)
+        if not _es_hora_pasada(h)
+        and not slot_tomado(db, fecha, h, excluir_cita_id, duracion_horas=duracion)
         and _hay_disponibilidad(h)
     ]
 
@@ -1462,7 +1635,35 @@ def editar_cita(
     nueva_hora = update_data.get("hora", cita.hora)
     hora_reag = datetime.strptime(nueva_hora, "%H:%M").time() if ":" in nueva_hora else time(int(nueva_hora), 0)
     fecha_hora_reag = datetime.combine(nueva_fecha, hora_reag)
-    if fecha_hora_reag < datetime.now() + timedelta(hours=3):
+    # Exención 3h para cliente preferencial con oferta activa vía reagendamiento:
+    # si el cliente es frecuente con el técnico (puntaje >=2) y tiene una oferta
+    # activa para el nuevo hueco exacto (misma fecha/hora/tecnico y mismo servicio
+    # que su cita existente), se permite mover dentro de las 3h sin bloqueo.
+    exime_3h_reag = False
+    if cita.id_tecnico is not None:
+        try:
+            oferta_match = (
+                db.query(OfertaHorario)
+                .filter(
+                    OfertaHorario.id_cliente == client.id_cliente,
+                    OfertaHorario.fecha == nueva_fecha,
+                    OfertaHorario.hora == nueva_hora,
+                    OfertaHorario.id_tecnico == cita.id_tecnico,
+                    OfertaHorario.tipo_servicio == cita.tipo_servicio,
+                    OfertaHorario.estado == "Ofrecida",
+                    OfertaHorario.expira_en > datetime.now(),
+                )
+                .first()
+            )
+            if (
+                oferta_match is not None
+                and _es_cliente_preferencial(db, client.id_cliente, cita.id_tecnico)
+                and _tiene_oferta_activa(db, client.id_cliente, nueva_fecha, nueva_hora, cita.id_tecnico)
+            ):
+                exime_3h_reag = True
+        except Exception:
+            exime_3h_reag = False
+    if not exime_3h_reag and fecha_hora_reag < datetime.now() + timedelta(hours=3):
         raise HTTPException(status_code=400, detail="Las citas deben reagendarse con al menos 3 horas de anticipación")
     duracion_cita = duracion_estimada_cita(db, cita)
     _validar_franja_cita(nueva_fecha, nueva_hora, duracion_horas=duracion_cita)
@@ -1728,6 +1929,9 @@ def aceptar_oferta(
             ),
         )
 
+    # Validación: oferta debe corresponder a la misma cita existente (mismo servicio, mismo técnico).
+    # La query filtra por id_tecnico igual al de la oferta; reforzamos con tipo_servicio para
+    # asegurar que el cliente mueve su cita del mismo servicio al hueco liberado (no cambiar de servicio).
     mi_cita = (
         db.query(Cita)
         .filter(
@@ -1740,9 +1944,19 @@ def aceptar_oferta(
     )
     if not mi_cita:
         raise HTTPException(status_code=409, detail="Ya no tienes una cita movible para este técnico")
+    # Mismo servicio: evita que una oferta de 'instalacion' mueva una cita de 'reparacion' con mismo técnico.
+    if mi_cita.tipo_servicio.lower().strip() != oferta.tipo_servicio.lower().strip():
+        raise HTTPException(status_code=409, detail="La oferta corresponde a un tipo de servicio diferente al de tu cita con este técnico")
     if (mi_cita.fecha, mi_cita.hora) <= (oferta.fecha, oferta.hora):
         raise HTTPException(status_code=409, detail="Tu cita ya está agendada en un horario igual o mejor")
 
+    # Nota exención 3h: aceptar_oferta NO aplica la restricción de 3h de anticipación.
+    # Clientes preferenciales (puntaje >=2 con el técnico) con oferta activa pueden mover su cita
+    # incluso si el hueco ofertado está dentro de las 3 h; es el flujo de reagendamiento vía oferta.
+    # _validar_franja_cita solo valida día laboral / franja válida y no bloquea por 3h.
+    # El 1h mínimo ya lo garantiza _generar_ofertas_por_cancelacion (no ofrece franjas <=1h).
+    # Para trazabilidad, si es preferencial dejamos pasar explícitamente aun dentro de 3h.
+    # No se lanza 400 por 3h aquí — frontend tampoco debe mostrar error en aceptarOferta.
     _validar_franja_cita(
         oferta.fecha,
         oferta.hora,

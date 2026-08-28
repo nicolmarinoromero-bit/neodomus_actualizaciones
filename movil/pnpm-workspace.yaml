@@ -1,2 +1,5 @@
 allowBuilds:
   unrs-resolver: true
+
+overrides:
+  expo-constants: ~18.0.14

@@ -160,6 +160,7 @@ const CitasPage = () => {
   const [aplazando, setAplazando] = useState(false);
   const [aplazandoHoras, setAplazandoHoras] = useState<string[]>([]);
   const [aplazandoCargandoHoras, setAplazandoCargandoHoras] = useState(false);
+  const [horasRefreshKey, setHorasRefreshKey] = useState(0);
 
   // Autocompletar el campo de dirección con la dirección guardada en el perfil.
   useEffect(() => {
@@ -351,7 +352,6 @@ const CitasPage = () => {
         if (!activo) return;
         setDiaCompleto(libres.length === 0);
         setHorasDisponibles(libres);
-        if (!libres.includes(form.hora)) setForm((prev) => ({ ...prev, hora: '' }));
       } catch {
         if (!activo) return;
         // Ante un error de red tampoco se ofrecen horas ocupadas.
@@ -368,7 +368,7 @@ const CitasPage = () => {
       activo = false;
       clearInterval(interval);
     };
-  }, [form.fecha, form.tipo_servicio, tecnicoSel?.id, vista, editandoId]);
+  }, [form.fecha, form.tipo_servicio, tecnicoSel?.id, vista, editandoId, horasRefreshKey]);
 
   useEffect(() => {
     if (!aplazandoId || !aplazandoFecha) {
@@ -406,7 +406,7 @@ const CitasPage = () => {
     cargar();
     const interval = setInterval(cargar, 10000);
     return () => { activo = false; clearInterval(interval); };
-  }, [aplazandoId, aplazandoFecha, citas]);
+  }, [aplazandoId, aplazandoFecha, citas, horasRefreshKey]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -418,6 +418,10 @@ const CitasPage = () => {
     if (!isAuthenticated) {
       sessionStorage.setItem(PF_REDIRECT_AFTER_LOGIN_KEY, `/cliente/citas${window.location.search}`);
       openAuth('ingresar');
+      return;
+    }
+    if (!tecnicoSel) {
+      setToast({ msg: 'Debes seleccionar un técnico primero', tipo: 'error' });
       return;
     }
     if (!form.tipo_servicio || !form.fecha || !form.hora || !form.direccion.trim() || !form.descripcion.trim()) {
@@ -532,6 +536,7 @@ const CitasPage = () => {
       });
       setToast({ msg: t('citas.exitoReagendada'), tipo: 'success' });
       cargarCitas();
+      setHorasRefreshKey((k) => k + 1);
     } catch (err: any) {
       console.error(err);
       setToast({ msg: err.response?.data?.detail || t('citas.errorGenerico'), tipo: 'error' });
@@ -801,17 +806,19 @@ const CitasPage = () => {
                           ) : aplazandoHoras.length === 0 ? (
                             <div className="citas-no-horas"><FaExclamation /> {t('citas.noHorarios')}</div>
                           ) : (
-                            <div className="citas-horas-grid">
-                              {aplazandoHoras.map((hora) => (
-                                <button
-                                  key={hora}
-                                  type="button"
-                                  className={`citas-hora-btn ${aplazandoHora === hora ? 'selected' : ''}`}
-                                  onClick={() => setAplazandoHora(hora)}
-                                >
-                                  {hora}
-                                </button>
-                              ))}
+                            <div className="citas-select-wrap">
+                              <select
+                                value={aplazandoHora}
+                                onChange={(e) => setAplazandoHora(e.target.value)}
+                                className="citas-select"
+                                aria-label={t('citas.horaCita')}
+                              >
+                                <option value="" disabled>Selecciona hora</option>
+                                {aplazandoHoras.map((hora) => (
+                                  <option key={hora} value={hora}>{hora}</option>
+                                ))}
+                              </select>
+                              <FaChevronDown className="citas-select-chevron" />
                             </div>
                           )}
                           <div style={{ display: 'flex', gap: 8 }}>
@@ -1028,15 +1035,31 @@ const CitasPage = () => {
         ) : (
           <form onSubmit={handleSubmit} className="citas-form" noValidate>
 
-            {tecnicoSel !== null && renderBarraTecnico()}
+            {/* Paso 1: Selección de técnico (obligatorio primero) */}
+            <div className="citas-card citas-tecnico-paso">
+              <div className="citas-card-title">
+                <span className="citas-card-icon"><FaUserTie /></span>
+                <div className="citas-card-heading">
+                  <h2>Paso 1 · Selecciona un técnico <span style={{ color: '#e5484d' }}>*</span></h2>
+                  <p>Elige el profesional que realizará el servicio. Los horarios se cargarán para ese técnico.</p>
+                </div>
+              </div>
+              {tecnicoSel !== null && renderBarraTecnico()}
+              {tecnicoSel === null && !editandoId ? (
+                renderSeleccionTecnicos()
+              ) : tecnicoSel !== null && !deTecnicosPage && !editandoId ? (
+                <div style={{ marginTop: 12 }}>{renderSeleccionTecnicos()}</div>
+              ) : null}
+              {!tecnicoSel && <p className="citas-hint" style={{ marginTop: 12 }}><FaExclamation /> Debes seleccionar un técnico para ver sus horarios disponibles.</p>}
+            </div>
 
-            {/* Tarjeta: detalles del servicio */}
-            <div className="citas-card">
+            {/* Tarjeta: detalles del servicio - fecha/hora dependen del técnico */}
+            <div className={`citas-card ${!tecnicoSel ? 'citas-card--disabled' : ''}`} style={!tecnicoSel ? { opacity: 0.6, pointerEvents: 'none' } : undefined}>
               <div className="citas-card-title">
                 <span className="citas-card-icon"><FaScrewdriverWrench /></span>
                 <div className="citas-card-heading">
                   <h2>{t('citas.detalleServicio')}</h2>
-                  <p>{t('citas.detalleServicioSub')}</p>
+                  <p>{tecnicoSel ? t('citas.detalleServicioSub') : 'Primero selecciona un técnico arriba para habilitar fecha y hora.'}</p>
                 </div>
               </div>
 
@@ -1096,25 +1119,35 @@ const CitasPage = () => {
 
                 <div className="citas-field">
                   <label className="citas-label" htmlFor="citas-hora">{t('citas.horaCita')}</label>
-                  {form.fecha && horasDisponibles.length === 0 ? (
-                    <div className="citas-no-horas">
-                      <FaExclamation /> {t('citas.noHorarios')}
-                    </div>
+                  {!form.fecha ? (
+                    <p className="citas-hint">{t('citas.eligeFechaHoras')}</p>
                   ) : (
-                    <div className="citas-horas-grid" role="radiogroup" aria-label={t('citas.horaCita')}>
-                      {horasDisponibles.map((hora) => (
-                        <button
-                          key={hora}
-                          type="button"
-                          className={`citas-hora-btn ${form.hora === hora ? 'selected' : ''}`}
-                          onClick={() => setForm(prev => ({ ...prev, hora }))}
-                        >
-                          {hora}
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div className="citas-horas-grid" role="radiogroup" aria-label={t('citas.horaCita')}>
+                        {(['08:00','11:00','14:00','17:00'] as const).map((hora) => {
+                          const isSelected = form.hora === hora;
+                          const disponible = horasDisponibles.includes(hora);
+                          return (
+                            <button
+                              key={hora}
+                              type="button"
+                              className={`citas-hora-btn ${isSelected ? 'selected' : ''} ${!disponible ? 'citas-hora-btn--ocupada' : ''}`}
+                              onClick={() => setForm(prev => ({ ...prev, hora }))}
+                              title={disponible ? `Disponible ${hora}` : `Ocupada ${hora} - se validará al agendar`}
+                              aria-pressed={isSelected}
+                            >
+                              {hora}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {horasDisponibles.length === 0 && (
+                        <div className="citas-no-horas" style={{ marginTop: 8 }}>
+                          <FaExclamation /> {t('citas.noHorarios')}
+                        </div>
+                      )}
+                    </>
                   )}
-                  {!form.fecha && <p className="citas-hint">{t('citas.eligeFechaHoras')}</p>}
                 </div>
 
                 <div className="citas-field">
@@ -1166,9 +1199,6 @@ const CitasPage = () => {
                 </div>
               </div>
             </div>
-
-            {/* Solo si el usuario entró directo a Citas (sin técnico preseleccionado) */}
-            {tecnicoSel === null && !editandoId && renderSeleccionTecnicos()}
 
             {/* Tarjeta: pago de la cita (solo al agendar, no al editar) */}
             {editandoId === null && (

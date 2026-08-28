@@ -23,7 +23,7 @@ ESTADOS_OCUPAN = ("Pendiente", "Confirmada")
 # Estados de entrega que bloquean el día del técnico
 ESTADOS_ENTREGA_OCUPAN = ("Asignada", "Recogido", "En camino")
 
-# Franja laboral: citas en incrementos de 1 hora, lunes a sábado.
+# Franja laboral: citas cada 3 horas (08, 11, 14, 17), lunes a sábado.
 # Domingo (weekday=6) queda bloqueado para agendar.
 HORA_INICIO = 8
 HORA_FIN = 18
@@ -235,10 +235,10 @@ def _dia_es_laboral(fecha: date) -> bool:
 
 
 def horas_laborales(fecha: date, duracion_horas: float = DURACION_MIN) -> list[str]:
-    """Franjas horarias de inicio válidas (08:00-18:00): la franja debe
-    dejar terminar el servicio dentro de la jornada."""
-    fin_max = HORA_FIN * 60 - round(duracion_horas * 60)
-    return [f"{h:02d}:00" for h in range(HORA_INICIO, HORA_FIN) if h * 60 <= fin_max]
+    """Franjas horarias de inicio válidas: 08:00, 11:00, 14:00 y 17:00
+    (cada 3 horas a partir de las 8; la última cita es a las 17:00)."""
+    paso = 3  # entre cita y cita transcurren 3 horas, hasta las 17 inclusive
+    return [f"{h:02d}:00" for h in range(HORA_INICIO, HORA_FIN, paso)]
 
 
 def slot_tomado(

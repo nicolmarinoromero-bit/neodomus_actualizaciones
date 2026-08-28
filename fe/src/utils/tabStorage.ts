@@ -1,13 +1,11 @@
-// Almacenamiento de sesión con soporte multi-pestaña.
-// Los tokens se guardan en localStorage COMPARTIDO entre pestañas.
-// Un prefijo por pestaña (sessionStorage) permite que cada pestaña
-// tenga su propio usuario, pero los tokens de acceso se sincronizan.
+// Almacenamiento de sesión con soporte multi-pestaña AISLADO.
+// Cada pestaña/ventana tiene su propia sesión (usuario, tokens) mediante
+// un prefijo por pestaña (sessionStorage). Esto permite mantener varias
+// sesiones abiertas simultáneamente (ej. admin en una pestaña y cliente en
+// otra) sin que se sobrescriban entre sí.
 
 const SESSION_ID_KEY = 'neodomus_tab_session_id';
 const SUFFIX = '__tab__';
-const SHARED_TOKEN_KEY = 'neodomus_shared_access_token';
-const SHARED_REFRESH_KEY = 'neodomus_shared_refresh_token';
-const SHARED_USER_KEY = 'neodomus_shared_user';
 
 const getSessionId = (): string => {
   try {
@@ -24,56 +22,37 @@ const getSessionId = (): string => {
 
 const scoped = (key: string): string => `${getSessionId()}${SUFFIX}${key}`;
 
-// ── Keys que se comparten entre pestañas ─────────────────────────────
-const SHARED_KEYS: Record<string, string> = {
-  access_token: SHARED_TOKEN_KEY,
-  refresh_token: SHARED_REFRESH_KEY,
-  user: SHARED_USER_KEY,
-};
-
-// ── Lectura: datos compartidos se leen del almacenamiento COMPARTIDO ──
+// ── Lectura: aislada por pestaña (con migración de sesión compartida legacy) ──
 export const tabGet = (key: string): string | null => {
   try {
-    const sharedKey = SHARED_KEYS[key];
-    if (sharedKey) {
-      const shared = localStorage.getItem(sharedKey);
-      if (shared) return shared;
-      // Fallback: migrar tokens del sistema viejo (scoped por sessionId).
-      // Si el usuario inició sesión con el código anterior, los tokens
-      // están bajo un sessionId anterior y no se encuentran con el nuevo.
-      // Buscamos cualquier key que termine en SUFFIX+key y la migramos.
-      const scopedVal = localStorage.getItem(scoped(key));
-      if (scopedVal) {
-        localStorage.setItem(sharedKey, scopedVal);
-        return scopedVal;
+    const scopedKey = scoped(key);
+    const val = localStorage.getItem(scopedKey);
+    if (val) return val;
+    // Migración: si esta pestaña no tiene sesión pero existe una sesión
+    // legacy compartida (versión anterior con neodomus_shared_*), migrarla
+    // a esta pestaña para no forzar re-login tras la actualización.
+    const LEGACY_SHARED: Record<string, string> = {
+      access_token: 'neodomus_shared_access_token',
+      refresh_token: 'neodomus_shared_refresh_token',
+      user: 'neodomus_shared_user',
+    };
+    const legacyKey = LEGACY_SHARED[key];
+    if (legacyKey) {
+      const legacyVal = localStorage.getItem(legacyKey);
+      if (legacyVal) {
+        localStorage.setItem(scopedKey, legacyVal);
+        return legacyVal;
       }
-      // Buscar en cualquier key scoped antigua (sessionId desconocido).
-      const suffix = `${SUFFIX}${key}`;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.endsWith(suffix) && k !== scoped(key)) {
-          const val = localStorage.getItem(k);
-          if (val) {
-            localStorage.setItem(sharedKey, val);
-            return val;
-          }
-        }
-      }
-      return null;
     }
-    return localStorage.getItem(scoped(key));
+    return null;
   } catch {
     return null;
   }
 };
 
-// ── Escritura: datos compartidos se guardan en COMPARTIDO + local ────
+// ── Escritura: aislada por pestaña ──
 export const tabSet = (key: string, value: string): void => {
   try {
-    const sharedKey = SHARED_KEYS[key];
-    if (sharedKey) {
-      localStorage.setItem(sharedKey, value);
-    }
     localStorage.setItem(scoped(key), value);
   } catch {
     /* noop */
@@ -82,10 +61,6 @@ export const tabSet = (key: string, value: string): void => {
 
 export const tabRemove = (key: string): void => {
   try {
-    const sharedKey = SHARED_KEYS[key];
-    if (sharedKey) {
-      localStorage.removeItem(sharedKey);
-    }
     localStorage.removeItem(scoped(key));
   } catch {
     /* noop */
@@ -94,9 +69,6 @@ export const tabRemove = (key: string): void => {
 
 export const tabRemoveAll = (): void => {
   try {
-    // Limpiar datos compartidos.
-    Object.values(SHARED_KEYS).forEach((k) => localStorage.removeItem(k));
-    // Limpiar datos por pestaña.
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -108,7 +80,9 @@ export const tabRemoveAll = (): void => {
   }
 };
 
-// No necesita rotar: los tokens son compartidos entre pestañas.
+// Rota el id de sesión de ESTA pestaña para aislarla de otras pestañas.
+// Se llama tras un login/logout exitoso para que la nueva sesión no herede
+// ni contamine la de otra pestaña abierta con otro usuario.
 export const rotateTabSessionId = (): void => {
   try {
     sessionStorage.setItem(
