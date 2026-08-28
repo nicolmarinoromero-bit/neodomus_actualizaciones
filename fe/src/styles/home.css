@@ -1,0 +1,229 @@
+/* ==========================================================================
+   src/styles/home.css - EXCLUSIVO PÁGINA PRINCIPAL (HOME)
+   ========================================================================== */
+
+/* --- IMPORTACIÓN DE FUENTES --- */
+/* Se añade 'Inter' con todos los pesos necesarios para renderizar el párrafo limpio de la captura */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+
+body, html, main {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- FONDO SIN DESENFOQUE PARA HOME --- */
+.home-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+
+/* --- HERO Y CONTENEDOR PRINCIPAL --- */
+.hero {
+  min-height: calc(100vh - 85px);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+}
+
+.overlay {
+  padding: 80px 60px;
+  max-width: 720px;
+  z-index: 10;
+  position: relative;
+}
+
+/* --- TÍTULO PRINCIPAL GRANDE (Inter) --- */
+.main-title {
+  position: relative;
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  color: white;
+  margin: 0 0 20px 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+  z-index: 2;
+  letter-spacing: -1px;
+}
+
+.main-title::before {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  width: 4.1ch;
+  height: 22px;
+  background-color: #caa24d;
+  z-index: -1;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: slideLine 0.8s ease-out forwards;
+}
+
+@keyframes slideLine {
+  0% { transform: scaleX(0); opacity: 0; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+
+/* --- 🔥 TEXTOS CAMBIADOS A ESTILO EXACTO (image_b350c3.png) --- */
+
+/* Eslogan Dorado en Negrita e Inter: "NEODOMUS más que tecnología, una evolución." */
+.overlay h3 {
+  font-family: 'Inter', system-ui, sans-serif  ;
+  color: #caa24d  ;
+  margin: 30px 0 20px 0  ;
+  font-size: 1.2rem  ;
+  font-weight: 700  ;
+  font-style: normal  ;
+  letter-spacing: 0.5px  ;
+  line-height: 1.4  ;
+}
+
+/* Párrafo Descriptivo: Fuente Inter, Semi-bold, Blanco Nítido y Ajuste de Interlineado */
+.overlay p {
+  font-family: 'Inter', system-ui, sans-serif  ;
+  color: #ffffff  ; /* Blanco sólido limpio de la captura */
+  font-size: 1.05rem  ;
+  font-weight: 500  ; /* Peso intermedio para la nitidez del renderizado */
+  line-height: 1.6  ; /* Separación balanceada idéntica */
+  letter-spacing: 0.2px  ;
+  margin-bottom: 45px  ;
+}
+
+
+/* --- BOTÓN CONTINUAR --- */
+.btn-continuar {
+  display: inline-flex;
+  align-items: center;
+  background-color: transparent;
+  border: 2px solid #ffffff;
+  border-radius: 0;
+  padding: 6px 16px 6px 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  gap: 10px;
+}
+
+.icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.arrow-icon {
+  color: #ffffff;
+  font-family: monospace, sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+  transform: scaleY(1.2);
+  line-height: 1;
+  margin-left: 1px;
+}
+
+.btn-text {
+  font-family: 'Montserrat', sans-serif;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.btn-continuar:hover {
+  background-color: #caa24d;
+  border-color: #caa24d;
+}
+
+.btn-continuar:hover .btn-text,
+.btn-continuar:hover .arrow-icon {
+  color: #000000;
+}
+
+.btn-continuar:hover .icon-circle {
+  border-color: #000000;
+}
+
+
+/* --- ANIMACIÓN DE LUCES EN PERSPECTIVA --- */
+.floor-lights-container {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 65%;
+  height: 55%;
+  pointer-events: none;
+  z-index: 1;
+  perspective: 700px;
+  transform: skewX(-28deg) rotateX(38deg);
+  opacity: 0.75;
+}
+
+.light-track {
+  position: absolute;
+  background: transparent;
+  height: 2px;
+}
+
+.light-track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.9);
+  transform: translateY(-50%);
+  animation: dataStream 4s infinite linear;
+}
+
+.track-1 { top: 15%; left: 15%; width: 70%; }
+.track-2 { top: 40%; left: 30%; width: 55%; }
+.track-3 { top: 65%; left: 8%; width: 75%; }
+.track-4 { top: 85%; left: 45%; width: 45%; }
+
+.track-1::after { animation-delay: 0s; animation-duration: 3.2s; }
+.track-2::after { animation-delay: 1.5s; animation-duration: 4.2s; }
+.track-3::after { animation-delay: 0.6s; animation-duration: 4.8s; }
+.track-4::after { animation-delay: 2.2s; animation-duration: 3.6s; }
+
+@keyframes dataStream {
+  0% { left: -20%; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
+}
+
+
+/* --- RESPONSIVE HOME --- */
+@media (max-width: 768px) {
+  .overlay { padding: 60px 30px; }
+  .main-title { font-size: 36px; }
+  .main-title::before { height: 18px; width: 3.5ch; bottom: 2px; }
+  .overlay h3 { font-size: 1.1rem  ; margin: 25px 0 15px 0; }
+  .overlay p { font-size: 0.95rem  ; line-height: 1.5  ; margin-bottom: 35px; }
+  .floor-lights-container { width: 100%; height: 40%; }
+  .btn-continuar { padding: 5px 12px 5px 8px; gap: 8px; }
+  .icon-circle { width: 18px; height: 18px; }
+  .btn-text { font-size: 12px; }
+}

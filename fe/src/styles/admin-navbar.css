@@ -1,0 +1,575 @@
+/* ═══ Navbar Administrador · Neodomus ═════════════════════════ */
+
+/* Altura del navbar expuesta a los modales: los modales se posicionan
+   debajo del navbar y se adaptan al espacio disponible restante. */
+.admin-layout {
+  --ap-navbar-h: 72px;
+}
+
+.admin-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 2000;
+  height: 72px;
+  overflow: visible;
+  background: rgba(9, 10, 11, 0.88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(212, 165, 75, 0.22);
+  display: flex;
+  align-items: center;
+  isolation: isolate;
+}
+
+.anr-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 28px;
+  overflow: visible;
+}
+
+/* ── Logo / identidad ─────────────────────────────────────── */
+.anr-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.anr-brand:hover,
+.anr-brand:visited {
+  text-decoration: none;
+  color: inherit;
+}
+
+.anr-brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(212, 165, 75, 0.5);
+  flex-shrink: 0;
+}
+
+.anr-brand-name {
+  font-size: 1.28rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  background: linear-gradient(90deg, #ffffff, #e9d6a4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+
+.anr-brand-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  color: #d4a54b;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Botón menú móvil ─────────────────────────────────────── */
+.anr-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8e8e8;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  flex-shrink: 0;
+}
+
+.anr-menu-btn:hover {
+  border-color: rgba(212, 165, 75, 0.5);
+  background: rgba(212, 165, 75, 0.08);
+  color: #ffd98a;
+}
+
+/* ── Espaciador ───────────────────────────────────────────── */
+.anr-spacer {
+  flex: 1;
+}
+
+/* ── Acciones derecha ─────────────────────────────────────── */
+.anr-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.anr-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8e8e8;
+  font-size: 1.18rem;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  text-decoration: none;
+}
+
+.anr-icon-btn:hover {
+  border-color: rgba(212, 165, 75, 0.5);
+  background: rgba(212, 165, 75, 0.08);
+  color: #ffd98a;
+}
+
+.anr-icon-btn.active {
+  border-color: rgba(212, 165, 75, 0.5);
+  background: rgba(212, 165, 75, 0.08);
+  color: #ffd98a;
+}
+
+.anr-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #d4a54b;
+  color: #000;
+  font-size: 0.62rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(212, 165, 75, 0.5);
+}
+
+/* ── Dropdown notificaciones ─────────────────────────────── */
+.anr-notifs {
+  position: relative;
+  z-index: 2001;
+}
+
+.anr-notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -8px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  z-index: 2002;
+  background: #141414;
+  border: 1px solid rgba(212, 165, 75, 0.28);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+
+.anr-notif-panel.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.anr-notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.anr-notif-head strong {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.anr-notif-unread {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(212, 165, 75, 0.16);
+  color: #ffd98a;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.anr-notif-ver {
+  color: #d4a54b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.anr-notif-ver:hover {
+  color: #ffd98a;
+}
+
+.anr-notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.anr-notif-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 34px 16px;
+  color: #9f9f9f;
+  font-size: 0.82rem;
+}
+
+.anr-notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  transition: background 0.16s ease;
+}
+
+.anr-notif-item:hover {
+  background: rgba(212, 165, 75, 0.08);
+}
+
+.anr-notif-ico {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.anr-notif-ico.cuenta { background: rgba(229, 72, 77, 0.16); color: #ff8f93; }
+.anr-notif-ico.registro { background: rgba(46, 182, 120, 0.16); color: #54e08e; }
+.anr-notif-ico.cita { background: rgba(64, 142, 255, 0.16); color: #7cb6ff; }
+.anr-notif-ico.pedido { background: rgba(212, 165, 75, 0.16); color: #ffd98a; }
+.anr-notif-ico.stock { background: rgba(255, 145, 64, 0.16); color: #ffa366; }
+.anr-notif-ico.sistema { background: rgba(166, 138, 255, 0.16); color: #c3b2ff; }
+
+.anr-notif-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.anr-notif-tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4a54b;
+}
+
+.anr-notif-titulo {
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.anr-notif-msg {
+  color: #9f9f9f;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.anr-notif-fecha {
+  color: #6f6f6f;
+  font-size: 0.68rem;
+}
+
+.anr-notif-dot {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d4a54b;
+  box-shadow: 0 0 6px rgba(212, 165, 75, 0.8);
+}
+
+.anr-notif-item.unread .anr-notif-titulo {
+  color: #ffd98a;
+}
+
+.anr-notif-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d4a54b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.16s ease;
+}
+
+.anr-notif-footer:hover {
+  background: rgba(212, 165, 75, 0.1);
+  color: #ffd98a;
+}
+
+.anr-notif-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.anr-notif-list::-webkit-scrollbar-thumb {
+  background: rgba(212, 165, 75, 0.35);
+  border-radius: 999px;
+}
+
+.anr-sep {
+  width: 1px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 8px;
+}
+
+/* ── Perfil ───────────────────────────────────────────────── */
+.anr-profile {
+  position: relative;
+  z-index: 2001;
+}
+
+.anr-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.anr-user-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.anr-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #d4a54b;
+  background: #222;
+  flex-shrink: 0;
+}
+
+.anr-avatar-iniciales {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4a54b;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.anr-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.anr-user-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anr-user-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d4a54b;
+}
+
+.anr-user-role::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #46d06f;
+  box-shadow: 0 0 6px rgba(70, 208, 111, 0.8);
+}
+
+.anr-chevron {
+  color: #8f8f8f;
+  font-size: 0.75rem;
+  transition: transform 0.18s ease;
+  margin-left: 2px;
+}
+
+.anr-user-btn.open .anr-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── Dropdown perfil ──────────────────────────────────────── */
+.anr-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  z-index: 2002;
+  background: #141414;
+  border: 1px solid rgba(212, 165, 75, 0.28);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+
+.anr-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.anr-dd-head {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 6px;
+}
+
+.anr-dd-name {
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.anr-dd-mail {
+  color: #9f9f9f;
+  font-size: 0.74rem;
+  word-break: break-all;
+}
+
+.anr-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  color: #dcdcdc;
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.anr-dd-item svg {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.anr-dd-item:hover {
+  background: rgba(212, 165, 75, 0.12);
+  color: #fff;
+}
+
+.anr-dd-item.danger {
+  color: #ff8f93;
+}
+
+.anr-dd-item.danger:hover {
+  background: rgba(229, 72, 77, 0.16);
+}
+
+.anr-dd-sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .anr-menu-btn {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 640px) {
+  .anr-inner {
+    padding: 0 14px;
+    gap: 12px;
+  }
+
+  .anr-brand-name {
+    font-size: 1.05rem;
+  }
+
+  .anr-brand-sub {
+    font-size: 0.52rem;
+  }
+
+  .anr-user-info {
+    display: none;
+  }
+
+  .anr-sep {
+    margin: 0 2px;
+  }
+}

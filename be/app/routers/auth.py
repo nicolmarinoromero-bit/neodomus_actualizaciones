@@ -1,0 +1,252 @@
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
+
+from app.database import get_db
+from app.models.roles_usuario import RolesUsuario
+from app.models.user import User
+from app.services.auth_service import (
+    register_client,
+    verify_client_email,
+    resend_verification_code,
+    login,
+    refresh_access_token,
+    change_password,
+    update_password,
+    request_password_reset,
+    verify_password_reset_code,
+    reset_password,
+    solicitar_habilitacion,
+    google_login,
+    request_email_change,
+    verify_email_change,
+)
+from app.schemas.auth import (
+    ClientCreate,
+    UserLogin,
+    TokenResponse,
+    ChangePasswordRequest,
+    UpdatePasswordRequest,
+    ResetPasswordRequest,
+    VerifyCodeRequest,
+    GoogleLoginRequest,
+    RequestEmailChangeRequest,
+    VerifyEmailChangeRequest,
+)
+from app.utils.security import (
+    get_current_user,
+    set_auth_cookies,
+    clear_auth_cookies,
+    REFRESH_COOKIE_NAME,
+    ACCESS_COOKIE_NAME,
+    decode_token,
+)
+from app.middleware.rate_limit import limiter
+
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordCodeRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+# Registro y verificación
+@router.post("/register/client", response_model=dict)
+@limiter.limit("3/minute")
+async def register_client_endpoint(request: Request, client_data: ClientCreate, db: Session = Depends(get_db)):
+    return await register_client(db, client_data)
+
+@router.post("/verify-email")
+def verify_email_endpoint(code: str, db: Session = Depends(get_db)):
+    verify_client_email(db, code)
+    return {"msg": "Email verificado correctamente. Ya puedes iniciar sesión."}
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification_endpoint(request: Request, req: ResendVerificationRequest, db: Session = Depends(get_db)):
+    return await resend_verification_code(db, req.email)
+
+# Login y autenticación
+@router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
+def login_endpoint(request: Request, response: Response, login_data: UserLogin, db: Session = Depends(get_db)):
+    result = login(db, login_data)
+    # Cookies HttpOnly para la web; los tokens también van en el cuerpo para el móvil.
+    set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
+
+@router.post("/google", response_model=TokenResponse)
+def google_login_endpoint(response: Response, req: GoogleLoginRequest, db: Session = Depends(get_db)):
+    result = google_login(db, req.credential)
+    set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
+
+@router.post("/solicitar-habilitacion")
+@limiter.limit("5/minute")
+async def solicitar_habilitacion_endpoint(request: Request, req: UserLogin, db: Session = Depends(get_db)):
+    """Crea una solicitud de habilitación para un cliente con la cuenta inhabilitada.
+    Requiere email y contraseña para comprobar la identidad. No habilita la cuenta."""
+    return solicitar_habilitacion(db, req.email, req.password)
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(
+    request: Request,
+    response: Response,
+    req: Optional[RefreshTokenRequest] = None,
+    refresh_token: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Renueva el access token. Acepta el token por cuerpo (móvil) o por la
+    cookie HttpOnly (web). Nunca viaja en la URL."""
+    token = (
+        (req.refresh_token if req else None)
+        or refresh_token
+        or request.cookies.get(REFRESH_COOKIE_NAME)
+    )
+    if not token:
+        raise HTTPException(status_code=400, detail="refresh_token es requerido")
+    result = refresh_access_token(db, token)
+    set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
+
+
+@router.post("/logout")
+def logout(response: Response):
+    """Cierra la sesión web eliminando las cookies HttpOnly."""
+    clear_auth_cookies(response)
+    return {"msg": "Sesión cerrada"}
+
+
+@router.get("/session")
+def session_actual(request: Request, db: Session = Depends(get_db)):
+    """Tipo y rol de la cuenta de la sesión actual.
+    Prioriza el header Authorization (cada pestaña envía su propio token
+    desde localStorage). Si no hay header, cae a la cookie HttpOnly
+    (compatibilidad con versiones anteriores).
+    401 si no hay sesión válida; lo usa el frontend al cargar para validar
+    que la sesión corresponda con la vista que quiere mostrar.
+    El rol se lee de la BD (no del claim del JWT): si el rol cambió después
+    de emitirse el token, el frontend lo sabe antes de llamar a endpoints
+    que exigen permisos y evita errores 403 con una vista equivocada."""
+    from app.utils.security import _token_desde_request
+    token = _token_desde_request(request, None)
+    payload = decode_token(token) if token else None
+    if not payload:
+        raise HTTPException(status_code=401, detail="Sin sesión válida")
+    user_type = payload.get("user_type")
+    uid = payload.get("uid")
+    sub = payload.get("sub")
+    rol_claim = payload.get("rol")
+
+    rol = rol_claim
+    if user_type == "employee":
+        user = None
+        if uid:
+            try:
+                user = db.query(User).filter(User.id_usuario == int(uid)).first()
+            except (TypeError, ValueError):
+                user = None
+        if user is None and sub:
+            user = db.query(User).filter(User.email == sub).first()
+        if user:
+            rol = db.execute(
+                select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == user.id_rol_u)
+            ).scalar_one_or_none() or rol_claim
+
+    return {
+        "user_type": user_type,
+        "rol": rol,
+        "uid": uid,
+    }
+
+@router.post("/change-password")
+def change_password_endpoint(
+    req: ChangePasswordRequest,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    ip = request.client.host if request else None
+    change_password(db, current_user, req, ip)
+    return {"msg": "Contraseña actualizada correctamente"}
+
+@router.post("/update-password")
+def update_password_endpoint(
+    req: UpdatePasswordRequest,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    """Actualiza la contraseña del empleado autenticado sin pedir la actual
+    (ventana emergente del panel técnico)."""
+    ip = request.client.host if request else None
+    update_password(db, current_user, req.new_password, ip)
+    return {"msg": "Contraseña actualizada correctamente"}
+
+# Recuperación de contraseña
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(
+    request: Request,
+    req: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+):
+    def _ejecutar():
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            import asyncio
+            asyncio.run(request_password_reset(db, req.email, request.client.host))
+        finally:
+            db.close()
+
+    background_tasks.add_task(_ejecutar)
+    return {"msg": "Si el email está registrado, recibirás un código de recuperación"}
+
+@router.post("/verify-code")
+@limiter.limit("5/minute")
+def verify_code(request: Request, req: VerifyCodeRequest, db: Session = Depends(get_db)):
+    verify_password_reset_code(db, req.email, req.code)
+    return {"valid": True, "message": "Código válido. Ahora puedes restablecer tu contraseña."}
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+def reset_password_endpoint(
+    request: Request,
+    req: ResetPasswordCodeRequest,
+    db: Session = Depends(get_db)
+):
+    reset_req = ResetPasswordRequest(token=req.token, new_password=req.new_password)
+    reset_password(db, reset_req)
+    return {"msg": "Contraseña actualizada correctamente"}
+
+# Cambio de correo electrónico (verificación con código)
+@router.post("/request-email-change")
+async def request_email_change_endpoint(
+    req: RequestEmailChangeRequest,
+    request: Request,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Solicita el cambio de correo: envía un código de 6 dígitos al correo actual."""
+    ip = request.client.host if request else None
+    return await request_email_change(db, current_user, req.nuevo_email, ip)
+
+@router.post("/verify-email-change")
+def verify_email_change_endpoint(
+    req: VerifyEmailChangeRequest,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Valida el código recibido por correo y aplica el cambio de correo."""
+    return verify_email_change(db, current_user, req.code, req.nuevo_email)

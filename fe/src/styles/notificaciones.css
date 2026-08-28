@@ -1,0 +1,167 @@
+/* ==========================================================================
+   NOTIFICACIONES - Neodomus
+   Mismo estándar visual que la página de Productos: contenedor ancho,
+   cabecera dorada, tarjetas oscuras redondeadas con acentos dorados.
+   ========================================================================== */
+
+.notif-page {
+  position: relative;
+  min-height: 100vh;
+}
+
+.notif-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 40px 48px 80px;
+}
+
+/* ── Cabecera (estándar Neodomus) ─────────────────────────── */
+.notif-header {
+  margin-bottom: 30px;
+  border-left: 4px solid #ffd700;
+  padding-left: 18px;
+}
+
+.notif-header h1 {
+  color: #ffffff;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px 0;
+  line-height: 1.1;
+}
+
+.notif-header p {
+  color: #c9c9c9;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* ── Lista ────────────────────────────────────────────────── */
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  background: linear-gradient(180deg, rgba(24, 24, 24, 0.9), rgba(12, 12, 12, 0.95));
+  border: 1px solid rgba(211, 172, 77, 0.22);
+  border-radius: 18px;
+  padding: 20px 24px;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+
+.notif-item:hover {
+  border-color: rgba(211, 172, 77, 0.5);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.notif-item-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  font-size: 20px;
+  border: 1px solid rgba(211, 172, 77, 0.3);
+}
+
+.notif-confirmacion .notif-item-icon {
+  background: rgba(46, 125, 70, 0.15);
+  color: #5fd37f;
+  border-color: rgba(95, 211, 127, 0.35);
+}
+
+.notif-pedido .notif-item-icon {
+  background: rgba(90, 130, 255, 0.12);
+  color: #7ea2ff;
+  border-color: rgba(126, 162, 255, 0.35);
+}
+
+.notif-promocion .notif-item-icon {
+  background: rgba(212, 165, 75, 0.14);
+  color: #ffd700;
+}
+
+.notif-novedad .notif-item-icon {
+  background: rgba(150, 111, 214, 0.14);
+  color: #c3a6f0;
+  border-color: rgba(195, 166, 240, 0.35);
+}
+
+.notif-sistema .notif-item-icon {
+  background: rgba(255, 255, 255, 0.06);
+  color: #9c9c9c;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.notif-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(212, 165, 75, 0.12);
+  color: #f0c96f;
+  border: 1px solid rgba(212, 165, 75, 0.3);
+}
+
+.notif-fecha {
+  color: #8a8a8a;
+  font-size: 12.5px;
+}
+
+.notif-titulo {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.notif-mensaje {
+  color: #bdbdbd;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .notif-content {
+    padding: 26px 16px 60px;
+  }
+
+  .notif-header h1 {
+    font-size: 32px;
+  }
+
+  .notif-item {
+    padding: 18px 16px;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,60 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+
+# datos sensibles generados (usuarios + hashes de contraseñas)
+# scripts/init_db.sql
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+
+# Respaldos locales de datos
+backup_neodomus.sql
+evidencias_backup/
+
+# MinIO - permitir datos del bucket
+# minio_data/

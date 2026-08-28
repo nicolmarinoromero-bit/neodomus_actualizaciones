@@ -1,0 +1,46 @@
+.main-footer {
+  background-color: #000000;
+  border-top: 1px solid #c9a227;
+  padding: 20px 0;
+  text-align: center;
+  /* Estas tres líneas garantizan la estabilidad */
+  width: 100%;
+  margin-top: auto;
+  flex-shrink: 0;
+  /* Se mantiene por encima de la capa de fondo para conservar
+     el negro sólido y diferenciar el final de la página */
+  position: relative;
+  z-index: 10;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.footer-links a:hover {
+  color: #c9a227;
+}
+
+.separator {
+  color: #c9a227;
+  font-size: 20px;
+  font-weight: 300;
+}
+
+.footer-copy {
+  color: #bdbdbd;
+  font-size: 15px;
+  margin: 0;
+}
