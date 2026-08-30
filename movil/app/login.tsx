@@ -12,6 +12,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as AuthSession from "expo-auth-session";
+import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
@@ -48,6 +49,8 @@ export default function LoginScreen() {
   const [mensajeHabilitacion, setMensajeHabilitacion] = useState<string | null>(null);
   const [cargandoGoogle, setCargandoGoogle] = useState(false);
 
+  const [nonce] = useState(() => Crypto.randomUUID());
+
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     GOOGLE_WEB_CLIENT_ID
       ? {
@@ -56,6 +59,7 @@ export default function LoginScreen() {
           scopes: ["openid", "profile", "email"],
           responseType: "id_token",
           usePKCE: false,
+          nonce,
         }
       : (null as any),
     GOOGLE_WEB_CLIENT_ID ? discovery : null,
