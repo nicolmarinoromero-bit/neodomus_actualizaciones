@@ -6,7 +6,7 @@
 // contraseña. Sesión persistente real contra el backend.
 // ─────────────────────────────────────────────────────────────
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
@@ -60,21 +60,6 @@ export default function LoginScreen() {
       : (null as any),
     GOOGLE_WEB_CLIENT_ID ? discovery : null,
   );
-
-  // Manejar respuesta de Google
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      if (id_token) {
-        manejarExitoGoogle(id_token);
-      }
-    } else if (response?.type === "error") {
-      setError("Error al iniciar sesión con Google. Intenta de nuevo.");
-      setCargandoGoogle(false);
-    } else if (response?.type === "cancel" || response?.type === "dismiss") {
-      setCargandoGoogle(false);
-    }
-  }, [response]);
 
   // Cargar email recordado (igual que la web: solo el email).
   useEffect(() => {
@@ -162,7 +147,7 @@ export default function LoginScreen() {
     }
   };
 
-  const manejarExitoGoogle = async (idToken: string) => {
+  const manejarExitoGoogle = useCallback(async (idToken: string) => {
     setCargandoGoogle(true);
     setError(null);
     setCuentaInhabilitada(false);
@@ -195,7 +180,22 @@ export default function LoginScreen() {
     } finally {
       setCargandoGoogle(false);
     }
-  };
+  }, [iniciarSesionGoogle, redirigirA]);
+
+  // Manejar respuesta de Google
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      if (id_token) {
+        manejarExitoGoogle(id_token);
+      }
+    } else if (response?.type === "error") {
+      setError("Error al iniciar sesión con Google. Intenta de nuevo.");
+      setCargandoGoogle(false);
+    } else if (response?.type === "cancel" || response?.type === "dismiss") {
+      setCargandoGoogle(false);
+    }
+  }, [response, manejarExitoGoogle]);
 
   return (
     <AuthScreen>

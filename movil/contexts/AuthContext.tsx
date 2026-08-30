@@ -45,6 +45,7 @@ interface PerfilBackend {
   id_usuario?: number;
   first_name?: string;
   last_name?: string;
+  email?: string;
 }
 
 interface AuthContextValue {
@@ -87,10 +88,11 @@ async function construirUsuario(
     const perfil = await apiFetch<PerfilBackend>(endpoint);
     const nombreCompleto =
       `${perfil.first_name ?? ""} ${perfil.last_name ?? ""}`.trim();
+    const correoFinal = correo || perfil.email || base.nombre;
     return {
       ...base,
       id: perfil.id_cliente ?? perfil.id_usuario ?? base.id,
-      correo: correo || base.nombre,
+      correo: correoFinal,
       nombre: nombreCompleto || base.nombre,
       rol: rol ?? base.rol,
     };
@@ -176,15 +178,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const respuesta = await googleLoginApi(credential);
     const rol = (respuesta as any).rol || (respuesta as any).role || null;
 
+    const perfil = await construirUsuario("", respuesta.user_type, rol);
+
     await guardarSesion({
       accessToken: respuesta.access_token,
       refreshToken: respuesta.refresh_token,
       userType: respuesta.user_type,
-      correo: "", // Se obtendrá del perfil del backend
+      correo: perfil.correo,
       rol: rol ?? undefined,
     });
 
-    const perfil = await construirUsuario("", respuesta.user_type, rol);
     setUsuario(perfil);
   }, []);
 
