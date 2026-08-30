@@ -148,26 +148,71 @@ export interface SeguimientoPedido {
 export const obtenerSeguimiento = (idPedido: number) =>
   apiFetch<SeguimientoPedido>(`/pedidos/${idPedido}/seguimiento`);
 
-/** Descarga el PDF REAL generado por el backend y lo abre/comparte. */
+/** Descarga el PDF REAL generado por el backend y lo abre/comparte.
+ * Maneja URLs relativas (/api/v1/...) y absolutas (http://localhost:8000/...).
+ * Normaliza localhost → LAN para que funcione desde dispositivo físico.
+ */
 export async function descargarFacturaPdf(
   pdfUrl: string,
   accessToken: string,
 ): Promise<string> {
+  // Normaliza host si el backend devolvió URL absoluta con localhost
+  let pdfUrlNormalizada = pdfUrl;
+  try {
+    if (pdfUrl.startsWith("http://") || pdfUrl.startsWith("https://")) {
+      const u = new URL(pdfUrl);
+      const hostBackend = new URL(API_BASE_URL).hostname;
+      if (["localhost", "127.0.0.1", "minio", "::1"].includes(u.hostname)) {
+        u.hostname = hostBackend;
+        // MinIO usa 9000 pero facturas usan 8000; mantener puerto original
+        pdfUrlNormalizada = u.toString();
+      }
+    }
+  } catch {}
+
   // La web quita '/api/v1' porque axios ya lo incluye en baseURL;
   // API_BASE_URL móvil también lo incluye → misma URL final.
-  const ruta = pdfUrl.replace(/^\/api\/v1/, "");
-  const url = `${API_BASE_URL}${ruta}`;
+  let url: string;
+  if (pdfUrlNormalizada.startsWith("http://") || pdfUrlNormalizada.startsWith("https://")) {
+    url = pdfUrlNormalizada;
+  } else {
+    const ruta = pdfUrlNormalizada.replace(/^\/api\/v1/, "");
+    url = `${API_BASE_URL}${ruta}`;
+  }
 
+  const rutaParaNombre = pdfUrlNormalizada.replace(/^\/api\/v1/, "");
   const destino = `${FileSystem.cacheDirectory}factura_${(
-    ruta.match(/\/(\d+)\/factura/) || [])[1] || Date.now()
+    rutaParaNombre.match(/\/(\d+)\/factura/) || [])[1] || Date.now()
   }.pdf`;
 
+  if (__DEV__) console.log(`[factura] Descargando PDF ${url} → ${destino}`);
+
   const resultado = await FileSystem.downloadAsync(url, destino, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
 
+  if (__DEV__) console.log(`[factura] download status=${(resultado as any).status} uri=${resultado.uri}`);
+
+  // Verificar HTTP 200; si no, lanzar error con detalle
+  const status = (resultado as any).status ?? 200;
+  if (status < 200 || status >= 300) {
+    throw new Error(`No se pudo descargar la factura (HTTP ${status})`);
+  }
+
+  // Verificar que el archivo realmente existe y tiene contenido
+  try {
+    const info = await FileSystem.getInfoAsync(resultado.uri);
+    if (!info.exists || (info as any).size === 0) {
+      throw new Error("El archivo PDF descargado está vacío");
+    }
+    if (__DEV__) console.log(`[factura] Archivo OK size=${(info as any).size}`);
+  } catch (e) {
+    console.log("[factura] getInfo error", e);
+  }
+
   if (!(await Sharing.isAvailableAsync())) {
-    return resultado.uri; // Sin compartir nativo: queda en caché.
+    if (__DEV__) console.log("[factura] Sharing no disponible, archivo en caché:", resultado.uri);
+    return resultado.uri; // Sin compartir nativo: queda en caché y se puede abrir con Linking.
   }
   await Sharing.shareAsync(resultado.uri, {
     mimeType: "application/pdf",
@@ -216,7 +261,7 @@ export const crearCita = (datos: {
   metodo_pago: string;
   datos_pago: Record<string, unknown>;
 }) =>
-  apiFetch<{ redirect_url?: string }>("/citas", {
+  apiFetch<{ redirect_url?: string; estado_pago?: string; estado?: string; id_cita?: number }>("/citas", {
     method: "POST",
     body: JSON.stringify(datos),
   });

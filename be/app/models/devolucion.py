@@ -28,6 +28,7 @@ class Devolucion(Base):
         ForeignKey("productos.id_producto"), nullable=True, index=True
     )
     motivo: Mapped[str] = mapped_column(Text, nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
     estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="Pendiente")
     resolucion: Mapped[str] = mapped_column(String(20), nullable=True)
     resuelta_por: Mapped[int] = mapped_column(Integer, nullable=True)

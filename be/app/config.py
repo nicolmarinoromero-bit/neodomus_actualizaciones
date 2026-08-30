@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 
 
 class Settings(BaseSettings):
@@ -71,6 +71,21 @@ class Settings(BaseSettings):
     
     # --- Entorno ---
     ENVIRONMENT: str = "development"  # development, staging, production
+
+    @model_validator(mode="after")
+    def _validate_production_secrets(self):
+        """Fail-fast en producción si quedan secretos de desarrollo."""
+        if self.ENVIRONMENT == "production":
+            insecure_key = "clave_super_segura_para_desarrollo_cambiar_en_produccion"
+            if self.SECRET_KEY == insecure_key or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "SECRET_KEY insegura en producción: genera con `openssl rand -hex 32` y configura en .env"
+                )
+            if "neodomus123" in self.DATABASE_URL:
+                raise ValueError("DATABASE_URL contiene contraseña de desarrollo en producción")
+            if self.MINIO_SECRET_KEY == "neodomus12345":
+                raise ValueError("MINIO_SECRET_KEY insegura en producción")
+        return self
     
     model_config = ConfigDict(
         env_file=".env",

@@ -23,6 +23,8 @@
 | **Estado**    | Propuesta                                          |
 | **Fecha**     | Mayo 2026                                          |
 
+> **Nota 2026-08 — No implementado para rol técnico:** No existe `GET /tech/reportes` (`reports.py` solo admin `GET /reports/*` `reports.py:43` `_admin`). Técnico ve `GET /tecnicos/comisiones` (`tecnicos.py:698`) y `GET /calificaciones/mis` (`calificaciones.py:206`). Reportes PDF solo admin (`reports.py:872` `ventas/pdf`). RF futuro.
+
 ## Descripción
 
 El sistema debe permitir al técnico descargar reportes de los servicios realizados en un rango de fechas, en formato PDF o Excel, para llevar un control personal.

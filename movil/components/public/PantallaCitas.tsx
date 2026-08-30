@@ -17,6 +17,8 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import CalendarioMes from "@/components/app/CalendarioMes";
 import AppScreen from "@/components/app/AppScreen";
+import Dropdown from "@/components/ui/Dropdown";
+import PaymentMethodCards from "@/components/public/PaymentMethodCards";
 import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
@@ -62,21 +64,23 @@ export default function PantallaCitas({
   const [hora, setHora] = useState("");
   const [direccion, setDireccion] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [tecnicoId] = useState<number | null>(
-    params.tecnico ? Number(params.tecnico) : null,
-  );
-  const [nombreTecnico] = useState<string | null>(
-    params.nombre ? decodeURIComponent(params.nombre) : null,
-  );
+  // Técnico pre-seleccionado desde PantallaTecnicos → params reactivos (tabs no se desmontan)
+  const tecnicoId = (() => {
+    if (!params.tecnico) return null;
+    const n = Number(params.tecnico);
+    return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
+  })();
+  const nombreTecnico = params.nombre ? decodeURIComponent(params.nombre) : null;
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
     const [tarifas, setTarifas] = useState<Tarifa[]>([]);
   const [bancos, setBancos] = useState<string[]>([]);
 
-  const [metodoPago, setMetodoPago] = useState<string>("tarjeta_debito");
+  const [metodoPago, setMetodoPago] = useState<string>("tarjeta_credito");
   const [numeroTarjeta, setNumeroTarjeta] = useState("");
   const [titular, setTitular] = useState("");
   const [expiracion, setExpiracion] = useState("");
   const [cvv, setCvv] = useState("");
+  const [cuotas, setCuotas] = useState("1");
   const [banco, setBanco] = useState("");
   const [correoPaypal, setCorreoPaypal] = useState("");
   const [puntoPago, setPuntoPago] = useState("");
@@ -95,6 +99,8 @@ export default function PantallaCitas({
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pagoPendiente, setPagoPendiente] = useState(false);
+  const [pagoRechazado, setPagoRechazado] = useState(false);
 
   // Cargar dirección del perfil + tarifas + bancos.
   useEffect(() => {
@@ -119,11 +125,11 @@ export default function PantallaCitas({
     cargarMisCitas();
   }, [cargarMisCitas]);
 
-  // Horarios disponibles (regla WEB): solo cuando hay fecha válida L-V.
-  // Sábado y domingo NO disponibles: ni se consultan horas.
+  // Horarios disponibles (regla WEB actual: lunes a sábado).
+  // Domingo NO disponible: ni se consultan horas. Sábado SÍ disponible.
   useEffect(() => {
     const diaSemana = fecha ? new Date(fecha + "T12:00:00").getDay() : null;
-    if (!fecha || diaSemana === 0 || diaSemana === 6) {
+    if (!fecha || diaSemana === 0) {
       setHorasDisponibles([]);
       return;
     }
@@ -142,7 +148,7 @@ export default function PantallaCitas({
 
 
   const esFinDeSemana = fecha
-    ? [0, 6].includes(new Date(fecha + "T12:00:00").getDay())
+    ? new Date(fecha + "T12:00:00").getDay() === 0
     : false;
 
   const tarifaActual =
@@ -175,7 +181,7 @@ export default function PantallaCitas({
           titular: titular.trim(),
           expiracion,
           cvv,
-          cuotas: 1,
+          cuotas: Number(cuotas) || 1,
           resultado_simulacion: simulacion,
         };
       case "pse":
@@ -183,22 +189,34 @@ export default function PantallaCitas({
           setError("Selecciona un banco para pagar por PSE.");
           return null;
         }
-        return { banco, resultado_simulacion: simulacion || "aprobado" };
+        if (!titular.trim()) {
+          setError("Ingresa el titular de la cuenta.");
+          return null;
+        }
+        if (!simulacion) {
+          setError("Selecciona el resultado de simulación.");
+          return null;
+        }
+        return { banco, titular: titular.trim(), resultado_simulacion: simulacion };
       case "paypal":
         if (!correoPaypal.trim()) {
           setError("Ingresa el correo de tu cuenta PayPal.");
           return null;
         }
+        if (!simulacion) {
+          setError("Selecciona el resultado de simulación.");
+          return null;
+        }
         return {
           correo_paypal: correoPaypal.trim(),
-          resultado_simulacion: simulacion || "aprobado",
+          resultado_simulacion: simulacion,
         };
       case "punto_pago":
         if (!puntoPago) {
           setError("Selecciona el punto de pago (Efecty, Servientrega u otro).");
           return null;
         }
-        return { punto_pago: puntoPago };
+        return { punto_pago: puntoPago, resultado_simulacion: simulacion || "pendiente" };
       default:
         setError("Selecciona un método de pago.");
         return null;
@@ -214,8 +232,17 @@ export default function PantallaCitas({
       setError("Selecciona una fecha.");
       return;
     }
+    if (esFinDeSemana) {
+      setError("Los domingos no están disponibles. Selecciona de lunes a sábado.");
+      return;
+    }
     if (!hora) {
       setError("Selecciona una hora disponible.");
+      return;
+    }
+    // El técnico es obligatorio al crear (igual que la web): debe venir de Técnicos
+    if (!editandoId && tecnicoId == null) {
+      setError("Debes seleccionar un técnico primero. Ve a Técnicos y pulsa Seleccionar.");
       return;
     }
 
@@ -231,7 +258,7 @@ export default function PantallaCitas({
           setEnviando(false);
           return;
         }
-        const respuesta = await crearCita({
+        const respuesta: any = await crearCita({
           ...payloadBase(),
           metodo_pago: metodoPago,
           datos_pago: datosPago,
@@ -241,7 +268,22 @@ export default function PantallaCitas({
           const { Linking } = await import("react-native");
           Linking.openURL(respuesta.redirect_url).catch(() => {});
         }
-        setExito("Cita agendada correctamente");
+        const estadoPago = (respuesta.estado_pago || respuesta.estado || "").toString().toLowerCase();
+        if (estadoPago === "rechazado") {
+          setPagoRechazado(true);
+          setPagoPendiente(false);
+          setError(null);
+          setExito(null);
+        } else if (estadoPago === "pendiente") {
+          setPagoPendiente(true);
+          setPagoRechazado(false);
+          setError(null);
+          setExito(null);
+        } else {
+          setPagoPendiente(false);
+          setPagoRechazado(false);
+          setExito("Cita agendada correctamente");
+        }
       }
       setVista("mis");
       cargarMisCitas();
@@ -360,12 +402,11 @@ export default function PantallaCitas({
             </Text>
           )}
 
-          <Text style={S.label}>Fecha * (lunes a viernes)</Text>
+          <Text style={S.label}>Fecha * (lunes a sábado)</Text>
           <CalendarioMes valor={fecha} onChange={setFecha} minFecha={hoyIso()} />
           {esFinDeSemana && (
             <Text style={S.error}>
-              No hay horarios disponibles para esta fecha (sábados y domingos no
-              laborables).
+              Los domingos no están disponibles. Selecciona de lunes a sábado.
             </Text>
           )}
 
@@ -412,80 +453,99 @@ export default function PantallaCitas({
           {!editandoId && (
             <>
               <Text style={S.label}>Método de pago *</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                {METODOS.map((m) => (
-                  <Pressable
-                    key={m}
-                    onPress={() => setMetodoPago(m)}
-                    style={[S.chip, metodoPago === m && S.chipActivo]}
-                  >
-                    <Text style={[S.chipTexto, metodoPago === m && S.chipTextoActivo]}>
-                      {m.replace("_", " ")}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text style={[S.gris, { marginTop: -2, marginBottom: 4 }]}>Selecciona cómo quieres pagar (simulación académica).</Text>
+              <PaymentMethodCards metodos={METODOS} seleccionado={metodoPago} onSelect={(m) => { setMetodoPago(m); setSimulacion(""); }} />
 
-              {/* Campos mínimos por método, mismos que la web */}
               {(metodoPago === "tarjeta_debito" || metodoPago === "tarjeta_credito") && (
-                <View style={{ gap: 8 }}>
+                <View style={{ gap: 10, marginTop: 8 }}>
                   <TextInput style={inputEstilo} placeholder="Número de tarjeta (4242 4242 4242 4242)" placeholderTextColor="#8a8a8a" keyboardType="number-pad" value={numeroTarjeta} onChangeText={(v) => setNumeroTarjeta(v)} />
-                  <TextInput style={inputEstilo} placeholder="Titular" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} />
+                  <TextInput style={inputEstilo} placeholder="Titular de la tarjeta" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} autoCapitalize="words" />
                   <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="MM/AA" placeholderTextColor="#8a8a8a" value={expiracion} onChangeText={(v) => setExpiracion(v.slice(0, 5))} />
-                    <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="CVV" placeholderTextColor="#8a8a8a" keyboardType="number-pad" secureTextEntry value={cvv} onChangeText={(v) => setCvv(v.replace(/\D/g, "").slice(0, 4))} />
+                    <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="MM/AA" placeholderTextColor="#8a8a8a" value={expiracion} onChangeText={(v) => setExpiracion(v.slice(0, 5))} maxLength={5} />
+                    <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="CVV" placeholderTextColor="#8a8a8a" keyboardType="number-pad" secureTextEntry value={cvv} onChangeText={(v) => setCvv(v.replace(/\D/g, "").slice(0, 4))} maxLength={4} />
                   </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                    {["aprobado", "rechazado"].map((r) => (
-                      <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                        <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>
-                          Simular: {r}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Dropdown
+                    label="Número de cuotas"
+                    value={cuotas}
+                    placeholder="Seleccionar cuotas"
+                    options={[
+                      { label: "1 cuota", value: "1" },
+                      { label: "3 cuotas", value: "3" },
+                      { label: "6 cuotas", value: "6" },
+                      { label: "12 cuotas", value: "12" },
+                    ]}
+                    onChange={setCuotas}
+                  />
+                  <Dropdown
+                    label="Resultado de simulación"
+                    value={simulacion}
+                    placeholder="Seleccionar resultado"
+                    options={[
+                      { label: "Aprobado", value: "aprobado" },
+                      { label: "Rechazado", value: "rechazado" },
+                    ]}
+                    onChange={setSimulacion}
+                  />
                 </View>
               )}
 
               {metodoPago === "pse" && (
-                <View style={{ gap: 8 }}>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                    {bancos.map((b) => (
-                      <Pressable key={b} onPress={() => setBanco(b)} style={[S.chip, banco === b && S.chipActivo]}>
-                        <Text style={[S.chipTexto, banco === b && S.chipTextoActivo]}>{b}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                    {["aprobado", "rechazado", "pendiente"].map((r) => (
-                      <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                        <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>Simular: {r}</Text>
-                      </Pressable>
-                    ))}
+                <View style={{ gap: 10, marginTop: 8 }}>
+                  <Dropdown
+                    label="Resultado de simulación"
+                    value={simulacion}
+                    placeholder="Seleccionar resultado"
+                    options={[
+                      { label: "Aprobado", value: "aprobado" },
+                      { label: "Rechazado", value: "rechazado" },
+                      { label: "Pendiente", value: "pendiente" },
+                    ]}
+                    onChange={setSimulacion}
+                  />
+                  <Dropdown
+                    label="Selecciona tu banco"
+                    value={banco}
+                    placeholder="Seleccionar banco"
+                    options={(bancos.length ? bancos : ["Bancolombia", "Banco de Bogotá", "Banco Davivienda", "BBVA Colombia", "Banco de Occidente", "Banco Popular", "Itaú Colombia", "Banco Caja Social", "Scotiabank Colpatria", "Banco Agrario", "Nequi", "Daviplata"]).map((b) => ({ label: b, value: b }))}
+                    onChange={setBanco}
+                  />
+                  <View style={{ gap: 6 }}>
+                    <Text style={S.label}>Titular de la cuenta</Text>
+                    <TextInput style={inputEstilo} placeholder="Nombre del titular" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} autoCapitalize="words" />
                   </View>
                 </View>
               )}
 
               {metodoPago === "paypal" && (
-                <View style={{ gap: 8 }}>
-                  <TextInput style={inputEstilo} placeholder="Correo de PayPal" placeholderTextColor="#8a8a8a" autoCapitalize="none" value={correoPaypal} onChangeText={setCorreoPaypal} />
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                    {["aprobado", "rechazado"].map((r) => (
-                      <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                        <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>Simular: {r}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                <View style={{ gap: 10, marginTop: 8 }}>
+                  <TextInput style={inputEstilo} placeholder="Correo de PayPal" placeholderTextColor="#8a8a8a" autoCapitalize="none" keyboardType="email-address" value={correoPaypal} onChangeText={setCorreoPaypal} />
+                  <Dropdown
+                    label="Resultado de simulación"
+                    value={simulacion}
+                    placeholder="Seleccionar resultado"
+                    options={[
+                      { label: "Aprobado", value: "aprobado" },
+                      { label: "Rechazado", value: "rechazado" },
+                    ]}
+                    onChange={setSimulacion}
+                  />
                 </View>
               )}
 
               {metodoPago === "punto_pago" && (
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-                  {["Efecty", "Servientrega", "Otro punto de pago"].map((p) => (
-                    <Pressable key={p} onPress={() => setPuntoPago(p)} style={[S.chip, puntoPago === p && S.chipActivo]}>
-                      <Text style={[S.chipTexto, puntoPago === p && S.chipTextoActivo]}>{p}</Text>
-                    </Pressable>
-                  ))}
+                <View style={{ gap: 10, marginTop: 8 }}>
+                  <Dropdown
+                    label="Punto de pago"
+                    value={puntoPago}
+                    placeholder="Seleccionar punto"
+                    options={[
+                      { label: "Efecty", value: "Efecty" },
+                      { label: "Servientrega", value: "Servientrega" },
+                      { label: "Otro punto de pago", value: "Otro punto de pago" },
+                    ]}
+                    onChange={setPuntoPago}
+                  />
+                  <Text style={S.gris}>Se generará referencia y código para pagar en el punto físico. Quedará pendiente hasta confirmar.</Text>
                 </View>
               )}
             </>
@@ -505,6 +565,36 @@ export default function PantallaCitas({
             <Text style={S.textoBotonPrimario}>
               {enviando ? "Procesando..." : editandoId ? "Actualizar cita" : "Agendar y pagar"}
             </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {pagoPendiente && !editandoId && (
+        <View style={S.tarjeta}>
+          <FontAwesome6 name="clock" size={18} color="#f6c344" />
+          <Text style={[S.label, { color: "#f6c344", marginTop: 0 }]}>Pago pendiente</Text>
+          <Text style={S.gris}>Tu pago está siendo procesado. Te notificaremos cuando se confirme.</Text>
+          <Pressable
+            style={({ pressed }) => [S.botonOutline, pressed && S.presionado, { marginTop: 8 }]}
+            onPress={() => {
+              setPagoPendiente(false);
+              setVista("mis");
+            }}
+          >
+            <Text style={S.textoOutline}>Ver mis citas</Text>
+          </Pressable>
+        </View>
+      )}
+      {pagoRechazado && !editandoId && (
+        <View style={S.tarjeta}>
+          <FontAwesome6 name="circle-xmark" size={18} color="#f0858a" />
+          <Text style={[S.label, { color: "#f0858a", marginTop: 0 }]}>Pago rechazado</Text>
+          <Text style={S.gris}>No fue posible procesar tu pago.</Text>
+          <Pressable
+            style={({ pressed }) => [S.botonPrimario, pressed && S.presionado, { marginTop: 8 }]}
+            onPress={() => setPagoRechazado(false)}
+          >
+            <Text style={S.textoBotonPrimario}>Intentar nuevamente</Text>
           </Pressable>
         </View>
       )}
@@ -659,7 +749,7 @@ export default function PantallaCitas({
       </Modal>
 
       <Text style={S.notaHorario}>
-        Horario de atención: lunes a viernes, 8:00 a. m. – 6:00 p. m.
+        Horario de atención: lunes a sábado, 8:00 a. m. – 6:00 p. m. (domingos no laborables)
       </Text>
     </AppScreen>
   );

@@ -12,7 +12,7 @@
 
 ### RT-001 — Stack de backend obligatorio
 El backend debe desarrollarse exclusivamente con:
-- **Python 3.10+** como lenguaje.
+- **Python 3.10+** como lenguaje (actual **3.12** en `be/.python-version:1` y `be/Dockerfile:1` `python:3.12-slim`, `pyproject.toml:5` `>=3.10`).
 - **FastAPI** como framework web.
 - **SQLAlchemy 2.0+** como ORM.
 - **PyMySQL** como conector a base de datos.
@@ -25,8 +25,9 @@ No se permite el uso de otros frameworks web (Django, Flask, etc.) ni ORMs alter
 El frontend debe desarrollarse exclusivamente con:
 - **React 18+** como biblioteca de UI.
 - **TypeScript 5.0+** en modo estricto (`"strict": true`).
-- **Vite 6+** como bundler y servidor de desarrollo.
-- **TailwindCSS 4+** como framework de estilos.
+- **Vite 5.4+** como bundler y servidor de desarrollo (actual: 5.4.21 en `fe/package.json:28`).
+- **CSS Modules / CSS puro** como sistema de estilos (no TailwindCSS en el código actual; `tailwind.config.js` no existe). Si se migra a Tailwind, usar 4+.
+- **Framer Motion 12+** para animaciones y **React Icons 5.6+** para iconografía (reales en `fe/package.json:13,16`).
 - **React Router 7+** para enrutamiento del lado del cliente.
 
 No se permite el uso de otros frameworks (Angular, Vue, Svelte, etc.).
@@ -41,10 +42,10 @@ La autenticación debe implementarse exclusivamente mediante **JWT (JSON Web Tok
 Las contraseñas deben hashearse exclusivamente con **bcrypt** (vía `passlib`). No se permiten otros algoritmos de hashing (MD5, SHA-256, argon2, etc.) salvo aprobación explícita.
 
 ### RT-006 — Mapa y geolocalización
-El componente de mapas debe utilizar **Leaflet** (open-source) con la librería `react-leaflet`. No se permite Google Maps (por coste) ni Mapbox sin clave autorizada. En móvil, el mapa debe ser completamente táctil (pinch zoom, arrastre) y accesible por teclado en escritorio.
+El componente de mapas **puede** utilizar **Leaflet** (`react-leaflet`) como opción open-source. En la implementación actual **no hay mapa Leaflet** (`fe/package.json` y `movil/package.json` sin `leaflet`; ver `docs/referencia-tecnica/architecture.md`). Si se implementa mapa (HU-025/HU-034), usar Leaflet con soporte táctil y accesible por teclado. No se impone como obligatorio para la entrega actual.
 
 ### RT-007 — Integración de pagos
-La pasarela de pagos debe ser **MercadoPago** o **Stripe**, utilizando su SDK. En desarrollo se usará el modo sandbox; en producción se usarán credenciales reales. No se permiten otras pasarelas ni implementaciones caseras de pago.
+La pasarela de pagos en **desarrollo es simulador académico** (`PAYMENT_PROVIDER=simulator` en `be/app/config.py:50` y `docker-compose.yml:53`) sin credenciales reales. Para producción se podrá integrar **MercadoPago** o **Stripe** en modo sandbox/producción. El simulador es válido para la entrega académica (ver `be/app/services/pagos_service.py`).
 
 ### RT-008 — Correos y notificaciones
 El envío de correos electrónicos se hará mediante **SMTP** (Gmail, SendGrid u otro). Las credenciales irán en variables de entorno. No se permite simular envíos con logs en consola en producción, aunque en desarrollo está permitido para pruebas.
@@ -54,13 +55,13 @@ El envío de correos electrónicos se hará mediante **SMTP** (Gmail, SendGrid u
 ## 2. Restricciones de Herramientas y Entorno
 
 ### RH-001 — Gestor de paquetes Python
-El entorno de Python debe gestionarse exclusivamente con **poetry** (recomendado) o `pip + virtualenv`. Queda prohibido el uso de `conda`, `pipenv` u otros gestores de entornos virtuales que no permitan versionado exacto de dependencias.
+El entorno de Python se gestiona con **uv (Astral)** (`be/pyproject.toml:31` `[tool.uv]`, `uv.lock`, `be/Dockerfile:3` `ghcr.io/astral-sh/uv`) con `pip + virtualenv` como alternativa compatible. Queda prohibido `conda`/`pipenv` si no permiten versionado exacto. `poetry` fue reemplazado por `uv` y se mantiene como referencia histórica.
 
 ### RH-002 — Gestor de paquetes Node.js
-Las dependencias del frontend deben gestionarse exclusivamente con **pnpm**. Queda **prohibido** el uso de `npm` o `yarn` para cualquier operación (install, add, run, etc.).
+Las dependencias del frontend deben gestionarse preferentemente con **pnpm** (`fe/pnpm-lock.yaml`, `fe/Dockerfile:3` `pnpm@10`). Se tolera `npm`/`yarn` solo para compatibilidad Expo (`movil/package-lock.json` existe por `expo`), pero **pnpm es el gestor oficial** para `fe`. No mezclar gestores en el mismo módulo.
 
 ### RH-003 — Versiones exactas
-Todas las dependencias (tanto en `package.json` como en `pyproject.toml` o `requirements.txt`) deben tener **versiones exactas** (sin `^`, `~`, `*` ni `latest`). Esto garantiza builds reproducibles y evita CVEs silenciosos.
+Las dependencias críticas deben tener **versiones exactas** (sin `^`, `~`, `*`). En la práctica actual `fe/package.json:12,17,18` usa `^` para `axios`, `react-router-dom`, `@react-oauth/google` y `be/pyproject.toml:22,25-28` usa `>=` para `Pillow`, `requests`, `minio`, `tzdata`, `apscheduler`. Se recomienda fijar exactas en producción (`pnpm`/`uv.lock` ya garantiza reproducibilidad).
 
 ### RH-004 — Linter y formatter backend
 Se debe usar exclusivamente **ruff** (o `pylint` + `black` si se prefiere, pero con una configuración fija) como linter y formatter para el código Python. No se permiten linters alternativos no documentados.
@@ -69,7 +70,7 @@ Se debe usar exclusivamente **ruff** (o `pylint` + `black` si se prefiere, pero 
 Se deben usar **ESLint** para linting y **Prettier** para formateo en el frontend. No se permiten herramientas alternativas.
 
 ### RH-006 — Control de versiones
-El repositorio debe ser **monorepo** con las carpetas `backend/` y `frontend/` en la raíz. No se permiten repositorios separados para frontend y backend.
+El repositorio es **monorepo** con las carpetas `be/` (backend) y `fe/` (frontend) + `movil/` (Expo) en la raíz (ver `docker-compose.yml:24` `build: ./be`, `:93` `build: ./fe`). Históricamente `backend/`/`frontend/`; actual `be`/`fe`/`movil`. No se permiten repos separados.
 
 ---
 
@@ -93,7 +94,7 @@ Solo se permiten fuentes de la familia **sans-serif** (`Inter`, `system-ui`, `sa
 Los botones de acción principal (Solicitar servicio, Pagar, Guardar, etc.) deben estar siempre alineados a la **derecha** del contenedor. Nunca centrados ni alineados a la izquierda.
 
 ### RD-005 — Biblioteca de iconos
-Se debe usar exclusivamente **lucide-react** como biblioteca de iconos. No se permiten SVGs inline ni bibliotecas alternativas (@heroicons/react, react-icons, etc.), salvo para el logo de Neodomus que puede ser un SVG personalizado.
+Se usa **react-icons 5.6+** (`fe/package.json:16` `react-icons`, `fe/src/components/layout/Navbar.tsx:6` `react-icons/fa6`) como biblioteca de iconos. `lucide-react` fue la especificación inicial; la implementación real migró a `react-icons`. Se permite SVG personalizado para el logo.
 
 ### RD-006 — Accesibilidad mínima
 Todo el frontend debe cumplir con **WCAG 2.1 nivel AA**. Esto implica:
@@ -168,9 +169,9 @@ Las contraseñas (hasheadas o en texto plano) nunca deben aparecer en:
 - Mensajes de error al cliente.
 
 ### RS-004 — Tokens de recuperación y verificación
-Los tokens de recuperación de contraseña y verificación de email deben:
-- Ser UUID aleatorios.
-- Tener expiración (1 hora para reset, 24 horas para verificación).
+Los tokens de recuperación y verificación deben:
+- Ser UUID o código de 6 dígitos (actual: código de 6 dígitos `be/app/services/auth_service.py:115,169,422`, `be/app/schemas/auth.py:75`).
+- Tener expiración (verificación 24h `be/app/config.py:23` `VERIFICATION_TOKEN_EXPIRE_HOURS=24`, reset 10 minutos `be/app/config.py:25` `PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=10`; históricamente 1h).
 - Ser de un solo uso (campo `used` en la tabla).
 - No contener información del usuario en texto plano.
 
@@ -199,10 +200,10 @@ Los siguientes endpoints deben tener límite de peticiones por IP:
 Todas las tablas deben usar el motor **InnoDB** (para soporte de transacciones y claves foráneas). No se permiten tablas MyISAM.
 
 ### RBD-002 — Triggers para reglas de negocio
-La regla de cancelación con 48 horas de anticipación debe implementarse mediante **trigger** en la base de datos, no solo en la lógica de aplicación, para garantizar consistencia.
+La regla de cancelación con **3 horas** de anticipación (actual `be/app/routers/citas.py:548` `now+3h`, no 48h) se valida en la lógica de aplicación (`cita_service` + `citas.py:501-510` lun-sáb 08-18). El trigger BD es opcional/futuro; actualmente no hay trigger en `be/alembic/versions/` (ver `docs/referencia-tecnica/architecture.md:436`). Se mantiene consistencia via servicio y `slot_tomado`.
 
 ### RBD-003 — Vistas para reportes
-Las consultas complejas de reportes (historial por usuario, ranking de técnicos, etc.) deben implementarse como **vistas** materializadas o normales en la BD, no como consultas complejas en el código.
+Las consultas de reportes (historial, ranking técnicos) **pueden** implementarse como vistas en BD, pero la implementación actual usa consultas SQLAlchemy en `be/app/routers/reports.py:43-1143` y `be/app/services/reportes_service.py`. Las vistas son recomendadas para optimización futura, no obligatorias en la entrega actual.
 
 ### RBD-004 — Enums para estados y roles
 Los estados de cita (`pendiente`, `confirmada`, `en_progreso`, `completada`, `cancelada`), estado de pedido (`pendiente_pago`, `parcial`, `pagado`, `reembolsado`) y roles (`usuario`, `tecnico`, `admin`) deben definirse como **ENUM** en la base de datos.

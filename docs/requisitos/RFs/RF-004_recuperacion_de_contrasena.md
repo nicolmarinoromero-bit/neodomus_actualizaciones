@@ -27,6 +27,8 @@ El sistema debe permitir a cualquier usuario (cliente, técnico, administrador) 
 | ------- | ------------- | ----------- | --------------------- |
 | `email` | Texto (email) | Sí          | Formato válido        |
 
+> **Actualización 2026-08:** Flujo real es código 6 dígitos: `POST /auth/forgot-password` 3/min (`auth.py:199` BackgroundTasks) → `POST /auth/verify-code` (`auth.py:231`) → `POST /auth/reset-password` con `token` 6 dígitos (`schemas/auth.py:62`). Expira 10 min (`config.py:25`). No link UUID 1h.
+
 ## Proceso
 
 1. Usuario ingresa su email en `/forgot-password`.

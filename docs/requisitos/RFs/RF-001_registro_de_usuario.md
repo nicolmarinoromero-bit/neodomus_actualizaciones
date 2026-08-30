@@ -59,8 +59,10 @@ El sistema debe permitir que un nuevo usuario cree una cuenta proporcionando: no
 
 | Método | Ruta                        | Auth | Descripción                                  |
 | ------ | --------------------------- | ---- | -------------------------------------------- |
-| POST   | `/api/v1/auth/register`     | No   | Crea la cuenta y envía email de verificación |
-| POST   | `/api/v1/auth/verify-email` | No   | Activa la cuenta con el token del email      |
+| POST   | `/api/v1/auth/register/client` | No   | Crea cuenta cliente y envía código 6 dígitos (`auth.py:64`) |
+| POST   | `/api/v1/auth/verify-email?code` | No   | Activa cuenta con código 6 dígitos (`auth.py:72` `POST /auth/verify-email?code`) |
+
+> **Nota implementación (2026-08):** Esquema real `ClientCreate` (`be/app/schemas/auth.py:16`) usa `first_name/last_name` upper, `documento` int, `telefono_cliente` int 10 dígitos, `direccion` opcional. Password valida `>=8 + mayúscula+minúscula+número` (`schemas/auth.py:5`); carácter especial opcional. Flujo real: código 6 dígitos `pending_registrations` expira 24h, `POST /auth/verify-email?code` + `POST /auth/resend-verification` 3/min. Ver `be/app/routers/auth.py:64-77`.
 
 ## Reglas de negocio
 

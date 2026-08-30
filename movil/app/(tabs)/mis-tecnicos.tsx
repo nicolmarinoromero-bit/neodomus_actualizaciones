@@ -1,7 +1,7 @@
-// Mis técnicos — técnicos favoritos del cliente autenticado
-// (GET /tecnicos/favoritos, persistencia real en backend).
+// Mis técnicos — técnicos favoritos locales (AsyncStorage) igual que WEB
 // Se enriquecen con el historial de citas FINALIZADAS (nº de servicios,
-// teléfono). Quitar el ♥ en Técnicos los elimina de esta lista.
+// teléfono) y con datos de /tecnicos/publicos para foto/calificación.
+// Quitar el ♥ en Técnicos los elimina inmediatamente por contexto.
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -11,10 +11,11 @@ import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
   listarMisCitas,
-  listarTecnicosFavoritos,
+  listarTecnicosPublicos,
   type Cita,
   type TecnicoPublico,
 } from "@/services/cliente.services";
+import { useTecnicosFavoritos } from "@/contexts/TecnicosFavoritosContext";
 
 interface TecnicoLista {
   id_tecnico: number;
@@ -38,17 +39,18 @@ const numeroWhatsApp = (telefono?: string | null): string | null => {
 };
 
 export default function MisTecnicosScreen() {
-  const [favoritos, setFavoritos] = useState<TecnicoPublico[]>([]);
+  const { favoritosTecnicos } = useTecnicosFavoritos();
+  const [tecnicosPublicos, setTecnicosPublicos] = useState<TecnicoPublico[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let activo = true;
-    Promise.all([listarTecnicosFavoritos(), listarMisCitas()])
-      .then(([favs, citasUsuario]) => {
+    Promise.all([listarTecnicosPublicos(), listarMisCitas()])
+      .then(([todos, citasUsuario]) => {
         if (!activo) return;
-        setFavoritos(favs);
+        setTecnicosPublicos(todos);
         setCitas(citasUsuario);
       })
       .catch((e) =>
@@ -62,6 +64,11 @@ export default function MisTecnicosScreen() {
       activo = false;
     };
   }, []);
+
+  const favoritos = useMemo(
+    () => tecnicosPublicos.filter((t) => favoritosTecnicos.has(t.id_tecnico)),
+    [tecnicosPublicos, favoritosTecnicos],
+  );
 
   // Historial por técnico (solo citas finalizadas) para enriquecer la lista.
   const historial = useMemo(() => {

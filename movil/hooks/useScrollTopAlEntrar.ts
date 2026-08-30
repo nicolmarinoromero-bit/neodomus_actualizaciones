@@ -1,38 +1,57 @@
 // ─────────────────────────────────────────────────────────────
-// Hook: scroll al inicio cuando la sección GANA foco viniendo de
-// OTRA sección (cambio de tab), sin resetear mientras el usuario
-// navega dentro de la misma pestaña (pop de detalle → conserva
-// posición).
+// Hook: scroll al inicio cuando la sección GANA foco.
 //
-// Criterio: si el stack propio de esta tab solo contiene la ruta
-// raíz (routes.length <= 1), el foco viene de un cambio de tab o
-// de la apertura inicial → scroll a y=0. Si hay pantallas hijas
-// apiladas, es un regreso (atrás) → NO tocamos el scroll.
+// Cada vez que el usuario entra a una pantalla/tab diferente,
+// esa pantalla debe empezar desde ARRIBA (y=0).
+// - Tab switch: Inicio → Productos → Carrito → etc. → siempre arriba.
+// - Montaje inicial: también arriba.
+// - No interfiere con el scroll normal dentro de la misma pantalla.
+//
+// Soporte universal: ScrollView (scrollTo) y FlatList (scrollToOffset).
+// Doble rAF asegura que la lista ya está medida después del layout.
 // ─────────────────────────────────────────────────────────────
 
 import { useCallback } from "react";
-import { useFocusEffect, useNavigation } from "expo-router";
+import { useFocusEffect } from "expo-router";
 
 export function useScrollTopAlEntrar(ref: { current: unknown }) {
-  const navigation = useNavigation();
-
   useFocusEffect(
     useCallback(() => {
-      const state = navigation.getState();
-      const esEntradaDeSeccion = !state || state.routes.length <= 1;
-
-      if (esEntradaDeSeccion) {
-        // Al siguiente frame: la lista ya está medida.
+      const intentarScroll = () => {
         requestAnimationFrame(() => {
-          const componente = ref.current as
-            | { scrollTo?: (o: { y: number; animated?: boolean }) => void }
-            | null;
-          if (componente && typeof componente.scrollTo === "function") {
-            componente.scrollTo({ y: 0, animated: false });
-          }
+          requestAnimationFrame(() => {
+            const componente: any = ref.current;
+            if (!componente) return;
+            // 1) FlatList → scrollToOffset
+            if (typeof componente.scrollToOffset === "function") {
+              try {
+                componente.scrollToOffset({ offset: 0, animated: false });
+                return;
+              } catch {}
+            }
+            // 2) ScrollView → scrollTo (soporta ambas firmas)
+            if (typeof componente.scrollTo === "function") {
+              try {
+                componente.scrollTo({ y: 0, animated: false });
+              } catch {}
+              try {
+                componente.scrollTo({ x: 0, y: 0, animated: false });
+              } catch {}
+              return;
+            }
+            // 3) Ref nativo expuesto (getNativeScrollRef) — FlatList envuelta
+            if (typeof componente.getNativeScrollRef === "function") {
+              try {
+                const nativo = componente.getNativeScrollRef();
+                if (nativo?.scrollTo) nativo.scrollTo({ y: 0, animated: false });
+                else if (nativo?.scrollToOffset) nativo.scrollToOffset({ offset: 0, animated: false });
+              } catch {}
+            }
+          });
         });
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [navigation]),
+      };
+
+      intentarScroll();
+    }, []),
   );
 }

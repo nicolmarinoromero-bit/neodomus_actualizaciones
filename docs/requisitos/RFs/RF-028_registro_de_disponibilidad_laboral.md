@@ -17,6 +17,8 @@
 | **Estado**    | Propuesta                                      |
 | **Fecha**     | Mayo 2026                                      |
 
+> **Nota 2026-08 — No implementado como configuración:** No existe `PUT /tech/disponibilidad` (`be/app/routers/` sin disponibilidad). Disponibilidad se infiere por ocupación `tecnico_ocupado`/`slot_tomado` (`especialidades.py`) y `_dia_es_laboral` lun-sáb 08-18 (`citas.py:501`). RF futuro.
+
 ## Descripción
 
 El sistema debe permitir al técnico registrar su disponibilidad laboral (días y horas) para que el administrador asigne servicios solo dentro de esos bloques horarios.

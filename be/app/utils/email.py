@@ -68,12 +68,26 @@ def _send_email_sync(to_email: str, subject: str, body: str) -> bool:
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'html'))
 
-    server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
-    server.starttls()
-    server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-    server.send_message(msg)
-    server.quit()
-    return True
+    server = None
+    try:
+        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
+        server.starttls()
+        server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+        server.send_message(msg)
+        print(f"[email] SMTP enviado correctamente a {to_email} | asunto: {subject}")
+        return True
+    except Exception as smtp_err:
+        print(f"[email] SMTP fallo para {to_email}: {smtp_err}")
+        raise
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                try:
+                    server.close()
+                except Exception:
+                    pass
 
 
 async def send_email(to_email: str, subject: str, body: str) -> bool:
@@ -86,7 +100,17 @@ async def send_email(to_email: str, subject: str, body: str) -> bool:
     compran a la vez).
     """
     try:
-        return await asyncio.to_thread(_send_email_sync, to_email, subject, body)
+        # Timeout total de 18s para el envío (cubre SMTP 10s + margen)
+        return await asyncio.wait_for(
+            asyncio.to_thread(_send_email_sync, to_email, subject, body),
+            timeout=18.0,
+        )
+    except asyncio.TimeoutError:
+        print(f"[email] Timeout enviando a {to_email} (18s)")
+        raise HTTPException(
+            status_code=504,
+            detail="El servicio de correo tardó demasiado. Inténtalo nuevamente en unos segundos.",
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -179,14 +203,32 @@ async def send_email_with_attachment(
         except Exception:
             raise HTTPException(status_code=500, detail="No se pudo adjuntar el PDF de la factura")
 
-        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
-        server.starttls()
-        server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        return True
+        server = None
+        try:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
+            server.starttls()
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+            print(f"[email] SMTP con adjunto enviado a {to_email}")
+            return True
+        except Exception as smtp_err:
+            print(f"[email] SMTP adjunto fallo para {to_email}: {smtp_err}")
+            raise
+        finally:
+            if server is not None:
+                try:
+                    server.quit()
+                except Exception:
+                    try:
+                        server.close()
+                    except Exception:
+                        pass
 
-    return await asyncio.to_thread(_sync)
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(_sync), timeout=20.0)
+    except asyncio.TimeoutError:
+        print(f"[email] Timeout adjunto para {to_email} (20s)")
+        raise HTTPException(status_code=504, detail="El servicio de correo tardó demasiado.")
 
 
 # ============================================================

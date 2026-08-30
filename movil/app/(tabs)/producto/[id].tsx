@@ -8,13 +8,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -232,8 +232,13 @@ export default function ProductoDetalleScreen() {
             <Image
               source={{ uri: imagen }}
               style={styles.imagen}
-              resizeMode="cover"
-              onError={() => setFalloImagen(true)}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={180}
+              onError={() => {
+                if (__DEV__) console.log(`[imagen] fallo detalle ${imagen}`);
+                setFalloImagen(true);
+              }}
             />
           ) : (
             <View style={[styles.imagen, styles.imagenPlaceholder]}>

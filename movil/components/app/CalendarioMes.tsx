@@ -8,9 +8,9 @@
 // - Cada semana se renderiza como una FILA y cada día ocupa
 //   exactamente 1/7 del ancho (flex: 1): nunca quedan amontonados.
 // - Cada columna corresponde SIEMPRE al mismo día de la semana.
-// - Lunes a viernes: estilo normal de disponible (texto blanco),
+// - Lunes a sábado: estilo normal de disponible (texto blanco),
 //   seleccionables si no son anteriores a `minFecha`.
-// - Sábado y domingo: NO disponibles (grises, no seleccionables);
+// - Domingo: NO disponible (gris, no seleccionable);
 //   también grises las fechas anteriores a `minFecha`.
 // - Día seleccionado: fondo dorado con texto oscuro.
 // ─────────────────────────────────────────────────────────────
@@ -74,13 +74,13 @@ export default function CalendarioMes({
         `${String(fecha.getMonth() + 1).padStart(2, "0")}-` +
         `${String(d).padStart(2, "0")}`;
       const diaSemana = fecha.getDay(); // 0 dom · 6 sáb
-      const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
+      const esDomingo = diaSemana === 0;
       const esPasada = !!minFecha && iso < minFecha;
       celdas.push({
         dia: d,
         iso,
-        seleccionable: !esFinDeSemana && !esPasada,
-        bloqueado: esFinDeSemana || esPasada,
+        seleccionable: !esDomingo && !esPasada,
+        bloqueado: esDomingo || esPasada,
       });
     }
 
@@ -208,7 +208,7 @@ const S = StyleSheet.create({
 
   diaActivo: { color: "#141414", fontWeight: "700" as const },
 
-  // Solo sábado, domingo (y fechas pasadas) se muestran en gris.
+  // Solo domingo (y fechas pasadas) se muestran en gris. Sábado es laborable.
   celdaBloqueada: { opacity: 0.35 },
 
   diaBloqueado: { color: "#6b6b6b" },

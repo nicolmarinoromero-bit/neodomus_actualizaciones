@@ -39,6 +39,6 @@ El backend debe ejecutarse correctamente en sistemas Linux (entorno de desarroll
 La base de datos debe ejecutarse en contenedores Docker para garantizar reproducibilidad del entorno de desarrollo.
 
 ### RNF-006.5 — Versiones mínimas de runtime
-- **Python**: 3.12+
-- **Node.js**: 20 LTS+
-- **PostgreSQL**: 17+
+- **Python**: 3.12+ (`be/.python-version:1` `3.12`, `be/Dockerfile:1` `python:3.12-slim`, `pyproject.toml:5` `>=3.10`)
+- **Node.js**: 20 LTS+ (`fe` Vite 5.4 / `movil` Expo 54 con Node 20)
+- **MySQL**: 8.0+ (`docker-compose.yml:3` `mysql:8.0`, `docs/requisitos/restricciones.md:34` `RT-003`). **PostgreSQL no aplica** (corrección: doc históricamente decía PostgreSQL 17+ por error).

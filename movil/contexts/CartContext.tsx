@@ -2,10 +2,11 @@
 // Carrito — réplica del CartContext de la WEB (contexts/CartContext.tsx).
 //
 // - Persistencia en 'neodomus_carrito' (misma clave que la web, aquí AsyncStorage).
-// - Clave de línea para dedupe: id + color + medida/tamaño (igual que web).
-// - Venta por metros: acumula metros con cantidad fija 1.
-// - Al cerrar sesión el carrito se vacía (igual que la web, transición
-//   autenticado → visitante detectada con ref).
+// - Clave de línea para dedupe: id + color + medida/tamaño + metros (igual que web).
+// - Venta por metros: cantidad = unidades, metros = longitud por unidad.
+//   Total metros = metros * cantidad. Precio = precio_por_metro * total_metros.
+//   Clave incluye metros para distinguir 10m vs 20m del mismo producto.
+// - Al cerrar sesión el carrito se vacía (igual que la web).
 // ─────────────────────────────────────────────────────────────
 
 import React, {
@@ -42,9 +43,14 @@ export interface ItemCarrito {
 }
 
 export const claveItemCarrito = (
-  item: Pick<ItemCarrito, "id_producto" | "color" | "medida" | "tamaño">,
+  item: Pick<ItemCarrito, "id_producto" | "color" | "medida" | "tamaño" | "metros" | "venta_por_metros">,
 ): string =>
-  [item.id_producto, item.color?.toLowerCase(), (item.medida || item.tamaño || "").toLowerCase()]
+  [
+    item.id_producto,
+    item.color?.toLowerCase(),
+    (item.medida || item.tamaño || "").toLowerCase(),
+    item.venta_por_metros && item.metros ? `${item.metros}m` : null,
+  ]
     .filter(Boolean)
     .join("-");
 
@@ -122,14 +128,16 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
 
       setItems((prev) => {
         const esMetros = !!producto.venta_por_metros;
-        const nuevaCantidad = esMetros ? 1 : Math.max(1, cantidad);
-        const nuevosMetros = esMetros ? Math.max(0.1, metros ?? 10) : undefined;
+        const cantidadSolicitada = Math.max(1, cantidad);
+        const metrosSolicitado = esMetros ? Math.max(1, Math.round(metros ?? 10)) : undefined;
 
         const claveNueva = claveItemCarrito({
           id_producto: producto.id_producto,
           color,
           medida,
           tamaño,
+          metros: metrosSolicitado,
+          venta_por_metros: producto.venta_por_metros,
         });
 
         const existente = prev.find(
@@ -142,14 +150,8 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
             item === existente
               ? {
                   ...item,
-                  // Ya está en el carrito → AUMENTAR cantidad, no duplicar línea.
-                  cantidad:
-                    esMetros
-                      ? 1
-                      : Math.max(1, (item.cantidad ?? 0) + nuevaCantidad),
-                  metros: esMetros
-                    ? (item.metros ?? 0) + (nuevosMetros ?? 0)
-                    : item.metros,
+                  // Misma longitud (clave incluye metros) → incrementar unidades (web).
+                  cantidad: Math.max(1, (item.cantidad ?? 0) + cantidadSolicitada),
                 }
               : item,
           );
@@ -164,13 +166,13 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
               producto.precio_final ?? producto.precio_venta_producto,
             // MISMA resolución que Productos (convención /uploads/{id}.jpg).
             imagen: urlImagenProducto(producto),
-            cantidad: nuevaCantidad,
+            cantidad: cantidadSolicitada,
             color,
             tamaño,
             medida,
             id_variante,
             venta_por_metros: producto.venta_por_metros,
-            metros: nuevosMetros,
+            metros: metrosSolicitado,
             tecnicos_requeridos: producto.tecnicos_requeridos,
           },
         ];
@@ -193,7 +195,7 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) =>
       prev.map((item) =>
         claveItemCarrito(item) === clave
-          ? { ...item, metros: Math.max(0.1, metros), cantidad: 1 }
+          ? { ...item, metros: Math.max(1, Math.round(metros)) }
           : item,
       ),
     );
@@ -208,7 +210,10 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
   const valor = useMemo<CarritoContextValue>(() => {
     const totalItems = items.reduce((suma, item) => suma + item.cantidad, 0);
     const totalPrice = items.reduce(
-      (suma, item) => suma + item.precio_venta_producto * (item.metros || item.cantidad),
+      (suma, item) =>
+        suma +
+        item.precio_venta_producto *
+          (item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : item.cantidad),
       0,
     );
     return {

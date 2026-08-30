@@ -70,9 +70,18 @@ export default function LoginScreen() {
         AsyncStorage.removeItem(CLAVE_RECORDAR).catch(() => {});
       }
 
-      // Cierra el modal y aterriza en productos (como la web: cliente → /productos),
-      // o vuelve al carrito si venía de "Finalizar compra".
-      router.replace((redirigirA ?? "/(tabs)/productos") as Href);
+      // Redirección por rol (igual que web RoleRoute)
+      const { obtenerSesion } = await import("@/services/storage");
+      const sesion = await obtenerSesion();
+      const rol = (sesion?.rol || "").toLowerCase();
+      if (rol === "tecnico") {
+        router.replace("/(tecnico)" as Href);
+      } else if (rol === "admin" || rol === "administrador") {
+        // Admin sigue en flujo cliente por ahora (podría ir a /admin)
+        router.replace((redirigirA ?? "/(tabs)/productos") as Href);
+      } else {
+        router.replace((redirigirA ?? "/(tabs)/productos") as Href);
+      }
     } catch (e) {
       const status = e instanceof ApiError ? e.status : 0;
       const detail =

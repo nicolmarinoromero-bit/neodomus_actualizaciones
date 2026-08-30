@@ -30,12 +30,13 @@ import {
   type UserType,
 } from "@/services/storage";
 
-/** Igual que la web: { id, nombre, correo, userType }. */
+/** Igual que la web: { id, nombre, correo, userType, rol }. */
 export interface UsuarioActual {
   id: number;
   nombre: string;
   correo: string;
   userType: UserType;
+  rol?: string | null;
 }
 
 interface PerfilBackend {
@@ -50,6 +51,7 @@ interface AuthContextValue {
   cargando: boolean;
   autenticado: boolean;
   userType: UserType | null;
+  rol: string | null;
   usuario: UsuarioActual | null;
   /** Foto de perfil local (dataURL), como la web en localStorage. */
   avatar: string | null;
@@ -69,12 +71,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 async function construirUsuario(
   correo: string,
   userType: UserType,
+  rol?: string | null,
 ): Promise<UsuarioActual> {
   const base: UsuarioActual = {
     id: 0,
     nombre: correo ? correo.split("@")[0] : "Usuario",
     correo,
     userType,
+    rol: rol ?? null,
   };
   try {
     const endpoint = userType === "client" ? "/clients/me" : "/users/me";
@@ -86,6 +90,7 @@ async function construirUsuario(
       id: perfil.id_cliente ?? perfil.id_usuario ?? base.id,
       correo: correo || base.nombre,
       nombre: nombreCompleto || base.nombre,
+      rol: rol ?? base.rol,
     };
   } catch {
     return base;
@@ -120,7 +125,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     obtenerSesion()
       .then(async (sesion) => {
         if (!activo || !sesion) return null;
-        return construirUsuario(sesion.correo ?? "", sesion.userType);
+        // Intentar refrescar rol desde /auth/session si no está guardado (migración)
+        let rol = sesion.rol ?? null;
+        if (!rol) {
+          try {
+            const ses = await apiFetch<{ rol?: string; role?: string; user_type?: string }>("/auth/session");
+            rol = (ses.rol || ses.role || null) as string | null;
+            if (rol && rol !== sesion.rol) {
+              await guardarSesion({ ...sesion, rol });
+            }
+          } catch {}
+        }
+        return construirUsuario(sesion.correo ?? "", sesion.userType, rol);
       })
       .then((restaurado) => {
         if (activo && restaurado && restaurado.correo) setUsuario(restaurado);
@@ -140,15 +156,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const iniciarSesion = useCallback(async (email: string, password: string) => {
     const respuesta = await iniciarSesionApi(email, password);
+    const rol = (respuesta as any).rol || (respuesta as any).role || null;
 
     await guardarSesion({
       accessToken: respuesta.access_token,
       refreshToken: respuesta.refresh_token,
       userType: respuesta.user_type,
       correo: email,
+      rol: rol ?? undefined,
     });
 
-    const perfil = await construirUsuario(email, respuesta.user_type);
+    const perfil = await construirUsuario(email, respuesta.user_type, rol);
     setUsuario(perfil);
   }, []);
 
@@ -172,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const actualizado = await construirUsuario(
         sesion.correo ?? "",
         sesion.userType,
+        sesion.rol ?? null,
       );
       if (actualizado.correo) setUsuario(actualizado);
     } catch {
@@ -184,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cargando,
       autenticado: usuario !== null,
       userType: usuario?.userType ?? null,
+      rol: usuario?.rol ?? null,
       usuario,
       avatar,
       setAvatar,

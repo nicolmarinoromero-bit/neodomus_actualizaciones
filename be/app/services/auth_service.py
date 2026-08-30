@@ -104,7 +104,7 @@ def _create_tokens(
 # 📝 Registro y verificación de clientes (con pendientes)
 # ──────────────────────────────────────────────────────────────────
 
-async def register_client(db: Session, client_data: ClientCreate) -> dict:
+async def register_client(db: Session, client_data: ClientCreate, background_tasks=None) -> dict:
     if _get_client_by_email(db, client_data.email):
         raise HTTPException(status_code=400, detail="El email ya está registrado")
     pending = db.query(PendingRegistration).filter(PendingRegistration.email == client_data.email).first()
@@ -128,12 +128,17 @@ async def register_client(db: Session, client_data: ClientCreate) -> dict:
     )
     db.add(new_pending)
     db.commit()
-    try:
-        await send_verification_email(client_data.email, code)
-    except Exception:
-        db.delete(new_pending)
-        db.commit()
-        raise
+    # Envío en background para respuesta inmediata (evita UI congelada)
+    # El envío se loguea dentro de utils/email.py (éxito/fallo con timeout)
+    if background_tasks is not None:
+        background_tasks.add_task(send_verification_email, client_data.email, code)
+    else:
+        try:
+            await send_verification_email(client_data.email, code)
+        except Exception:
+            db.delete(new_pending)
+            db.commit()
+            raise
     return {"msg": "Registro pendiente. Revisa tu correo para el código de verificación."}
 
 def verify_client_email(db: Session, code: str) -> None:

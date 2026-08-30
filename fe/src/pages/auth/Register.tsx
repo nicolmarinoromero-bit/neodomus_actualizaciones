@@ -134,22 +134,31 @@ const Register = () => {
     e.preventDefault();
     setError('');
     if (!validateForm()) return;
+    if (loading) return;
     setLoading(true);
     try {
+      const correoNorm = formData.correo.trim().toLowerCase();
       await api.post('/auth/register/client', {
-        first_name: formData.nombre,
-        last_name: formData.apellido,
-        email: formData.correo,
+        first_name: formData.nombre.trim(),
+        last_name: formData.apellido.trim(),
+        email: correoNorm,
         password: formData.contraseña,
         id_tipo_documento_c: parseInt(formData.tipo_documento as any),
         documento_cliente: parseInt(formData.documento),
         telefono_cliente: parseInt(formData.telefono),
         city: formData.municipio, 
-        address: formData.direccion,
-      });
-      openAuth('verificar-email', { email: formData.correo });
+        address: formData.direccion.trim(),
+      }, { timeout: 15000 });
+      openAuth('verificar-email', { email: correoNorm });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al registrarse');
+      const status = err.response?.status;
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('La solicitud tardó demasiado. Verifica tu conexión e inténtalo nuevamente.');
+      } else if (status === 429) {
+        setError('Demasiadas solicitudes. Espera un minuto antes de reintentar.');
+      } else {
+        setError(err.response?.data?.detail || 'Error al registrarse. Verifica los datos e inténtalo de nuevo.');
+      }
     } finally {
       setLoading(false);
     }

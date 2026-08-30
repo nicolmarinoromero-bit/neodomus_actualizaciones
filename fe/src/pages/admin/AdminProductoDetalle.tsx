@@ -16,6 +16,7 @@ import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
+import EspecializacionesSelect from '@components/admin/EspecializacionesSelect';
 import { STOCK_MINIMO, badgeStock, textoStock } from '../../constants';
 import type { ProductoAdmin, CategoriaAdmin, ProveedorAdmin, VarianteAdmin, Especializacion } from '../../types';
 
@@ -759,43 +760,11 @@ const AdminProductoDetalle = () => {
                   ({t('adm.tecnicos.especializacionesMultiple')})
                 </span>
               </label>
-              {catalogoEspecializaciones.length === 0 ? (
-                <span className="ap-form-hint">{t('adm.tecnicos.catalogoNoDisponible')}</span>
-              ) : (
-                <div
-                  role="group"
-                  aria-label={t('adm.productoDetalle.labelEspecializaciones')}
-                  style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
-                >
-                  {catalogoEspecializaciones.map((esp) => {
-                    const activa = form.especializaciones_ids.includes(esp.id_especializacion);
-                    return (
-                      <button
-                        key={esp.id_especializacion}
-                        type="button"
-                        className={`ap-badge ${activa ? 'ok' : 'pendiente'}`}
-                        style={{
-                          cursor: 'pointer',
-                          border: '1px solid',
-                          opacity: esp.activa ? 1 : 0.55,
-                          background: activa ? undefined : 'transparent',
-                        }}
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            especializaciones_ids: prev.especializaciones_ids.includes(esp.id_especializacion)
-                              ? prev.especializaciones_ids.filter((x) => x !== esp.id_especializacion)
-                              : [...prev.especializaciones_ids, esp.id_especializacion],
-                          }))
-                        }
-                        title={esp.descripcion || esp.nombre}
-                      >
-                        {esp.nombre}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <EspecializacionesSelect
+                catalogo={catalogoEspecializaciones}
+                value={form.especializaciones_ids}
+                onChange={(ids) => setForm((prev) => ({ ...prev, especializaciones_ids: ids }))}
+              />
               <span className="ap-form-hint">{t('adm.productoDetalle.hintEspecializaciones')}</span>
             </div>
 

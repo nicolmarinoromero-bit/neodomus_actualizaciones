@@ -6,15 +6,18 @@ import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { PF_REDIRECT_AFTER_LOGIN_KEY } from '@utils/profileStorage';
 import api from '@services/api';
+import ProductoCard from '@components/productos/ProductoCard';
 import '@styles/carrito.css';
+import '@styles/productos-publicos.css';
 
 const CarritoPage = () => {
   const navigate = useNavigate();
   const { t } = useIdioma();
-  const { items, totalItems, totalPrice, updateQuantity, updateMetros, removeItem, clearCart, actualizarStock, tieneStockInsuficiente } = useCart();
+  const { items, totalItems, totalPrice, updateQuantity, updateMetros, removeItem, clearCart, actualizarStock, tieneStockInsuficiente, addItem } = useCart();
   const { isAuthenticated, rol } = useAuth();
   const [toast, setToast] = useState<{ msg: string; tipo: 'success' | 'error' } | null>(null);
   const [displayValues, setDisplayValues] = useState<Record<string, string>>({});
+  const [sugeridos, setSugeridos] = useState<any[]>([]);
 
   const totalTecnicos = Math.max(1, ...items.map((item) => item.tecnicos_requeridos || 1));
 
@@ -48,6 +51,34 @@ const CarritoPage = () => {
       validarStockBackend();
     }
   }, [items.length]);
+
+  // Productos sugeridos (WEB): disponibles, no en carrito, reales del sistema
+  useEffect(() => {
+    const cargarSugeridos = async () => {
+      try {
+        const res = await api.get('/productos/?limit=100');
+        const lista: any[] = res.data?.data || res.data || [];
+        const idsEnCarrito = new Set(items.map(i => i.id_producto));
+        const conStock = (p: any) => {
+          const stock = p.variantes?.length
+            ? p.variantes.reduce((a: number, v: any) => a + (v.stock || 0), 0)
+            : (p.stock_producto ?? 0);
+          return stock > 0;
+        };
+        let candidatos = lista.filter(p => conStock(p) && !idsEnCarrito.has(p.id_producto));
+        if (candidatos.length === 0) {
+          candidatos = lista.filter(p => conStock(p));
+        }
+        const mezclados = [...candidatos].sort(() => 0.5 - Math.random()).slice(0, 4);
+        setSugeridos(mezclados);
+      } catch {
+        setSugeridos([]);
+      }
+    };
+    cargarSugeridos();
+  }, [items]);
+
+  // Sugeridos reutilizan la tarjeta completa de Productos (ProductoCard) con toda su lógica
 
   const handleEditar = (item: CartItem, key: string) => {
     const params = new URLSearchParams();
@@ -328,6 +359,20 @@ const CarritoPage = () => {
               <p className="carrito-resumen-hint">{t('carrito.hintPago')}</p>
             </aside>
           </div>
+        )}
+
+        {items.length > 0 && sugeridos.length > 0 && (
+          <section className="carrito-sugeridos">
+            <header className="carrito-sugeridos-header">
+              <h2>Productos sugeridos</h2>
+              <p>También te puede interesar</p>
+            </header>
+            <div className="productos-grid">
+              {sugeridos.map(prod => (
+                <ProductoCard key={prod.id_producto} producto={prod} />
+              ))}
+            </div>
+          </section>
         )}
       </main>
     </div>

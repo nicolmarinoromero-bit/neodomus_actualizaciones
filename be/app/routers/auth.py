@@ -60,11 +60,13 @@ class ResendVerificationRequest(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
-# Registro y verificación
+# Registro y verificación — email en background para respuesta inmediata
 @router.post("/register/client", response_model=dict)
 @limiter.limit("3/minute")
-async def register_client_endpoint(request: Request, client_data: ClientCreate, db: Session = Depends(get_db)):
-    return await register_client(db, client_data)
+async def register_client_endpoint(request: Request, client_data: ClientCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # La creación del pendiente es síncrona (rápida); el envío de correo va en background
+    # para que el formulario no quede congelado esperando SMTP.
+    return await register_client(db, client_data, background_tasks)
 
 @router.post("/verify-email")
 def verify_email_endpoint(code: str, db: Session = Depends(get_db)):
@@ -193,7 +195,7 @@ def update_password_endpoint(
     update_password(db, current_user, req.new_password, ip)
     return {"msg": "Contraseña actualizada correctamente"}
 
-# Recuperación de contraseña
+# Recuperación de contraseña — respuesta inmediata + email en background
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
 async def forgot_password(
@@ -201,16 +203,29 @@ async def forgot_password(
     req: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
 ):
-    def _ejecutar():
+    # Normalización y validación rápida antes de encolar (evita trabajos basura)
+    raw = (req.email or "").strip().lower()
+    if not raw or "@" not in raw:
+        raise HTTPException(status_code=400, detail="Correo electrónico inválido")
+    # Actualiza el modelo con el valor normalizado para consistencia
+    req.email = raw
+
+    def _task(email: str, ip: str):
         from app.database import SessionLocal
         db = SessionLocal()
         try:
             import asyncio
-            asyncio.run(request_password_reset(db, req.email, request.client.host))
+            # request_password_reset es async y maneja cliente/técnico/admin por igual
+            asyncio.run(request_password_reset(db, email, ip))
+        except Exception as e:
+            print(f"[forgot-password] background error para {email}: {e}")
         finally:
-            db.close()
+            try:
+                db.close()
+            except:
+                pass
 
-    background_tasks.add_task(_ejecutar)
+    background_tasks.add_task(_task, raw, request.client.host if request.client else None)
     return {"msg": "Si el email está registrado, recibirás un código de recuperación"}
 
 @router.post("/verify-code")

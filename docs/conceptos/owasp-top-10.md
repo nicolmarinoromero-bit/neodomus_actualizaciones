@@ -1,3 +1,5 @@
+> **Nota 2026-08 — Actualización stack real:** Este documento referencia `poetry`/`poetry.lock`, `leaflet`, tokens 15m/7d, `app/core/auth.py`. **Real:** `uv` + `uv.lock` (`be/pyproject.toml:31`), sin `leaflet` (`fe/package.json` sin leaflet, ver `restricciones.md:43` RT-006), tokens **60m/30d** (`be/app/config.py:19-20`), módulos `be/app/utils/security.py` + `be/app/middleware/` (`be/app/main.py:7`). Ver `AUDITORIA_FINAL_NEODOMUS.md` §5 y `restricciones.md` RH-001/RT-006.
+
 # OWASP Top 10 — Guía Pedagógica de Seguridad para Neodomus
 
 <!--

@@ -10,9 +10,9 @@
 -->
 
 > **Proyecto**: Neodomus — Plataforma de gestión de servicios domóticos  
-> **Stack**: FastAPI (Python 3.10+) + React 18 (TypeScript) + MySQL 8.0 + Leaflet + Docker  
+> **Stack**: FastAPI (Python 3.12) + React 18 (Web) / React 19 (Movil Expo 54) + MySQL 8.0 + MinIO + Docker  
 > **Tests**: Backend ≥ 70% · Frontend ≥ 80%  
-> **Roles**: `usuario`, `tecnico`, `admin`
+> **Roles**: `cliente` (tabla `clientes`), `tecnico`, `administrador`/`admin` (tabla `usuarios` + `roles_usuario`) + `visitante` (no autenticado)
 
 ---
 

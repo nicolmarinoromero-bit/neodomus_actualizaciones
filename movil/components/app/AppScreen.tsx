@@ -10,7 +10,7 @@
 // que navbar+tabs permanecen montados en toda la navegación.
 // ─────────────────────────────────────────────────────────────
 
-import React, { type ReactNode } from "react";
+import React, { type ReactNode, useRef } from "react";
 import {
   Pressable,
   ScrollView,
@@ -24,6 +24,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { FontFamilies } from "@/constants/theme";
 import PublicNavbar from "@/components/public/PublicNavbar";
+import { useScrollTopAlEntrar } from "@/hooks/useScrollTopAlEntrar";
 
 interface AppScreenProps {
   titulo: string;
@@ -39,6 +40,8 @@ export default function AppScreen({
 }: AppScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView | null>(null);
+  useScrollTopAlEntrar(scrollRef);
 
   return (
     <View style={styles.pantalla}>
@@ -66,6 +69,7 @@ export default function AppScreen({
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[
           styles.contenido,

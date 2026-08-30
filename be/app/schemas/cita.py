@@ -20,7 +20,7 @@ class CitaBase(BaseModel):
 
 
 class CitaCreate(CitaBase):
-    id_tecnico: int
+    id_tecnico: Optional[int] = None
     metodo_pago: str
     datos_pago: Optional[dict[str, Any]] = None
 

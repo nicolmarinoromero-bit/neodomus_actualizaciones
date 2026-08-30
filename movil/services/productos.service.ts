@@ -78,12 +78,42 @@ export const obtenerProducto = (id: number | string) =>
   apiFetch<Producto>(`/productos/${id}`);
 
 /**
- * Resuelve la imagen EXACTAMENTE como la WEB (ProductosPublicos.getImagen):
- *   1. imagen_url del backend (absoluta o relativa → se completa con el host).
- *   2. Convención cuando viene vacía: archivo convencional {id}.jpg servido
- *      por el backend en /uploads (be/app/static/productos).
- * Si nada carga, la UI muestra el placeholder de Neodomus.
+ * Resuelve la imagen EXACTAMENTE como la WEB (ProductosPublicos.getImagen) pero
+ * haciendo la URL accesible desde un celular físico:
+ *   - MinIO en desarrollo expone http://localhost:9000/... que NO es alcanzable
+ *     desde el dispositivo (localhost del celular ≠ localhost del PC).
+ *   - Se reescribe localhost/127.0.0.1/minio → host real del BACKEND_HOST_URL
+ *     (ej. http://172.17.208.1:9000/...) sin tocar la web.
  */
+function normalizarUrlImagen(url: string): string {
+  let hostMinio = "";
+  let hostBackend = "";
+  try {
+    const u = new URL(BACKEND_HOST_URL);
+    hostMinio = `${u.protocol}//${u.hostname}:9000`;
+    hostBackend = `${u.protocol}//${u.hostname}:8000`;
+  } catch {
+    return url;
+  }
+  // Reemplaza cualquier host interno (MinIO :9000 y backend :8000) por el host LAN accesible desde el celular.
+  // Ej: http://localhost:9000/neodomus-media/x.jpg → http://192.168.1.10:9000/...
+  // Ej: http://localhost:8000/uploads/x.jpg → http://192.168.1.10:8000/uploads/x.jpg
+  let out = url
+    .replace(/https?:\/\/localhost:9000/gi, hostMinio)
+    .replace(/https?:\/\/127\.0\.0\.1:9000/gi, hostMinio)
+    .replace(/https?:\/\/minio:9000/gi, hostMinio)
+    .replace(/https?:\/\/\[::1\]:9000/gi, hostMinio)
+    .replace(/https?:\/\/localhost:8000/gi, hostBackend)
+    .replace(/https?:\/\/127\.0\.0\.1:8000/gi, hostBackend)
+    .replace(/https?:\/\/minio:8000/gi, hostBackend)
+    .replace(/https?:\/\/\[::1\]:8000/gi, hostBackend);
+  // Fallback /uploads sin host (ej. "/uploads/x.jpg") ya se prefija con BACKEND_HOST_URL en urlImagenProducto
+  if (__DEV__ && out !== url) {
+    console.log(`[imagen] Host localhost → LAN ${hostMinio}/${hostBackend} | ${url} → ${out}`);
+  }
+  return out;
+}
+
 export const urlImagenProducto = (
   producto: Pick<Producto, 'id_producto' | 'imagen_url'>,
   variante?: VarianteProducto | null,
@@ -92,9 +122,18 @@ export const urlImagenProducto = (
   if (!cruda) {
     return `${BACKEND_HOST_URL}/uploads/${producto.id_producto}.jpg`;
   }
-  return cruda.startsWith('/')
-    ? `${BACKEND_HOST_URL}${cruda}`
-    : cruda;
+  const absoluta =
+    cruda.startsWith('http://') || cruda.startsWith('https://')
+      ? cruda
+      : cruda.startsWith('/')
+        ? `${BACKEND_HOST_URL}${cruda}`
+        : `${BACKEND_HOST_URL}/${cruda}`;
+  const normalizada = normalizarUrlImagen(absoluta);
+  if (__DEV__ && normalizada !== absoluta) {
+    console.log(`[imagen] reescrita → ${absoluta} → ${normalizada}`);
+  }
+  if (__DEV__ && !cruda) console.log(`[imagen] fallback /uploads para producto ${producto.id_producto} → ${normalizada}`);
+  return normalizada;
 };
 
 export const tieneDescuento = (producto: Producto): boolean =>

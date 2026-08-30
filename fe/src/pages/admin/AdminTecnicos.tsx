@@ -24,6 +24,7 @@ import {
 import '@styles/admin-panel.css';
 import '@styles/dashboard-admin.css';
 import api from '@services/api';
+import EspecializacionesSelect from '@components/admin/EspecializacionesSelect';
 import { notificarCambiosTecnicos } from '@utils/tecnicosSync';
 import type { Especializacion, TecnicoAdmin } from '../../types';
 
@@ -202,14 +203,7 @@ const AdminTecnicos = () => {
     setModal('editar');
   };
 
-  const toggleEspecializacion = (id: number) => {
-    setForm((f) => ({
-      ...f,
-      especializaciones_ids: f.especializaciones_ids.includes(id)
-        ? f.especializaciones_ids.filter((x) => x !== id)
-        : [...f.especializaciones_ids, id],
-    }));
-  };
+  // Reutiliza el mismo selector elegante de Editar producto
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -661,38 +655,11 @@ const AdminTecnicos = () => {
                       ({t('adm.tecnicos.especializacionesMultiple')})
                     </span>
                   </label>
-                  {catalogo.length === 0 ? (
-                    <span className="ap-form-hint">{t('adm.tecnicos.catalogoNoDisponible')}</span>
-                  ) : (
-                    <div
-                      className="ap-tec-servicios-badges"
-                      role="group"
-                      aria-label={t('adm.tecnicos.especializaciones')}
-                      style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
-                    >
-                      {catalogo.map((esp) => {
-                        const activa = form.especializaciones_ids.includes(esp.id_especializacion);
-                        return (
-                          <button
-                            key={esp.id_especializacion}
-                            type="button"
-                            className={`ap-badge ${activa ? 'ok' : 'pendiente'}`}
-                            style={{
-                              cursor: 'pointer',
-                              border: '1px solid',
-                              opacity: esp.activa ? 1 : 0.55,
-                              background: activa ? undefined : 'transparent',
-                            }}
-                            onClick={() => toggleEspecializacion(esp.id_especializacion)}
-                            title={esp.descripcion || esp.nombre}
-                          >
-                            {esp.nombre}
-                            {!esp.activa && ' (inactiva)'}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <EspecializacionesSelect
+                    catalogo={catalogo}
+                    value={form.especializaciones_ids}
+                    onChange={(ids) => setForm((f) => ({ ...f, especializaciones_ids: ids }))}
+                  />
                 </div>
               </div>
 

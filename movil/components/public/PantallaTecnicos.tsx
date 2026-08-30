@@ -1,127 +1,28 @@
 // Técnicos — GET /tecnicos/publicos (misma fuente que la WEB).
-// ♥ Favoritos de técnicos PERSISTIDOS EN BACKEND por cliente
-//   (GET/POST/DELETE /tecnicos/favoritos...). Los marcados como
-//   favoritos aparecen luego en "Mis técnicos". Si hay favoritos
-//   guardados de versiones anteriores (solo local), se migran al
-//   backend una sola vez. Visitante: fallback local en AsyncStorage.
-// Seleccionar un técnico redirige a agendar cita con él preasignado.
+// ♥ Favoritos de técnicos 100% locales (AsyncStorage) igual que la WEB
+//   (utils/tecnicosFavoritos.ts): visitante vs correo, migración automática.
+//   Los marcados aparecen luego en "Mis técnicos" sin necesidad de backend.
 import React, { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import AppScreen from "@/components/app/AppScreen";
 import { FontFamilies } from "@/constants/theme";
-import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/services/api";
-import {
-  agregarTecnicoFavorito,
-  eliminarTecnicoFavorito,
-  listarTecnicosFavoritos,
-  listarTecnicosPublicos,
-  type TecnicoPublico,
-} from "@/services/cliente.services";
+import { listarTecnicosPublicos, type TecnicoPublico } from "@/services/cliente.services";
+import { useTecnicosFavoritos } from "@/contexts/TecnicosFavoritosContext";
 
 export default function PantallaTecnicos({
   enTab = false,
 }: {
   enTab?: boolean;
 }) {
-  const { autenticado, usuario } = useAuth();
   const [tecnicos, setTecnicos] = useState<TecnicoPublico[]>([]);
-  // ♥ Favoritos del cliente autenticado — fuente de verdad: BACKEND.
-  const claveLocalAnterior = `neodomus_tecnicos_favoritos_${usuario?.correo ?? "visitante"}`;
-  const [favoritos, setFavoritos] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    let activo = true;
-
-    if (!autenticado) {
-      // Visitante: los tabs de técnicos no están visibles; se conserva
-      // un fallback local por si se llega aquí sin sesión.
-      AsyncStorage.getItem(claveLocalAnterior)
-        .then((crudo) => {
-          if (!crudo || !activo) return;
-          const lista: unknown = JSON.parse(crudo);
-          if (Array.isArray(lista))
-            setFavoritos(
-              new Set(lista.filter((v): v is number => typeof v === "number")),
-            );
-        })
-        .catch(() => {});
-      return;
-    }
-
-    // Autenticado: cargar favoritos reales del usuario desde el backend
-    // y migrar (una vez) los que quedaron guardados solo en local.
-    Promise.all([
-      listarTecnicosFavoritos(),
-      AsyncStorage.getItem(claveLocalAnterior).catch(() => null),
-    ])
-      .then(([listaBackend, crudo]) => {
-        if (!activo) return;
-        const idsBackend = new Set(listaBackend.map((t) => t.id_tecnico));
-        let locales: number[] = [];
-        try {
-          const parsed: unknown = crudo ? JSON.parse(crudo) : null;
-          if (Array.isArray(parsed))
-            locales = parsed.filter(
-              (v): v is number => typeof v === "number" && !idsBackend.has(v),
-            );
-        } catch {}
-        setFavoritos(new Set([...idsBackend, ...locales]));
-
-        if (locales.length > 0) {
-          Promise.allSettled(locales.map((id) => agregarTecnicoFavorito(id)))
-            .then(() =>
-              AsyncStorage.removeItem(claveLocalAnterior).catch(() => {}),
-            )
-            .catch(() => {});
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      activo = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autenticado]);
+  const { favoritosTecnicos: favoritos, toggleFavoritoTecnico } = useTecnicosFavoritos();
 
   const alternarFavorito = (id: number) => {
-    const yaEraFavorito = favoritos.has(id);
-    // Actualización optimista + reversión si el backend falla.
-    setFavoritos((prev) => {
-      const nueva = new Set(prev);
-      if (yaEraFavorito) nueva.delete(id);
-      else nueva.add(id);
-      return nueva;
-    });
-
-    if (!autenticado) {
-      AsyncStorage.setItem(
-        claveLocalAnterior,
-        JSON.stringify(
-          yaEraFavorito
-            ? [...favoritos].filter((f) => f !== id)
-            : [...favoritos, id],
-        ),
-      ).catch(() => {});
-      return;
-    }
-
-    const peticion = yaEraFavorito
-      ? eliminarTecnicoFavorito(id)
-      : agregarTecnicoFavorito(id);
-    peticion.catch(() => {
-      setFavoritos((prev) => {
-        const revertida = new Set(prev);
-        if (yaEraFavorito) revertida.add(id);
-        else revertida.delete(id);
-        return revertida;
-      });
-    });
+    toggleFavoritoTecnico(id);
   };
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -12,26 +12,42 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const { openAuth } = useAuthModal();
 
-  // Función handleSubmit correctamente definida dentro del componente
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    const trimmed = email.trim().toLowerCase();
     setMessage('');
     setError('');
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(trimmed)) {
       setError('Correo electrónico inválido');
-      setLoading(false);
       return;
     }
 
+    // Evita múltiples envíos simultáneos
+    if (loading) return;
+    setLoading(true);
+
     try {
-      await api.post('/auth/forgot-password', { email });
-      setMessage('Código enviado. Redirigiendo...');
-      openAuth('verificar-codigo', { email });
+      await api.post('/auth/forgot-password', { email: trimmed }, { timeout: 15000 });
+      // Éxito: el backend responde inmediatamente (background) con mensaje genérico
+      // por seguridad. Avanza al paso de verificación solo si la solicitud fue
+      // aceptada (no si hubo error de red/SMTP/timeout).
+      openAuth('verificar-codigo', { email: trimmed });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al enviar la solicitud');
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('La solicitud tardó demasiado. Verifica tu conexión e inténtalo nuevamente.');
+      } else if (status === 429) {
+        setError('Demasiadas solicitudes. Espera un minuto antes de reintentar.');
+      } else if (detail) {
+        setError(typeof detail === 'string' ? detail : 'Error al enviar la solicitud');
+      } else if (!err.response) {
+        setError('No se pudo conectar con el servidor. Verifica tu conexión.');
+      } else {
+        setError('No fue posible enviar el código. Verifica tu correo e inténtalo nuevamente.');
+      }
     } finally {
       setLoading(false);
     }

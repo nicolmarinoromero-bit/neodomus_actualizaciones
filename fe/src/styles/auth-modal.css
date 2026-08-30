@@ -8,19 +8,52 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   overflow-y: auto;
   padding: 70px 24px;
-  animation: auth-modal-fade 0.25s ease;
+  animation: auth-modal-fade 0.2s ease;
 }
 
 .auth-modal-content {
   position: relative;
   margin: auto;
   z-index: 1;
+  background: #0a0a0a;
+  /* Fondo opaco sólido para evitar superposición/transparencia del modal anterior */
+  background-color: #0a0a0a;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+  max-width: 460px;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Las tarjetas internas NO deben ser semitransparentes: el contenedor del modal
+   ya aporta el backdrop. Se fuerza opacidad total para que no se vea el formulario
+   anterior detrás (requisito 17). */
+.auth-modal-content .login-card,
+.auth-modal-content .register-form,
+.auth-modal-content .forgot-card,
+.auth-modal-content .verify-card,
+.auth-modal-content .reset-card,
+.auth-modal-content .verify-form,
+.auth-modal-content .login-form {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  border: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* Botón X para cerrar el modal */

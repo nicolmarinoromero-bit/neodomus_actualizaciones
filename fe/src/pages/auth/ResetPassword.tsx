@@ -51,6 +51,8 @@ const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (loading) return;
+
     if (newPassword !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -65,27 +67,32 @@ const ResetPassword = () => {
 
     setLoading(true);
     setError('');
+    setMessage('');
 
     try {
       await api.post('/auth/reset-password', {
         token,
         new_password: newPassword,
-      });
+      }, { timeout: 15000 });
 
       setMessage(
         'Contraseña actualizada correctamente. Volviendo al inicio de sesión...'
       );
 
-      openAuth('ingresar');
+      window.setTimeout(() => openAuth('ingresar'), 900);
     } catch (err: any) {
-      if (err.response?.status === 403) {
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('La solicitud tardó demasiado. Verifica tu conexión e inténtalo nuevamente.');
+      } else if (err.response?.status === 403) {
         setError(
           'Este enlace fue solicitado desde otra IP. Solicita un nuevo restablecimiento.'
         );
+      } else if (err.response?.status === 429) {
+        setError('Demasiadas solicitudes. Espera un minuto antes de reintentar.');
       } else {
         setError(
           err.response?.data?.detail ||
-            'Error al restablecer la contraseña'
+            'Error al restablecer la contraseña. Verifica el código e inténtalo de nuevo.'
         );
       }
     } finally {

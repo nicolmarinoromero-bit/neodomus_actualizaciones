@@ -549,6 +549,57 @@
 }
 
 /* ============================================================
+   PRODUCTOS SUGERIDOS (WEB, debajo de Finalizar compra)
+   Solo visible en WEB; oculto en móvil para no modificar móvil
+   ============================================================ */
+
+.carrito-sugeridos {
+  display: none;
+}
+
+@media (min-width: 701px) {
+  .carrito-sugeridos {
+    display: block;
+    margin-top: 28px;
+    background: linear-gradient(180deg, rgba(24, 24, 24, 0.9), rgba(12, 12, 12, 0.95));
+    border: 1px solid rgba(211, 172, 77, 0.25);
+    border-radius: 20px;
+    padding: 22px 22px 20px;
+  }
+
+  .carrito-sugeridos-header {
+    margin-bottom: 16px;
+    border-left: 4px solid #ffd700;
+    padding-left: 14px;
+  }
+
+  .carrito-sugeridos-header h2 {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    line-height: 1.2;
+  }
+
+  .carrito-sugeridos-header p {
+    color: #9c9c9c;
+    font-size: 13px;
+    margin: 0;
+  }
+
+  .carrito-sugeridos-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  /* Sugeridos reutilizan .productos-grid + .card-producto de productos-publicos.css */
+  .carrito-sugeridos .productos-grid {
+    margin-top: 0;
+  }
+}
+
+/* ============================================================
    TOAST
    ============================================================ */
 
@@ -602,6 +653,80 @@
 
   .carrito-resumen {
     position: static;
+  }
+}
+
+/* WEB intermedio: ventana dividida / reducida (701-1200px) — evita superposición precio/cantidad */
+@media (min-width: 701px) and (max-width: 1200px) {
+  .carrito-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .carrito-item-img {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .carrito-item-info {
+    flex: 1 1 220px;
+    min-width: 180px;
+    gap: 4px;
+  }
+
+  .carrito-item-nombre {
+    font-size: 15px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .carrito-item-controls {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .carrito-cantidad {
+    flex-shrink: 0;
+  }
+
+  .carrito-metros-unidades {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .carrito-item-subtotal {
+    min-width: auto;
+    margin-left: auto;
+    text-align: right;
+    flex: 0 0 auto;
+  }
+
+  .carrito-item-edit,
+  .carrito-item-remove {
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 850px) {
+  .carrito-item-info {
+    flex-basis: 100%;
+  }
+
+  .carrito-item-controls {
+    gap: 8px;
+  }
+
+  .carrito-cantidad span,
+  .carrito-cantidad .cantidad-input,
+  .carrito-unidades-control span {
+    min-width: 32px;
   }
 }
 

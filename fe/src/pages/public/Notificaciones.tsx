@@ -4,11 +4,13 @@ import {
   FaPercent,
   FaArrowTrendUp,
   FaCircleInfo,
+  FaBoxesPacking,
+  FaTruck,
 } from 'react-icons/fa6';
 import { useIdioma } from '@i18n/IdiomaContext';
 import '@styles/notificaciones.css';
 
-type TipoNotificacion = 'confirmacion' | 'pedido' | 'promocion' | 'novedad' | 'sistema';
+type TipoNotificacion = 'confirmacion' | 'pedido' | 'promocion' | 'novedad' | 'sistema' | 'entrega_programada';
 
 interface Notificacion {
   id: number;
@@ -24,6 +26,7 @@ const TIPO_META: Record<TipoNotificacion, { icono: React.ReactNode; etiqueta: st
   promocion: { icono: <FaPercent />, etiqueta: 'Promoción', clase: 'notif-promocion' },
   novedad: { icono: <FaArrowTrendUp />, etiqueta: 'Novedad', clase: 'notif-novedad' },
   sistema: { icono: <FaCircleInfo />, etiqueta: 'Sistema', clase: 'notif-sistema' },
+  entrega_programada: { icono: <FaBoxesPacking />, etiqueta: 'Entrega programada', clase: 'notif-entrega' },
 };
 
 const NOTIFICACIONES: Notificacion[] = [
@@ -36,6 +39,13 @@ const NOTIFICACIONES: Notificacion[] = [
   },
   {
     id: 2,
+    tipo: 'entrega_programada',
+    titulo: 'Entrega programada',
+    mensaje: 'Tu pedido #NE-2041 está programado para entrega el lunes 15 de septiembre entre 9:00 a. m. y 12:00 m. con nuestro equipo Neodomus.',
+    fecha: 'Hace 3 horas',
+  },
+  {
+    id: 3,
     tipo: 'pedido',
     titulo: 'Tu pedido está en camino',
     mensaje: 'El pedido #NE-2041 con el kit de domótica fue despachado. Llegará en 2-3 días hábiles.',
@@ -70,6 +80,7 @@ const ETIQUETA_TRAD: Record<TipoNotificacion, string> = {
   promocion: 'notif.etiquetaPromocion',
   novedad: 'notif.etiquetaNovedad',
   sistema: 'notif.etiquetaSistema',
+  entrega_programada: 'notif.etiquetaEntregaProgramada',
 };
 
 const Notificaciones = () => {

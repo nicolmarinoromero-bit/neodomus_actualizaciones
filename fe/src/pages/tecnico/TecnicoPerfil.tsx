@@ -16,6 +16,7 @@ import {
 } from 'react-icons/fa6';
 import '@styles/perfil-cliente.css';
 import '@styles/admin-panel.css';
+import EspecializacionesSelect from '@components/admin/EspecializacionesSelect';
 
 import { getIniciales, getTechnicalAvatar, removeTechnicalAvatar, setTechnicalAvatar } from '@utils/profileStorage';
 import SectionHeader from '@components/profile/SectionHeader';
@@ -127,6 +128,36 @@ const TechnicalPerfil = () => {
       );
       setEspecializaciones(res.data.especializaciones || []);
       notify(res.data.mensaje, 'info');
+    } catch (err: any) {
+      notify(err.response?.data?.detail || t('tec.errorGuardar'), 'error');
+    } finally {
+      setGestionandoEsp(false);
+    }
+  };
+
+  const handleEspecializacionesChange = async (nuevosIds: number[]) => {
+    const actuales = especializaciones.map(e => e.id_especializacion);
+    const agregados = nuevosIds.filter(id => !actuales.includes(id));
+    const quitados = actuales.filter(id => !nuevosIds.includes(id));
+    if (agregados.length === 0 && quitados.length === 0) return;
+    setGestionandoEsp(true);
+    try {
+      let resultado: typeof especializaciones = [...especializaciones];
+      for (const id of agregados) {
+        const res = await api.post<{ mensaje: string; especializaciones: typeof especializaciones }>(
+          `/tecnicos/mis-especializaciones/${id}`,
+        );
+        resultado = res.data.especializaciones || resultado;
+      }
+      for (const id of quitados) {
+        const res = await api.delete<{ mensaje: string; especializaciones: typeof especializaciones }>(
+          `/tecnicos/mis-especializaciones/${id}`,
+        );
+        resultado = res.data.especializaciones || resultado;
+      }
+      setEspecializaciones(resultado);
+      if (agregados.length > 0) notify('Especialización agregada', 'success');
+      if (quitados.length > 0) notify('Especialización quitada', 'info');
     } catch (err: any) {
       notify(err.response?.data?.detail || t('tec.errorGuardar'), 'error');
     } finally {
@@ -257,59 +288,14 @@ const TechnicalPerfil = () => {
         <>
           <div className="pf-content-card" style={{ marginBottom: 16 }}>
             <h2 className="pf-section-title" style={{ marginTop: 0 }}>{t('tec.misEspecializaciones')}</h2>
-            {especializaciones.length === 0 ? (
-              <p style={{ color: '#9a8f78', margin: 0 }}>{t('tec.sinEspecializaciones')}</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {especializaciones.map((e) => (
-                  <span key={e.id_especializacion} className="ap-badge ok" title={e.descripcion || e.nombre}>
-                    {e.nombre}
-                    <button
-                      type="button"
-                      className="ap-esp-quitar"
-                      aria-label={`${t('tec.quitarEspecializacion')}: ${e.nombre}`}
-                      title={t('tec.quitarEspecializacion')}
-                      disabled={gestionandoEsp}
-                      onClick={() => quitarEspecializacion(e.id_especializacion)}
-                    >
-                      <FaXmark />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="pf-esp-agregar">
-              <select
-                value={nuevaEsp}
-                onChange={(e) => setNuevaEsp(e.target.value)}
+            <div style={{ opacity: gestionandoEsp ? 0.6 : 1, pointerEvents: gestionandoEsp ? 'none' : 'auto' }}>
+              <EspecializacionesSelect
+                catalogo={catalogo.map(c => ({ id_especializacion: c.id_especializacion, nombre: c.nombre, descripcion: c.descripcion, activa: true }))}
+                value={especializaciones.map(e => e.id_especializacion)}
+                onChange={handleEspecializacionesChange}
                 disabled={gestionandoEsp}
-                aria-label={t('tec.agregarEspecializacion')}
-              >
-                <option value="">{t('tec.seleccionaEspecializacion')}</option>
-                {catalogo
-                  .filter((c) => !especializaciones.some((e) => e.id_especializacion === c.id_especializacion))
-                  .map((c) => (
-                    <option key={c.id_especializacion} value={c.id_especializacion}>
-                      {c.nombre}
-                    </option>
-                  ))}
-              </select>
-              <button
-                type="button"
-                className="pf-btn pf-btn-primary"
-                disabled={!nuevaEsp || gestionandoEsp}
-                onClick={agregarEspecializacion}
-              >
-                <FaPlus /> {t('tec.agregarEspecializacion')}
-              </button>
+              />
             </div>
-            {catalogo.length > 0 &&
-              catalogo.filter((c) => !especializaciones.some((e) => e.id_especializacion === c.id_especializacion)).length === 0 && (
-                <p className="ap-form-hint" style={{ margin: '8px 0 0' }}>
-                  {t('tec.sinEspecializacionesDisponibles')}
-                </p>
-              )}
             <p className="ap-form-hint" style={{ marginTop: 8 }}>{t('tec.especializacionesHint')}</p>
           </div>
           <PerfilCuenta

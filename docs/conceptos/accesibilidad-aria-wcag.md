@@ -1,3 +1,5 @@
+> **Nota 2026-08:** Ejemplos `TechTaskMap.tsx`/`ChatWindow.tsx` son ilustrativos; componentes reales son `TechnicianDashboard.tsx`/`ChatBotWidget.tsx` (`fe/src/pages/`). Stack sin Leaflet; accesibilidad móvil Expo no documentada. Ver `RNF-003`/`RNF-004`.
+
 # Accesibilidad Web — ARIA y WCAG para Neodomus
 
 <!--

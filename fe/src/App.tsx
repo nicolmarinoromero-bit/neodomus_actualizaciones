@@ -72,7 +72,7 @@ function App() {
           <Route path="/productos" element={<ProductosPublicos />} />
           <Route path="/producto/:id" element={<ProductoDetalle />} />
           <Route path="/carrito" element={<CarritoPage />} />
-          <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute allowedRoles={['cliente']}><CheckoutPage /></ProtectedRoute>} />
           <Route path="/dashboard/cliente" element={<ProtectedRoute allowedRoles={['cliente']}><ClientDashboard /></ProtectedRoute>} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/info" element={<InfoSectionsContainer />} />

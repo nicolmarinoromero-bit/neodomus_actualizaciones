@@ -138,6 +138,8 @@ export default function TabLayout() {
       {/* Públicas apiladas dentro de los tabs */}
       <Tabs.Screen name="info" options={{ href: null }} />
       <Tabs.Screen name="producto/[id]" options={{ href: null }} />
+      {/* Explore eliminado para visitante — nunca visible */}
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

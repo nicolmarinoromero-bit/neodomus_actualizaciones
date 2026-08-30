@@ -160,14 +160,17 @@ const AdminClientes = () => {
     setServicios([]);
     setDevoluciones([]);
     try {
-      const [resPed, resServ, resDev] = await Promise.all([
+      const [resPed, resServ, resDev] = await Promise.allSettled([
         api.get<PedidoCliente[]>(`/clients/${cliente.id_cliente}/pedidos`),
         api.get<ServicioCliente[]>(`/clients/${cliente.id_cliente}/servicios`),
         api.get<DevolucionCliente[]>(`/clients/${cliente.id_cliente}/devoluciones`),
       ]);
-      setPedidos(resPed.data || []);
-      setServicios(resServ.data || []);
-      setDevoluciones(resDev.data || []);
+      setPedidos(resPed.status === 'fulfilled' ? (resPed.value.data || []) : []);
+      setServicios(resServ.status === 'fulfilled' ? (resServ.value.data || []) : []);
+      setDevoluciones(resDev.status === 'fulfilled' ? (resDev.value.data || []) : []);
+      if (resDev.status === 'rejected') {
+        console.warn('Devoluciones no disponibles para cliente', cliente.id_cliente, resDev.reason);
+      }
     } catch {
       setPedidos([]);
       setServicios([]);

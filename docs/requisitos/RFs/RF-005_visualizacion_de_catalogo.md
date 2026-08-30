@@ -17,6 +17,8 @@
 | **Estado**    | Propuesta                            |
 | **Fecha**     | Mayo 2026                            |
 
+> **Actualización 2026-08 — Implementación real:** Catálogo es de **productos** (no servicios). Endpoint real `GET /api/v1/productos/` (`productos.py:429`) con filtros `search/categoria/proveedor/estado/page/limit`, filtra `visible_cliente` y `stock>5` para público (`productos.py:445`). Ver `fe/src/pages/public/ProductosPublicos.tsx` y `movil/app/(tabs)/productos.tsx`.
+
 ## Descripción
 
 El sistema debe mostrar al usuario (autenticado o no) el catálogo de servicios domóticos disponibles, con paginación, filtros por categoría y búsqueda por texto.
@@ -32,7 +34,7 @@ El sistema debe mostrar al usuario (autenticado o no) el catálogo de servicios 
 
 ## Proceso
 
-1. El cliente (o visitante) accede a `/servicios` con parámetros opcionales.
+1. El cliente (o visitante) accede a `/productos` con parámetros opcionales.
 2. El backend consulta la tabla `servicios` con filtros, paginación y orden.
 3. Retorna la lista de servicios con sus campos básicos.
 4. El frontend renderiza las tarjetas.
@@ -56,8 +58,8 @@ El sistema debe mostrar al usuario (autenticado o no) el catálogo de servicios 
 }
 Endpoints asociados
 Método	Ruta	Auth	Descripción
-GET	/api/v1/servicios	Opcional	Lista paginada del catálogo
-GET	/api/v1/servicios/{id}	Opcional	Detalle de un servicio específico
+GET	/api/v1/productos	Opcional	Lista paginada del catálogo
+GET	/api/v1/productos/{id}	Opcional	Detalle de un servicio específico
 Reglas de negocio
 RN-013: El catálogo es público (no requiere autenticación) para atraer clientes.
 

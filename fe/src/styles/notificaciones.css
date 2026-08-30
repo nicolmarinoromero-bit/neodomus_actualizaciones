@@ -87,6 +87,12 @@
   border-color: rgba(126, 162, 255, 0.35);
 }
 
+.notif-entrega .notif-item-icon {
+  background: rgba(212, 165, 75, 0.13);
+  color: #f0c96f;
+  border-color: rgba(212, 165, 75, 0.32);
+}
+
 .notif-promocion .notif-item-icon {
   background: rgba(212, 165, 75, 0.14);
   color: #ffd700;

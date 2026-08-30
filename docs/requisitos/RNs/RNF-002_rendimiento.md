@@ -39,3 +39,5 @@ El frontend debe compilarse a un bundle optimizado de producción mediante Vite,
 
 ### RNF-002.5 — Carga del frontend
 La aplicación frontend debe cargar completamente (First Contentful Paint) en menos de **3 segundos** en una conexión de banda ancha estándar.
+
+> **Nota implementación:** El sistema usa polling (`fe/src/components/layout/Navbar.tsx:67` 5s `GET /clients/me`, `ProductosPublicos.tsx:82` 15s, `useAdminNotificaciones.ts:359` 30s). Para cumplir RNF-002.1 (<500ms), los endpoints cachean con `SQLAlchemy pool_pre_ping` (`be/app/database.py:7`) y paginación `limit=100` (`productos.py:71`). Polling se optimizará a 30-60s (ver Plan Mejora).

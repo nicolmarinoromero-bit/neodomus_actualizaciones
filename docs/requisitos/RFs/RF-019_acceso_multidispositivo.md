@@ -17,6 +17,8 @@
 | **Estado**    | Propuesta                        |
 | **Fecha**     | Mayo 2026                        |
 
+> **Nota 2026-08 — Clasificación:** Este requisito es **RNF** (atributo calidad responsive), no RF funcional. Frontend usa Grid/Flex `MainLayout`, `ProductosPublicos` 4→1 cols `productos-publicos.css:824`. Se mantiene aquí por trazabilidad histórica, pero debe evaluarse como RNF-003.
+
 ## Descripción
 
 El sistema debe ser completamente responsivo, adaptándose a diferentes tamaños de pantalla: móviles (320px - 480px), tablets (768px - 1024px) y escritorio (≥1024px). Todas las funcionalidades deben estar disponibles en todos los dispositivos.

@@ -1,3 +1,5 @@
+> **Nota implementación 2026-08:** Este sistema de diseño describe **TailwindCSS 4+** (`tailwind.config.js`, tokens `primary-*`). **La implementación actual NO usa Tailwind** (`fe/package.json` sin `tailwind`, `fe/vite.config.ts:6` solo `@vitejs/plugin-react`, `fe/src/styles/*.css` CSS puro con 58 media queries). Paleta real: dorado `#D4AF37` y negro `#000000` aplicados vía CSS variables/custom properties, no `primary-*`. El documento se mantiene como **referencia de diseño aspiracional**; para auditoría, el sistema real es CSS Modules/puro. Dark mode (`dark:`) no implementado (`fe/src/App.tsx` sin provider tema). Ver `restricciones.md:28` RT-002 actualizado.
+
 esign System — Neodomus (Serie Educativa)
 <!-- ¿Qué? Referencia técnica del sistema de diseño visual de Neodomus. ¿Para qué? Documentar las decisiones de estilo, la arquitectura CSS y las instrucciones para mantener la consistencia visual en toda la plataforma. ¿Impacto? Un sistema de diseño claro permite escalar la interfaz sin perder coherencia, facilita el onboarding de nuevos desarrolladores y asegura que el branding (negro + dorado) se aplique correctamente en todos los componentes. -->
 1. Propósito

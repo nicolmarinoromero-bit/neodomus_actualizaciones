@@ -23,8 +23,9 @@
 ## Requisitos
 
 ### RNF-005.1 — Cobertura de tests
-- **Backend**: cobertura mínima del 80% en módulos de lógica de negocio (pytest + pytest-cov).
-- **Frontend**: tests unitarios para componentes críticos y flujos de autenticación (Vitest + Testing Library).
+- **Backend**: cobertura mínima del **70%** en módulos críticos (autenticación, pagos, citas) (`docs/requisitos/restricciones.md:225` `RPC-001` `Backend ≥70%`, `docs/referencia-tecnica/architecture.md:13`). Nota: `RNF-005` históricamente decía 80%; se unifica a **70%** para backend.
+- **Frontend**: cobertura mínima del **80%** en componentes críticos y flujos de autenticación (Vitest + Testing Library) (`restricciones.md:226` `Frontend ≥80%`).
+- **Estado actual:** `be/app/tests/test_auth.py:1-18` único test roto (0% efectiva) — ver Plan de Mejora (§11).
 
 ### RNF-005.2 — Tipado estricto
 - **Python**: type hints obligatorios en parámetros y retornos de todas las funciones.

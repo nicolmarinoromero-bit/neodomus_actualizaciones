@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { useFocusEffect } from "expo-router";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import PublicNavbar from "@/components/public/PublicNavbar";
@@ -57,17 +58,43 @@ export default function ProductosScreen() {
 
   const cargar = useCallback(async () => {
     setError(null);
+    if (__DEV__) {
+      console.log('Solicitando productos...');
+      console.log('URL utilizada:', `${require("@/constants/api").API_BASE_URL}/productos/?limit=100`);
+    }
     try {
       const [productosRes, categoriasRes] = await Promise.all([
         listarProductos(),
         obtenerCategorias().catch(() => [] as CategoriaProducto[]),
       ]);
-      // El backend responde { total, page, limit, total_pages, data[] }.
-      setProductos(productosRes.data ?? []);
+      if (__DEV__) {
+        console.log('Respuesta productos:', productosRes);
+        console.log(`[productos] ✓ backend respondió: total=${productosRes.total} data=${productosRes.data?.length ?? 0} categorías=${categoriasRes?.length ?? 0}`);
+        if ((productosRes.data?.length ?? 0) === 0) console.log("[productos] Escenario A/B: lista vacía — verificar backend / productos activos / filtros");
+        else console.log(`[productos] Escenario B/C: ${productosRes.data.length} productos recibidos, primer producto:`, JSON.stringify(productosRes.data[0]).slice(0, 400));
+      }
+      const lista = productosRes.data ?? [];
+      if (__DEV__) console.log('Productos recibidos:', lista);
+      if (lista.length === 0 && __DEV__) {
+        console.log("[productos] ⚠️ data vacía — revisar si el backend tiene productos con estado activo y stock>0");
+        console.log("[productos] Escenario A: API no devuelve productos — corregir conexión/BD");
+      } else if (__DEV__) {
+        console.log(`[productos] Escenario B/C/D: ${lista.length} productos en estado`);
+      }
+      setProductos(lista);
       setCategorias(categoriasRes ?? []);
-    } catch {
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      const status = e?.status ?? 0;
+      if (__DEV__) {
+        console.log(`[productos] ✗ Escenario A: fallo API status=${status} msg=${msg}`);
+        console.log('Respuesta productos:', e);
+        console.log("[productos]   → Verifica EXPO_PUBLIC_API_URL en movil/.env, que el backend esté corriendo y que el celular esté en la misma Wi-Fi que el PC.");
+      }
       setError(
-        "No se pudieron cargar los productos. Verifica tu conexión e inténtalo de nuevo.",
+        status === 0
+          ? `No se pudo conectar con el servidor. ${msg}`
+          : `Error al cargar productos (código ${status}): ${msg}`,
       );
     } finally {
       setCargando(false);
@@ -78,6 +105,19 @@ export default function ProductosScreen() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  // Al volver a Productos tras una compra exitosa, recargar stock real del backend
+  // sin mostrar spinner (silencioso). Esto evita que el usuario vea cantidades antiguas.
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        try {
+          const res = await listarProductos();
+          setProductos(res.data ?? []);
+        } catch {}
+      })();
+    }, []),
+  );
 
   // Igual que la web: búsqueda por nombre + filtro por categoría en cliente.
   const filtrados = useMemo(() => {
@@ -97,6 +137,21 @@ export default function ProductosScreen() {
     () => filtrados.slice(0, pagina * LIMITE_PAGINA),
     [filtrados, pagina],
   );
+
+  // Log para Escenario B/C/D: renderizado
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[productos] Render: productos=${productos.length} filtrados=${filtrados.length} visibles=${visibles.length} busqueda="${busqueda}" categoria=${categoriaSeleccionada}`);
+      if (productos.length > 0 && filtrados.length === 0) {
+        console.log("[productos] ⚠️ Productos llegan pero filtrados vacíos — revisar filtros/búsqueda/categoría");
+      }
+      if (visibles.length > 0) {
+        const p = visibles[0] as any;
+        if (p && !p.nombre_producto && p.nombre) console.log("[productos] ⚠️ Propiedad incorrecta: producto.nombre en lugar de producto.nombre_producto", p);
+        if (p && p.nombre_producto) console.log(`[productos] Primer visible: id=${p.id_producto} nombre="${p.nombre_producto}" precio=${p.precio_venta_producto} stock=${p.stock_producto} imagen=${p.imagen_url}`);
+      }
+    }
+  }, [productos.length, filtrados.length, visibles.length, busqueda, categoriaSeleccionada]);
 
   const reiniciarPagina = () => setPagina(1);
 
@@ -230,7 +285,11 @@ export default function ProductosScreen() {
             progressViewOffset={10}
           />
         }
-        renderItem={({ item }) => <ProductCard producto={item} />}
+        renderItem={({ item }) => (
+          <View style={styles.cardWrap}>
+            <ProductCard producto={item} />
+          </View>
+        )}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
           if (visibles.length < filtrados.length) {
@@ -349,13 +408,18 @@ const styles = StyleSheet.create({
   },
 
   grid: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingBottom: 20,
     gap: 12,
   },
 
   filaGrid: {
     gap: 12,
+  },
+
+  cardWrap: {
+    flex: 1,
+    minWidth: 0,
   },
 
   centro: {

@@ -464,29 +464,29 @@ const AdminProductos = () => {
                       )}
                     </td>
                     <td>
-                      <Link to={`/admin/productos/${producto.id_producto}`} className="ap-btn ap-btn-ghost">
-                        {t('adm.productos.gestionar')}
-                      </Link>
-                      <button
-                        type="button"
-                        className={`ap-btn ${producto.estado_producto === 'activo' ? 'ap-btn-danger' : 'ap-btn-primary'}`}
-                        style={{ marginLeft: 8 }}
-                        title={producto.estado_producto === 'activo' ? t('adm.productos.ocultarTitle') : t('adm.productos.mostrarTitle')}
-                        onClick={() => toggleEstado(producto)}
-                      >
-                        {producto.estado_producto === 'activo' ? t('adm.productos.ocultar') : t('adm.productos.mostrar')}
-                      </button>
-                      {proveedorId && (
+                      <div className="ap-table-acciones">
+                        <Link to={`/admin/productos/${producto.id_producto}`} className="ap-btn ap-btn-ghost">
+                          {t('adm.productos.gestionar')}
+                        </Link>
                         <button
                           type="button"
-                          className="ap-btn ap-btn-primary"
-                          style={{ marginLeft: 8 }}
-                          title={t('adm.productos.solicitarMasTitle', { nombre: producto.nombre_producto, proveedor: nombreProveedor })}
-                          onClick={() => abrirSolicitud(producto.id_producto)}
+                          className={`ap-btn ${producto.estado_producto === 'activo' ? 'ap-btn-danger' : 'ap-btn-primary'}`}
+                          title={producto.estado_producto === 'activo' ? t('adm.productos.ocultarTitle') : t('adm.productos.mostrarTitle')}
+                          onClick={() => toggleEstado(producto)}
                         >
-                          <FaPaperPlane /> {t('adm.productos.solicitarMas')}
+                          {producto.estado_producto === 'activo' ? t('adm.productos.ocultar') : t('adm.productos.mostrar')}
                         </button>
-                      )}
+                        {proveedorId && (
+                          <button
+                            type="button"
+                            className="ap-btn ap-btn-primary"
+                            title={t('adm.productos.solicitarMasTitle', { nombre: producto.nombre_producto, proveedor: nombreProveedor })}
+                            onClick={() => abrirSolicitud(producto.id_producto)}
+                          >
+                            <FaPaperPlane /> {t('adm.productos.solicitarMas')}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

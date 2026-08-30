@@ -3,7 +3,7 @@
 // anticipación) · dirección del perfil (solo lectura) · métodos de
 // pago reales con simulador · POST /pedidos · aprobado/pendiente/
 // rechazado · modal de éxito con factura PDF real.
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Linking,
   Modal,
@@ -15,11 +15,13 @@ import {
   View,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import CalendarioMes from "@/components/app/CalendarioMes";
 import AppScreen from "@/components/app/AppScreen";
+import Dropdown from "@/components/ui/Dropdown";
+import PaymentMethodCards from "@/components/public/PaymentMethodCards";
 import { FontFamilies } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -71,12 +73,13 @@ export default function CheckoutScreen() {
   const [tecnicosDisponibles, setTecnicosDisponibles] = useState<TecnicoPublico[]>([]);
   const [idTecnicoSel, setIdTecnicoSel] = useState<number | null>(null);
 
-  // Pago
-  const [metodoPago, setMetodoPago] = useState<string>("tarjeta_debito");
+  // Pago — estado independiente por método (igual que web)
+  const [metodoPago, setMetodoPago] = useState<string>("tarjeta_credito");
   const [numeroTarjeta, setNumeroTarjeta] = useState("");
   const [titular, setTitular] = useState("");
   const [expiracion, setExpiracion] = useState("");
   const [cvv, setCvv] = useState("");
+  const [cuotas, setCuotas] = useState("1");
   const [banco, setBanco] = useState("");
   const [correoPaypal, setCorreoPaypal] = useState("");
   const [puntoPago, setPuntoPago] = useState("");
@@ -96,6 +99,7 @@ export default function CheckoutScreen() {
     referencia_pago?: string;
     fecha_limite?: string;
   } | null>(null);
+  const [rechazadoDatos, setRechazadoDatos] = useState<{ id_pedido?: number } | null>(null);
 
   // Gate: solo clientes autenticados (igual que la web).
   useEffect(() => {
@@ -107,6 +111,24 @@ export default function CheckoutScreen() {
       .then(setMetodosPagoInfo)
       .catch(() => {});
   }, [autenticado, userType]);
+
+  // Al entrar a checkout para una nueva compra, limpiar estados residuales de una compra anterior.
+  // Evita que "Pago exitoso" aparezca directamente al pulsar Finalizar compra.
+  useFocusEffect(
+    useCallback(() => {
+      if ((exitoDatos || pendienteDatos || rechazadoDatos) && items.length > 0) {
+        setExitoDatos(null);
+        setPendienteDatos(null);
+        setRechazadoDatos(null);
+        setError(null);
+        setPaso("servicio");
+      }
+      if (!exitoDatos && !pendienteDatos && !rechazadoDatos && items.length === 0) {
+        // Carrito vacío sin pago en curso → asegurar paso inicial
+        setPaso("servicio");
+      }
+    }, [exitoDatos, pendienteDatos, rechazadoDatos, items.length]),
+  );
 
   // Técnicos disponibles cuando hay servicio con fecha/hora.
   useEffect(() => {
@@ -185,7 +207,7 @@ export default function CheckoutScreen() {
           titular: titular.trim(),
           expiracion,
           cvv,
-          cuotas: 1,
+          cuotas: Number(cuotas) || 1,
           resultado_simulacion: simulacion,
         };
       case "pse":
@@ -193,23 +215,40 @@ export default function CheckoutScreen() {
           setError("Selecciona un banco para pagar por PSE.");
           return null;
         }
-        return { metodo: metodoPago, banco, resultado_simulacion: simulacion || "aprobado" };
+        if (!titular.trim()) {
+          setError("Ingresa el titular de la cuenta.");
+          return null;
+        }
+        if (!simulacion) {
+          setError("Selecciona el resultado de simulación.");
+          return null;
+        }
+        return {
+          metodo: metodoPago,
+          banco,
+          titular: titular.trim(),
+          resultado_simulacion: simulacion,
+        };
       case "paypal":
         if (!correoPaypal.trim()) {
           setError("Ingresa el correo de tu cuenta PayPal.");
           return null;
         }
+        if (!simulacion) {
+          setError("Selecciona el resultado de simulación.");
+          return null;
+        }
         return {
           metodo: metodoPago,
           correo_paypal: correoPaypal.trim(),
-          resultado_simulacion: simulacion || "aprobado",
+          resultado_simulacion: simulacion,
         };
       case "punto_pago":
         if (!puntoPago) {
           setError("Selecciona el punto de pago (Efecty, Servientrega u otro).");
           return null;
         }
-        return { metodo: metodoPago, punto_pago: puntoPago };
+        return { metodo: metodoPago, punto_pago: puntoPago, resultado_simulacion: simulacion || "pendiente" };
       default:
         setError("Selecciona un método de pago.");
         return null;
@@ -257,6 +296,8 @@ export default function CheckoutScreen() {
           pdf_url: respuesta.pdf_url,
           numero_transaccion: respuesta.pago?.numero_transaccion,
         });
+        setRechazadoDatos(null);
+        setPendienteDatos(null);
       } else if (estado === "pendiente") {
         setPendienteDatos({
           id_pedido: respuesta.pedido?.id_pedido,
@@ -264,10 +305,10 @@ export default function CheckoutScreen() {
           referencia_pago: respuesta.pago?.referencia_pago,
           fecha_limite: respuesta.pago?.fecha_limite,
         });
+        setRechazadoDatos(null);
       } else {
-        setError(
-          "El pago fue rechazado. Revisa los datos e inténtalo de nuevo.",
-        );
+        setRechazadoDatos({ id_pedido: respuesta.pedido?.id_pedido });
+        setError(null);
       }
     } catch (e) {
       setError(
@@ -298,12 +339,19 @@ export default function CheckoutScreen() {
   };
 
   const descargarPdfExito = async () => {
-    if (!exitoDatos?.pdf_url || !usuario) return;
+    if (!exitoDatos?.pdf_url) {
+      setError("La factura aún no está disponible. Intenta de nuevo en unos segundos.");
+      return;
+    }
     try {
       const { obtenerSesion } = await import("@/services/storage");
       const sesion = await obtenerSesion();
+      if (__DEV__) console.log("[checkout] Descargando PDF", exitoDatos.pdf_url);
       await descargarFacturaPdf(exitoDatos.pdf_url, sesion?.accessToken ?? "");
-    } catch {}
+    } catch (e: any) {
+      console.log("[checkout] Error descargando PDF", e);
+      setError(e?.message || "No se pudo descargar la factura. Verifica tu conexión.");
+    }
   };
 
   // ── Gate visitante / no cliente ─────────────────────────────
@@ -470,87 +518,117 @@ export default function CheckoutScreen() {
         </View>
       )}
 
-      {/* Método de pago */}
+      {/* Método de pago — tarjetas visuales estilo WEB */}
       {paso === "pago" && (
         <View style={S.tarjeta}>
-          <Text style={S.subtitulo}>Método de pago</Text>
+          <Text style={S.subtitulo}>Selecciona tu método de pago</Text>
           <Text style={S.avisoAmarillo}>
-            Modo de prueba: pagos simulados.
+            Modo de prueba: pagos simulados (no se realizan cobros reales).
           </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-            {(metodosPagoInfo
-              ? Object.keys(metodosPagoInfo.metodos)
-              : ["tarjeta_debito", "tarjeta_credito", "pse", "paypal", "punto_pago"]
-            ).map((m) => (
-              <Pressable
-                key={m}
-                onPress={() => setMetodoPago(m)}
-                style={[S.chip, metodoPago === m && S.chipActivo]}
-              >
-                <Text style={[S.chipTexto, metodoPago === m && S.chipTextoActivo]}>
-                  {m.replace("_", " ")}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <PaymentMethodCards
+            metodos={
+              metodosPagoInfo
+                ? Object.keys(metodosPagoInfo.metodos)
+                : ["tarjeta_credito", "pse", "paypal", "punto_pago", "tarjeta_debito"]
+            }
+            seleccionado={metodoPago}
+            onSelect={(m) => {
+              setMetodoPago(m);
+              setSimulacion("");
+            }}
+          />
 
           {(metodoPago === "tarjeta_debito" || metodoPago === "tarjeta_credito") && (
-            <View style={{ gap: 8 }}>
-              <TextInput style={inputEstilo} placeholder="Número de tarjeta" placeholderTextColor="#8a8a8a" keyboardType="number-pad" value={numeroTarjeta} onChangeText={setNumeroTarjeta} />
-              <TextInput style={inputEstilo} placeholder="Titular" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} />
+            <View style={{ gap: 10, marginTop: 6 }}>
+              <TextInput style={inputEstilo} placeholder="Número de tarjeta (4242 4242 4242 4242)" placeholderTextColor="#8a8a8a" keyboardType="number-pad" value={numeroTarjeta} onChangeText={setNumeroTarjeta} />
+              <TextInput style={inputEstilo} placeholder="Titular de la tarjeta" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} autoCapitalize="words" />
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="MM/AA" placeholderTextColor="#8a8a8a" value={expiracion} onChangeText={(v) => setExpiracion(v.slice(0, 5))} />
-                <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="CVV" placeholderTextColor="#8a8a8a" secureTextEntry keyboardType="number-pad" value={cvv} onChangeText={(v) => setCvv(v.replace(/\D/g, "").slice(0, 4))} />
+                <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="MM/AA" placeholderTextColor="#8a8a8a" value={expiracion} onChangeText={(v) => setExpiracion(v.slice(0, 5))} maxLength={5} />
+                <TextInput style={[inputEstilo, { flex: 1 }]} placeholder="CVV" placeholderTextColor="#8a8a8a" secureTextEntry keyboardType="number-pad" value={cvv} onChangeText={(v) => setCvv(v.replace(/\D/g, "").slice(0, 4))} maxLength={4} />
               </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {["aprobado", "rechazado"].map((r) => (
-                  <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                    <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>Simular: {r}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Dropdown
+                label="Número de cuotas"
+                value={cuotas}
+                placeholder="Seleccionar cuotas"
+                options={[
+                  { label: "1 cuota", value: "1" },
+                  { label: "3 cuotas", value: "3" },
+                  { label: "6 cuotas", value: "6" },
+                  { label: "12 cuotas", value: "12" },
+                ]}
+                onChange={setCuotas}
+              />
+              <Dropdown
+                label="Resultado de simulación"
+                value={simulacion}
+                placeholder="Seleccionar resultado"
+                options={[
+                  { label: "Aprobado", value: "aprobado" },
+                  { label: "Rechazado", value: "rechazado" },
+                ]}
+                onChange={setSimulacion}
+              />
+              <Text style={S.gris}>Prueba: 4242 4242 4242 4242 (aprobada) · 4242 4242 4242 0001 (rechazada)</Text>
             </View>
           )}
 
           {metodoPago === "pse" && (
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {(metodosPagoInfo?.bancos ?? []).map((b) => (
-                  <Pressable key={b} onPress={() => setBanco(b)} style={[S.chip, banco === b && S.chipActivo]}>
-                    <Text style={[S.chipTexto, banco === b && S.chipTextoActivo]}>{b}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {["aprobado", "rechazado", "pendiente"].map((r) => (
-                  <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                    <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>Simular: {r}</Text>
-                  </Pressable>
-                ))}
+            <View style={{ gap: 10, marginTop: 6 }}>
+              <Dropdown
+                label="Resultado de simulación"
+                value={simulacion}
+                placeholder="Seleccionar resultado"
+                options={[
+                  { label: "Aprobado", value: "aprobado" },
+                  { label: "Rechazado", value: "rechazado" },
+                  { label: "Pendiente", value: "pendiente" },
+                ]}
+                onChange={setSimulacion}
+              />
+              <Dropdown
+                label="Selecciona tu banco"
+                value={banco}
+                placeholder="Seleccionar banco"
+                options={(metodosPagoInfo?.bancos?.length ? metodosPagoInfo.bancos : ["Bancolombia", "Banco de Bogotá", "Banco Davivienda", "BBVA Colombia", "Banco de Occidente", "Banco Popular", "Itaú Colombia", "Banco Caja Social", "Scotiabank Colpatria", "Banco Agrario", "Nequi", "Daviplata"]).map((b) => ({ label: b, value: b }))}
+                onChange={setBanco}
+              />
+              <View style={{ gap: 6 }}>
+                <Text style={S.label}>Titular de la cuenta</Text>
+                <TextInput style={inputEstilo} placeholder="Nombre del titular" placeholderTextColor="#8a8a8a" value={titular} onChangeText={setTitular} autoCapitalize="words" />
               </View>
             </View>
           )}
 
           {metodoPago === "paypal" && (
-            <View style={{ gap: 8 }}>
-              <TextInput style={inputEstilo} placeholder="Correo PayPal" placeholderTextColor="#8a8a8a" autoCapitalize="none" value={correoPaypal} onChangeText={setCorreoPaypal} />
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {["aprobado", "rechazado"].map((r) => (
-                  <Pressable key={r} onPress={() => setSimulacion(r)} style={[S.chip, simulacion === r && S.chipActivo]}>
-                    <Text style={[S.chipTexto, simulacion === r && S.chipTextoActivo]}>Simular: {r}</Text>
-                  </Pressable>
-                ))}
-              </View>
+            <View style={{ gap: 10, marginTop: 6 }}>
+              <TextInput style={inputEstilo} placeholder="Correo de PayPal" placeholderTextColor="#8a8a8a" autoCapitalize="none" keyboardType="email-address" value={correoPaypal} onChangeText={setCorreoPaypal} />
+              <Dropdown
+                label="Resultado de simulación"
+                value={simulacion}
+                placeholder="Seleccionar resultado"
+                options={[
+                  { label: "Aprobado", value: "aprobado" },
+                  { label: "Rechazado", value: "rechazado" },
+                ]}
+                onChange={setSimulacion}
+              />
             </View>
           )}
 
           {metodoPago === "punto_pago" && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {["Efecty", "Servientrega", "Otro punto de pago"].map((p) => (
-                <Pressable key={p} onPress={() => setPuntoPago(p)} style={[S.chip, puntoPago === p && S.chipActivo]}>
-                  <Text style={[S.chipTexto, puntoPago === p && S.chipTextoActivo]}>{p}</Text>
-                </Pressable>
-              ))}
+            <View style={{ gap: 10, marginTop: 6 }}>
+              <Dropdown
+                label="Punto de pago"
+                value={puntoPago}
+                placeholder="Seleccionar punto"
+                options={[
+                  { label: "Efecty", value: "Efecty" },
+                  { label: "Servientrega", value: "Servientrega" },
+                  { label: "Otro punto de pago", value: "Otro punto de pago" },
+                ]}
+                onChange={setPuntoPago}
+              />
+              <Text style={S.gris}>Al confirmar se generará referencia y código para pagar en el punto físico. Quedará pendiente hasta confirmar.</Text>
             </View>
           )}
         </View>
@@ -601,14 +679,13 @@ export default function CheckoutScreen() {
         </>
       )}
 
-      {/* PENDIENTE (punto de pago) */}
+      {/* PENDIENTE (punto de pago / PSE pendiente) */}
       {pendienteDatos && (
         <View style={S.tarjeta}>
           <FontAwesome6 name="clock" size={20} color="#f6c344" />
           <Text style={S.subtitulo}>Pago pendiente</Text>
           <Text style={S.gris}>
-            Realiza el pago en el punto físico con el código generado y luego
-            confírmalo aquí.
+            Tu pago está siendo procesado. Te notificaremos cuando se confirme.
           </Text>
           {pendienteDatos.codigo_punto_pago && (
             <Text style={S.texto}>Código: {pendienteDatos.codigo_punto_pago}</Text>
@@ -632,6 +709,41 @@ export default function CheckoutScreen() {
               {procesando ? "Confirmando..." : "Confirmar pago"}
             </Text>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [S.botonOutline, pressed && S.presionado]}
+            onPress={() => {
+              setPendienteDatos(null);
+              setRechazadoDatos(null);
+            }}
+          >
+            <Text style={S.textoOutline}>Seguir comprando</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* RECHAZADO */}
+      {rechazadoDatos && (
+        <View style={S.tarjeta}>
+          <FontAwesome6 name="circle-xmark" size={20} color="#f0858a" />
+          <Text style={S.subtitulo}>Pago rechazado</Text>
+          <Text style={S.gris}>No fue posible procesar tu pago. Revisa los datos e inténtalo de nuevo.</Text>
+          <Pressable
+            style={({ pressed }) => [S.botonOro, pressed && S.presionado]}
+            onPress={() => setRechazadoDatos(null)}
+          >
+            <Text style={S.textoBotonOro}>Intentar nuevamente</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [S.botonOutline, pressed && S.presionado]}
+            onPress={() => {
+              setRechazadoDatos(null);
+              setPendienteDatos(null);
+              setExitoDatos(null);
+              router.replace("/(tabs)/productos");
+            }}
+          >
+            <Text style={S.textoOutline}>Seguir viendo productos</Text>
+          </Pressable>
         </View>
       )}
 
@@ -644,6 +756,14 @@ export default function CheckoutScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={S.exitoTarjeta}>
+              <Pressable
+                style={S.cerrarX}
+                onPress={() => setExitoDatos(null)}
+                hitSlop={8}
+                accessibilityLabel="Cerrar"
+              >
+                <FontAwesome6 name="xmark" size={14} color="#bdbdbd" />
+              </Pressable>
               <FontAwesome6 name="circle-check" size={40} color="#7ee29a" />
               <Text style={S.exitoTitulo}>¡Pago exitoso!</Text>
               <Text style={S.exitoTexto}>
@@ -677,6 +797,8 @@ export default function CheckoutScreen() {
                 <Pressable
                   style={({ pressed }) => [S.botonOutline, pressed && S.presionado]}
                   onPress={() => {
+                    setExitoDatos(null);
+                    setPaso("servicio");
                     router.replace("/(tabs)/productos");
                   }}
                 >
@@ -728,6 +850,7 @@ const S = StyleSheet.create({
     gap: 9,
   },
   subtitulo: { color: "#f0c96f", fontSize: 13.5, fontFamily: FontFamilies.bodyBold },
+  label: { color: "#ffffff", fontSize: 13, fontFamily: FontFamilies.bodyMedium, marginTop: 4 },
   texto: { color: "#ffffff", fontSize: 13.5, flexShrink: 1 },
   fila: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
   gris: { color: "#bdbdbd", fontSize: 12.5 },
@@ -761,6 +884,19 @@ const S = StyleSheet.create({
     padding: 20,
     alignItems: "center",
     gap: 10,
+  },
+  cerrarX: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
   },
   exitoTitulo: { color: "#ffffff", fontSize: 19, fontFamily: FontFamilies.bodyBold },
   exitoTexto: { color: "#bdbdbd", fontSize: 13, lineHeight: 19, textAlign: "center" },

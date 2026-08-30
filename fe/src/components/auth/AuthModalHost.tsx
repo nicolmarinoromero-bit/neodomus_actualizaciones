@@ -22,7 +22,7 @@ const AuthModalHost = () => {
   if (!step) return null;
 
   return (
-    <div className="auth-modal-overlay">
+    <div className="auth-modal-overlay" onClick={closeAuth}>
       <button
         type="button"
         className="auth-modal-close"
@@ -34,7 +34,12 @@ const AuthModalHost = () => {
       >
         <span aria-hidden="true">&times;</span>
       </button>
-      <div className="auth-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        key={step}
+        className="auth-modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{ animation: 'auth-modal-fade 0.2s ease' }}
+      >
         {step === 'ingresar' && <Login />}
         {step === 'registro' && <Register />}
         {step === 'recuperar' && <ForgotPassword />}

@@ -87,7 +87,20 @@ export default function HomeScreen() {
               styles.botonContinuar,
               pressed && styles.presionado,
             ]}
-            onPress={() => router.push("/(tabs)/info")}
+            onPress={() => {
+              try {
+                // Ruta registrada como app/(tabs)/info.tsx → URL /info (grupo tabs no va en URL).
+                // Se intenta /info primero y / (tabs)/info como fallback para compatibilidad.
+                router.push("/info" as never);
+              } catch (e) {
+                console.log("[Home] error navegando a Sobre Nosotros:", e);
+                try {
+                  router.push("/(tabs)/info" as never);
+                } catch (e2) {
+                  console.log("[Home] fallback también falló:", e2);
+                }
+              }
+            }}
           >
             <View style={styles.circuloIcono}>
               <Text style={styles.flecha}>{">"}</Text>

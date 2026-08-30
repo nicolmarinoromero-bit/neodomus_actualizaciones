@@ -14,8 +14,10 @@
 | **Título**       | Comunicación con el usuario desde la plataforma (técnico) |
 | **Módulo**       | Chat                                                 |
 | **Prioridad**    | Media                                                |
-| **Estado**       | Propuesta                                            |
+| **Estado**       | Propuesta (No implementado — futuro)                                            |
 | **RF asociados** | RF-027                                               |
+
+> **Nota 2026-08 — Estado real:** Esta HU describe chat/fecha/disponibilidad. **No implementado** como flujo bidireccional en `be/app/routers/` (sin `chat.py`/`disponibilidad`). Real: notificaciones `notificaciones.py:41` + `consultas.py:71` + `ChatBotWidget` FAQ. Se mantiene como requisito futuro / opcional, no bloquea presentación. Ver `RF-027` nota.
 
 ## Historia
 

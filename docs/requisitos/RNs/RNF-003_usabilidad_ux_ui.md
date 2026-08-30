@@ -31,7 +31,7 @@ La interfaz debe adaptarse correctamente a distintos tamaños de pantalla:
 Los formularios de autenticación deben verse y funcionar correctamente en dispositivos móviles.
 
 ### RNF-003.2 — Soporte de temas (Dark/Light mode)
-La aplicación debe ofrecer tema claro y oscuro con toggle manual, respetando la preferencia del sistema operativo como valor por defecto y persistiendo la elección del usuario.
+La aplicación **no implementa** toggle Dark/Light en la entrega actual (`fe/package.json` sin `tailwind`, `fe/src/App.tsx` sin provider de tema, `fe/src/styles/` CSS puro). El diseño actual usa paleta clara con dorado `#D4AF37` / negro `#000000` (`docs/referencia-tecnica/design-system.md`). Dark mode es mejora futura, no requisito para presentación.
 
 ### RNF-003.3 — Tipografía
 Se deben usar exclusivamente fuentes **sans-serif** (`Inter`, `system-ui`, `sans-serif`).
@@ -52,7 +52,9 @@ Los botones de acción (Guardar, Enviar, etc.) deben estar alineados a la **dere
 Los elementos interactivos (botones, inputs, toggles) deben tener transiciones suaves en hover y focus (`transition-colors`, `duration-200`).
 
 ### RNF-003.8 — Iconografía
-Los campos de formulario deben incluir iconos contextuales en su lado izquierdo (email → sobre, password → candado, etc.) usando la librería `lucide-react` para mejorar la identificación visual inmediata.
+Los campos de formulario deben incluir iconos contextuales en su lado izquierdo (email → sobre, password → candado, etc.) usando la librería **react-icons 5.6+** (`fe/package.json:16`, `fe/src/components/layout/Navbar.tsx:6` `react-icons/fa6`). `lucide-react` fue especificación inicial; implementación real usa `react-icons`.
 
 ### RNF-003.9 — Consistencia visual
 Todos los componentes de formulario deben usar el mismo componente base (`InputField`, `Button`, `Alert`) para garantizar consistencia en toda la aplicación.
+
+> **Nota trazabilidad:** RNF-003.3 a RNF-003.5 (tipografía, colores planos, botones derecha) y RNF-003.8 (iconos) duplican `docs/requisitos/restricciones.md` RD-001..RD-005. Se mantienen aquí como RNF de calidad y en restricciones como límites no negociables.

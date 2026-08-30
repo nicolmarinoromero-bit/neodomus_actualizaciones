@@ -9,8 +9,26 @@
 // de modo que ningún servicio necesita saber host ni puerto.
 // ─────────────────────────────────────────────────────────────
 
+function obtenerHostDesdeExpo(): string | null {
+  try {
+    // Expo expone el host donde corre Metro (ej. 192.168.1.10:8081) — útil para derivar la IP LAN del backend.
+    const Constants = require("expo-constants").default;
+    const hostUri: string | undefined =
+      Constants?.expoConfig?.hostUri || (Constants?.manifest as any)?.hostUri || (Constants?.manifest2 as any)?.extra?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(":")[0];
+      if (host && host !== "localhost" && host !== "127.0.0.1") {
+        return `http://${host}:8000`;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 const URL_SIN_PREFIJO = (
-  process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:8000"
+  process.env.EXPO_PUBLIC_API_URL ||
+  obtenerHostDesdeExpo() ||
+  "http://10.0.2.2:8000"
 ).replace(/\/+$/, "");
 
 /** Base completa para todas las peticiones: <host>:<puerto>/api/v1 */

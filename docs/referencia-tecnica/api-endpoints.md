@@ -1,3 +1,11 @@
+> **Advertencia 2026-08 — Sincronización con código:** Este documento lista rutas históricas (`/servicios`, `/tech/mis-tareas`, `/pagos/iniciar`, `lucide-react`, `PostgreSQL`). **Rutas reales actuales** (`be/app/main.py:54-69` 16 routers, `be/app/routers/__init__.py`):
+> - Catálogo: `GET /api/v1/productos/` (no `/servicios`) `productos.py:429`
+> - Técnico: `GET /api/v1/tecnicos/mis-citas` (no `/tech/mis-tareas`) `tecnicos.py:747`
+> - Pagos: simulador `POST /api/v1/pedidos` + `GET /api/v1/pedidos/metodos-pago` (no `/pagos/iniciar`) `pedidos.py:198,186`
+> - Notificaciones: `GET /api/v1/notificaciones/mias` (no `/notifications/mis-notificaciones`) `notificaciones.py:41`
+> - Chat: `POST /api/v1/contacto` (no `/chat/enviar`) `consultas.py:71`
+> Ver `AUDITORIA_FINAL_NEODOMUS.md` §3 y `docs/requisitos/RFs/RF-005` nota. Documento se mantiene por trazabilidad; endpoints reales prevalecen.
+
 API Endpoints — Neodomus
 <!-- ¿Qué? Documentación de referencia de todos los endpoints de la API REST del backend de Neodomus. ¿Para qué? Que cualquier desarrollador (frontend, móvil, QA) pueda integrar o probar la API sin necesidad de leer el código fuente ni acceder a Swagger UI. ¿Impacto? En producción, Swagger UI (/docs) está deshabilitado por seguridad (OWASP A05 — Security Misconfiguration). Este documento es la única referencia pública de la API para entornos de producción. -->
 Base URL: https://api.neodomus.com (producción) / http://localhost:8000 (desarrollo)

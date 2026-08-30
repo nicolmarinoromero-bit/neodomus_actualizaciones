@@ -27,6 +27,8 @@ El sistema debe permitir a cualquier usuario autenticado cerrar su sesión de fo
 | -------------- | ------ | ----------- | ------------------------------ |
 | `refresh_token`| Texto  | Sí          | Token de renovación a invalidar |
 
+> **Actualización 2026-08:** `POST /api/v1/auth/logout` (`auth.py:125`) es **stateless** `clear_auth_cookies` sin body ni invalidación BD. Frontend limpia `tabRemove` (`fe/src/services/api.ts:10`) + evento `neodomus:sesion-expirada`.
+
 ## Proceso
 
 1. El usuario hace clic en "Cerrar sesión" en la interfaz.

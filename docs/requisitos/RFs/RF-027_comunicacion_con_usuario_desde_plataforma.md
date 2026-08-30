@@ -17,6 +17,8 @@
 | **Estado**    | Propuesta                                            |
 | **Fecha**     | Mayo 2026                                            |
 
+> **Nota 2026-08 — No implementado como chat bidireccional:** No existe `POST /chat/enviar` (`be/app/routers/` sin `chat.py`). Comunicación real es vía **notificaciones in-app** (`notificaciones.py:41` `GET /mias`, `PATCH /{id}/leida`) + **consultas** `POST /contacto` (`consultas.py:71`) + datos técnico expuestos en `citas.py:378`. Frontend usa `ChatBotWidget` FAQ estático (`botData.ts`), no chat persistente. RF se mantiene como requisito futuro / opcional.
+
 ## Descripción
 
 El sistema debe permitir al técnico comunicarse con el usuario desde la plataforma mediante el mismo módulo de chat bidireccional, con el contexto del servicio.

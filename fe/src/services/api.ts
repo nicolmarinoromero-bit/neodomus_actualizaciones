@@ -59,6 +59,7 @@ export const refreshAccessToken = async (): Promise<{ ok: boolean; authError: bo
 const api = axios.create({
   baseURL: BASE_URL,
   withCredentials: false,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept': 'application/json; charset=utf-8',

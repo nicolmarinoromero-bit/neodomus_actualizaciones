@@ -56,5 +56,5 @@ __pycache__/
 backup_neodomus.sql
 evidencias_backup/
 
-# MinIO - permitir datos del bucket
-# minio_data/
+# MinIO — datos del bucket (no versionar, contiene binarios y metadatos)
+minio_data/

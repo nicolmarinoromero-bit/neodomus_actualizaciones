@@ -44,21 +44,30 @@ const VerifyCode = () => {
       return;
     }
 
+    if (loading) return;
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
       await api.post('/auth/verify-code', {
         email,
         code: fullCode,
-      });
+      }, { timeout: 15000 });
 
       openAuth('restablecer', { token: fullCode });
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail ||
-          'Código inválido o expirado'
-      );
+      const status = err.response?.status;
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('La verificación tardó demasiado. Inténtalo nuevamente.');
+      } else if (status === 429) {
+        setError('Demasiados intentos. Espera un momento antes de reintentar.');
+      } else {
+        setError(
+          err.response?.data?.detail ||
+            'Código inválido o expirado. Verifica el código e inténtalo de nuevo.'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +79,7 @@ const VerifyCode = () => {
     e.preventDefault();
 
     if (countdown > 480) return;
+    if (resendLoading) return;
 
     setResendLoading(true);
     setError('');
@@ -78,18 +88,25 @@ const VerifyCode = () => {
     try {
       await api.post('/auth/forgot-password', {
         email,
-      });
+      }, { timeout: 15000 });
 
       setSuccessMsg(
-        'Se ha enviado un nuevo código a tu correo'
+        'Si el correo está registrado, recibirás un nuevo código en breve.'
       );
 
       setCountdown(600);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail ||
-          'Error al reenviar el código'
-      );
+      const status = err.response?.status;
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('El reenvío tardó demasiado. Inténtalo nuevamente.');
+      } else if (status === 429) {
+        setError('Demasiadas solicitudes. Espera un minuto antes de reintentar.');
+      } else {
+        setError(
+          err.response?.data?.detail ||
+            'No fue posible reenviar el código. Inténtalo nuevamente.'
+        );
+      }
     } finally {
       setResendLoading(false);
     }

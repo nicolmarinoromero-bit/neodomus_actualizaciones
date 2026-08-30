@@ -266,7 +266,7 @@ function TarjetaItem({  item,
   onQuitar: () => void;
 }) {
   const esMetros = !!item.venta_por_metros;
-  const cantidadEfectiva = esMetros ? item.metros ?? 10 : item.cantidad;
+  const cantidadEfectiva = esMetros ? (item.metros ?? 10) * (item.cantidad || 1) : item.cantidad;
   // Misma resolución de imagen que Productos (cubre ítems guardados antes
   // del fix: si imagen vino null, aplica la convención /uploads/{id}.jpg).
   const urlImagen = urlImagenProducto({
@@ -301,25 +301,49 @@ function TarjetaItem({  item,
               : "1 técnico"}
           </Text>
         )}
+        {esMetros && (
+          <Text style={styles.itemDetalle}>
+            {item.cantidad} × {item.metros ?? 10} m = {cantidadEfectiva} m total
+          </Text>
+        )}
 
         <View style={styles.itemControles}>
           {esMetros ? (
-            <View style={styles.contador}>
-              <Pressable
-                style={styles.contadorBoton}
-                onPress={() => onMetros(Math.max(10, (item.metros ?? 10) - 10))}
-                accessibilityLabel="Reducir metros"
-              >
-                <FontAwesome6 name="minus" size={11} color={C.blanco} />
-              </Pressable>
-              <Text style={styles.chipMetros}>{item.metros ?? 10} m</Text>
-              <Pressable
-                style={styles.contadorBoton}
-                onPress={() => onMetros(Math.min(50, (item.metros ?? 10) + 10))}
-                accessibilityLabel="Aumentar metros"
-              >
-                <FontAwesome6 name="plus" size={11} color={C.blanco} />
-              </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <View style={styles.contador}>
+                <Pressable
+                  style={styles.contadorBoton}
+                  onPress={() => onCantidad(Math.max(1, (item.cantidad || 1) - 1))}
+                  accessibilityLabel="Reducir unidades"
+                >
+                  <FontAwesome6 name="minus" size={10} color={C.blanco} />
+                </Pressable>
+                <Text style={styles.chipMetros}>{item.cantidad}</Text>
+                <Pressable
+                  style={styles.contadorBoton}
+                  onPress={() => onCantidad((item.cantidad || 1) + 1)}
+                  accessibilityLabel="Aumentar unidades"
+                >
+                  <FontAwesome6 name="plus" size={10} color={C.blanco} />
+                </Pressable>
+              </View>
+              <View style={styles.contador}>
+                <Pressable
+                  style={styles.contadorBoton}
+                  onPress={() => onMetros(Math.max(10, (item.metros ?? 10) - 10))}
+                  accessibilityLabel="Reducir metros"
+                >
+                  <FontAwesome6 name="minus" size={10} color={C.blanco} />
+                </Pressable>
+                <Text style={styles.chipMetros}>{item.metros ?? 10} m</Text>
+                <Pressable
+                  style={styles.contadorBoton}
+                  onPress={() => onMetros(Math.min(50, (item.metros ?? 10) + 10))}
+                  accessibilityLabel="Aumentar metros"
+                >
+                  <FontAwesome6 name="plus" size={10} color={C.blanco} />
+                </Pressable>
+              </View>
             </View>
           ) : (
             <View style={styles.contador}>
