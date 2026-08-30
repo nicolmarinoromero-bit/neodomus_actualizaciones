@@ -55,6 +55,7 @@ export default function LoginScreen() {
           redirectUri: AuthSession.makeRedirectUri({ scheme: "movil" }),
           scopes: ["openid", "profile", "email"],
           responseType: "id_token",
+          usePKCE: false,
         }
       : (null as any),
     GOOGLE_WEB_CLIENT_ID ? discovery : null,
