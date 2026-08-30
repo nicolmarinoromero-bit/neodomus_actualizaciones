@@ -1,0 +1,359 @@
+/* ==========================================================================
+   INTERFAZ: CÓDIGO DE SEGURIDAD (CORRECCIÓN TOTAL DE CAJITAS OTP)
+   ========================================================================== */
+
+/* Tarjeta contenedora principal (Fondo 100% negro y borde de oro) */
+.login-form {
+  background: #000000  ;
+  border: 1px solid #ffd700  ;
+  border-radius: 16px  ;
+  padding: 32px 24px  ;
+  width: 100%  ;
+  max-width: 410px  ; /* Ancho exacto fijado para la consistencia gráfica */
+  box-sizing: border-box  ;
+  text-align: center  ;
+  margin: 0 auto  ;
+}
+
+/* Avatar circular del sobre de correo y mini candado */
+.forgot-avatar-circle {
+  position: relative;
+
+  width: 90px;
+  height: 90px;
+
+  border: 2px solid #ffd700;
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin: 0 auto 20px;
+
+  background: rgba(255,215,0,.05);
+}
+
+.forgot-mail-svg {
+  width: 42px;
+  height: 42px;
+}
+
+.lock-badge {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 16px;
+  height: 16px;
+  background: #ffd700;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+/* Textos informativos principales */
+.login-form h2 {
+  color: #ffffff  ;
+  font-size: 24px  ;
+  font-weight: 600  ;
+  margin: 0 0 10px 0  ;
+}
+
+.forgot-instruction-text {
+  color: #a0a0a0  ;
+  font-size: 12.5px  ;
+  line-height: 1.5  ;
+  margin: 0 auto 20px auto  ;
+}
+
+.user-email {
+  color: #ffd700  ;
+  font-weight: 600  ;
+}
+
+/* 🛡️ EL ARREGLO MAESTRO: Bloqueador de desbordamiento horizontal */
+.otp-grid {
+  display: grid  ;
+  grid-template-columns: repeat(6, 1fr)  ; /* Fuerza 6 columnas proporcionales */
+  gap: 8px  ; /* Espaciado interno perfecto */
+  width: 100%  ;
+  max-width: 320px  ; /* Restringe el tamaño total para dejar márgenes perfectos adentro */
+  margin: 0 auto 16px auto  ; /* Centrado absoluto en el eje horizontal */
+  box-sizing: border-box  ;
+}
+
+/* Estilo individual y seguro para las 6 cajitas */
+.otp-grid input {
+  width: 48px;
+  height: 55px;
+
+  background: #111;
+
+  border: 1px solid #333;
+  border-radius: 10px;
+
+  color: white;
+
+  text-align: center;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  transition: .3s;
+}
+
+/* Comportamiento del cursor o foco activo */
+.otp-grid input:focus {
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255,215,0,.3);
+  transform: translateY(-2px);
+}
+
+/* Previene la inyección de color blanco por parte del autocompletar de los navegadores */
+.otp-grid input:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff  ;
+  box-shadow: 0 0 0px 1000px #111111 inset  ;
+}
+
+/* Contenedor del temporizador de expiración (10:00 min) */
+.expiration-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+
+  margin: 25px 0;
+
+  padding: 10px;
+
+  background: rgba(255,215,0,.05);
+
+  border-radius: 10px;
+
+  color: #bdbdbd;
+}
+
+.shield-icon {
+  width: 13px  ;
+  height: 13px  ;
+  color: #ffd700  ;
+}
+
+/* Botón "Confirmar código" con distribución espacial balanceada */
+.btn-verify-submit {
+  width: 100%  ;
+  height: 38px  ;
+  background: linear-gradient(180deg, #ffd940 0%, #cca310 100%)  ;
+  color: #000000  ;
+  border: none  ;
+  border-radius: 8px  ;
+  font-size: 13px  ;
+  font-weight: 600  ;
+  display: flex  ;
+  align-items: center  ;
+  justify-content: space-between  ; /* Distribuye el contenido uniformemente */
+  padding: 0 16px  ;
+  cursor: pointer  ;
+  box-sizing: border-box  ;
+}
+
+.btn-verify-submit > span:not(.btn-arrow) {
+  flex-grow: 1  ;
+  text-align: center  ;
+  margin-left: -14px  ;
+  transition: .3s;
+}
+
+.btn-verify-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(255,215,0,.3);
+}
+
+.btn-shield {
+  width: 14px  ;
+  height: 14px  ;
+  flex-shrink: 0  ;
+}
+
+.btn-arrow {
+  font-size: 14px  ;
+  font-weight: bold  ;
+}
+
+/* Divisor estético inferior (Línea con el punto central dorado) */
+.login-divider {
+  display: flex  ;
+  align-items: center  ;
+  justify-content: center  ;
+  margin: 24px 0 14px 0  ;
+  position: relative  ;
+}
+
+.login-divider::before {
+  content: ""  ;
+  width: 100%  ;
+  height: 1px  ;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 215, 0, 0.2) 50%, transparent 100%)  ;
+  position: absolute  ;
+}
+
+.divider-circle {
+  width: 5px  ;
+  height: 5px  ;
+  border: 1px solid #ffd700  ;
+  border-radius: 50%  ;
+  background: #000000  ;
+  z-index: 1  ;
+}
+
+/* Bloque de reenvío de código */
+.resend-action-container {
+  margin-bottom: 22px  ;
+}
+
+.no-account-text {
+  color: #8c8c8c  ;
+  font-size: 12.5px  ;
+  margin: 0 0 6px 0  ;
+}
+
+.resend-action-link {
+  color: #ffd700  ;
+  text-decoration: none  ;
+  font-size: 12.5px  ;
+  font-weight: 500  ;
+  display: inline-flex  ;
+  align-items: center  ;
+  gap: 6px  ;
+}
+
+.retry-icon {
+  width: 12px  ;
+  height: 12px  ;
+}
+
+/* Enlace inferior para regresar al Login */
+.forgot-back-to-login {
+  border-top: 1px solid rgba(255, 215, 0, 0.1)  ;
+  padding-top: 14px  ;
+}
+
+.forgot-back-link {
+  background: transparent  ;
+  border: none  ;
+  color: #8c8c8c  ;
+  font-size: 12px  ;
+  cursor: pointer  ;
+  display: inline-flex  ;
+  align-items: center  ;
+  gap: 6px  ;
+}
+
+.forgot-back-link:hover {
+  color: #ffffff  ;
+}
+
+/* Estilos responsivos para que se vea genial en celulares */
+@media (max-width: 420px) {
+  .login-form {
+    max-width: 92%  ;
+    padding: 24px 16px  ;
+  }
+  /* --- BLOQUEO DE SEGURIDAD PARA LAS 6 CAJITAS --- */
+.otp-grid {
+    display: flex  ;
+    justify-content: center  ;
+    align-items: center  ;
+    gap: 8px  ;
+    width: 100%  ;
+    max-width: 320px  ; /* Esto evita que se salgan del recuadro */
+    margin: 20px auto  ; /* Centrado automático */
+}
+
+.otp-grid input {
+    flex: 1  ; /* Hace que todas midan lo mismo */
+    max-width: 45px  ; /* Tamaño máximo para que quepan las 6 */
+    height: 45px  ;
+    background: #111111  ;
+    border: 1px solid #252525  ;
+    border-radius: 8px  ;
+    text-align: center  ;
+    color: white  ;
+    padding: 0  ;
+    box-sizing: border-box  ;
+}
+}
+
+
+/* ==================================================
+   CONTENEDOR GENERAL
+================================================== */
+
+.verify-page-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  overflow: hidden;
+}
+
+.verify-background-layer {
+  position: absolute;
+
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+
+  background-size: cover;
+  background-position: center;
+
+  filter: blur(18px);
+
+  z-index: 0;
+}
+
+.verify-card {
+  position: relative;
+  z-index: 1;
+
+  width: 100%;
+  max-width: 450px;
+
+  background: rgba(0, 0, 0, 0.92);
+
+  border: 1px solid #ffd700;
+
+  border-radius: 20px;
+
+  padding: 35px;
+
+  text-align: center;
+
+  color: white;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 10px 40px rgba(0,0,0,.7);
+
+  animation: fadeUp .4s ease;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

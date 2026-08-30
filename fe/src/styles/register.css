@@ -1,0 +1,313 @@
+/* ==========================================================================
+   register.css - Edición Ultra-Compacta (Sin Scroll)
+   ========================================================================== */
+
+.register-container {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 70px); 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 5px;
+  background-size: cover;
+  background-position: center;
+  box-sizing: border-box;
+}
+
+.register-form {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 530px;
+  padding: 10px 20px 8px 20px; /* Reducido al mínimo el espacio interno */
+  background: rgba(0, 0, 0, 0.96);
+  border: 1.5px solid #ffd700;
+  border-radius: 14px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+  box-sizing: border-box;
+}
+
+/* Encabezado y Avatar súper pequeños */
+.avatar-header-container {
+  display: flex   ;
+  justify-content: center   ;
+  margin-bottom: 0px   ;
+}
+
+.avatar-circle {
+  width: 32px   ;
+  height: 32px   ;
+  border: 2px solid #ffd700   ;
+  border-radius: 50%   ;
+  position: relative   ;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-plus-badge {
+  position: absolute   ;
+  bottom: -4px   ;
+  right: -4px   ;
+  width: 11px   ;
+  height: 11px   ;
+  background-color: #ffd700   ;
+  color: #000   ;
+  border-radius: 50%   ;
+  font-size: 8px   ;
+  font-weight: bold   ;
+  display: flex   ;
+  justify-content: center   ;
+  align-items: center   ;
+}
+
+.register-form h2 {
+  text-align: center;
+  color: white;
+  font-size: 1.15rem;
+  margin: 0px 0px 4px 0px   ;
+}
+
+/* Grilla del Formulario */
+.form-grid {
+  display: grid   ;
+  grid-template-columns: repeat(2, 1fr)   ;
+  gap: 4px 12px   ; /* Espacio mínimo entre filas */
+  margin-bottom: 4px   ;
+}
+
+.input-group-block {
+  display: flex   ;
+  flex-direction: column   ;
+  align-items: flex-start   ;
+  width: 100%   ;
+  box-sizing: border-box   ;
+}
+
+.input-group-block label {
+  color: #cccccc   ;
+  font-size: 12px   ; /* Letra un pelo más chica */
+  font-weight: 500   ;
+  margin-bottom: 8px   ;
+  text-align: left   ;
+}
+
+.select-wrapper {
+  width: 100%   ;
+  display: block   ;
+  box-sizing: border-box   ;
+}
+
+/* Inputs y Selects más bajitos (Ahorro clave de espacio) */
+.register-form input,
+.register-form select {
+  width: 100%   ;
+  height: 30px   ; /* Bajó de 34px a 30px */
+  padding: 0 8px   ;
+  background: #0a0a0a   ;
+  color: #ffffff   ;
+  border: 1px solid #333333   ;
+  border-radius: 5px   ;
+  font-size: 11.5px   ;
+  box-sizing: border-box   ;
+  margin: 2px   ;
+}
+
+.register-form select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")   ;
+  background-repeat: no-repeat   ;
+  background-position: right 8px center   ;
+  padding-right: 24px   ;
+}
+
+.register-form input:focus,
+.register-form select:focus {
+  border-color: #ffd700   ;
+  outline: none;
+}
+
+/* Evita que el navegador ponga el fondo blanco al escribir o autocompletar */
+.register-form input:-webkit-autofill,
+.register-form input:-webkit-autofill:hover, 
+.register-form input:-webkit-autofill:focus,
+.register-form select:-webkit-autofill,
+.register-form select:-webkit-autofill:hover,
+.register-form select:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff   ; /* Mantiene el texto blanco */
+  box-shadow: 0 0 0px 1000px #0a0a0a inset   ; /* Fuerza el fondo gris oscuro original */
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Asegura que el color se mantenga plano mientras escribes */
+.register-form input:focus,
+.register-form select:focus {
+  background-color: #0a0a0a   ;
+  color: #ffffff   ;
+  border-color: #ffd700   ;
+}
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box   ;
+}
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+}
+
+/* Requisitos de Contraseña en Bloque Pequeño */
+.password-requirements {
+  background: rgba(12, 12, 12, 0.8);
+  border: 1px solid #1a1a1a;
+  border-radius: 5px;
+  padding: 3px 8px;
+  margin-bottom: 10px;
+}
+
+.password-requirements .requirement-title {
+  color: #ffd700;
+  font-size: 10px;
+  font-weight: 600;
+  margin: 0 0 1px 0;
+  text-align: left;
+}
+
+.password-requirements ul {
+  list-style: none   ;
+  padding: 0   ;
+  margin: 0   ;
+  display: grid   ;
+  grid-template-columns: repeat(2, 1fr)   ;
+  gap: 0px 6px   ;
+}
+
+.password-requirements li {
+  font-size: 9.5px   ;
+  text-align: left   ;
+}
+
+.password-requirements li.invalid { color: #555555   ; }
+.password-requirements li.valid { color: #ffd700   ; font-weight: 600; }
+
+/* NUEVO: Checkboxes en una sola fila horizontal (Gran ahorro de altura) */
+.legal-checkboxes {
+  display: grid   ;
+  grid-template-columns: repeat(3, 1fr)   ; /* Pone los 3 lado a lado */
+  gap: 4px   ;
+  margin-bottom: 6px   ;
+}
+
+.checkbox-row {
+  display: flex   ;
+  align-items: center   ;
+  gap: 4px   ;
+  color: #999999   ;
+  font-size: 9.5px   ;
+  text-align: left   ;
+  white-space: nowrap; /* Evita que el texto salte de línea bruscamente */
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 11px   ;
+  height: 11px   ;
+  min-width: 11px   ;
+  min-height: 11px   ;
+  margin: 0   ;
+  accent-color: #ffd700   ;
+  appearance: checkbox   ;
+}
+
+.checkbox-row .gold-text {
+  color: #ffd700   ;
+}
+
+/* Botón de Envío */
+.btn-register-submit {
+  width: 100%   ;
+  height: 30px   ;
+  border-radius: 5px   ;
+  font-size: 11.5px   ;
+  font-weight: 600   ;
+  border: none   ;
+  margin-top: 0px;
+}
+
+.btn-register-submit:disabled { background: #1c1c1c   ; color: #444   ; }
+.btn-register-submit:not(:disabled) { background: #ffd700   ; color: #000   ; cursor: pointer   ; }
+
+.login-divider { border-top: 1px solid #333; margin: 20px 0; position: relative; }
+.divider-circle {
+    width: 8px; height: 8px; background: #333; border-radius: 50%;
+    position: absolute; top: -4px; left: 50%; margin-left: -4px;
+}
+
+.google-login-wrap {
+    margin-bottom: 16px;
+}
+.google-login-wrap > div {
+    width: 100% !important;
+}
+.google-login-wrap iframe {
+    width: 100% !important;
+}
+
+/* Enlaces Inferiores */
+.links {
+  display: flex   ;
+  align-items: center   ;
+  justify-content: center   ;
+  gap: 6px   ;
+  margin-top: 10px   ;
+  font-size: 11px   ;
+  color: #aaaaaa   ; /* Texto de pregunta en gris suave */
+}
+
+.login-accent-link { 
+  color: #ffd700   ; /* El enlace brilla directamente en dorado */
+  text-decoration: none   ;
+  font-weight: 600   ;
+  transition: color 0.2s ease-in-out   ;
+}
+
+.login-accent-link:hover { 
+  color: #ffffff   ; /* Cambia a blanco al pasar el mouse */
+  text-decoration: underline   ; /* Se subraya sutilmente */
+}
+
+/* Reset para enlace convertido a botón (modal por estado) */
+button.login-accent-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+}
+
+/* Mensajes Informativos */
+.error, .success { padding: 3px 8px; border-radius: 4px; font-size: 10.5px; margin-bottom: 2px; text-align: left; }
+.error { background: rgba(255, 0, 0, 0.08); color: #ff6b6b; }
+.success { background: rgba(0, 255, 0, 0.08); color: #2ecc71; }
+
+@media (max-width: 500px) {
+  .form-grid, .password-requirements ul {
+    grid-template-columns: 1fr   ;
+  }
+  .legal-checkboxes {
+    grid-template-columns: 1fr   ; /* En celulares vuelve a lista por espacio */
+  }
+}

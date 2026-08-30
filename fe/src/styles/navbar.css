@@ -1,0 +1,415 @@
+/* ==========================================================
+   NAVBAR NEODOMUS
+========================================================== */
+
+.neodomus-header {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+}
+
+.neodomus-header header {
+  background: #caa24d;
+  height: 85px;
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.neodomus-header .navbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ==========================================================
+   LOGO
+========================================================== */
+
+.neodomus-header .logo {
+  display: flex;
+  align-items: center;
+}
+
+.neodomus-header .logo img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.neodomus-header .logo img:hover {
+  transform: scale(1.05);
+}
+
+/* ==========================================================
+   MENÚ CENTRAL
+========================================================== */
+
+.neodomus-header .menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 35px;
+  flex: 1;
+}
+
+.neodomus-header .menu a {
+  position: relative;
+  color: white;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.neodomus-header .menu a:hover {
+  color: #2c3e2f;
+}
+
+.neodomus-header .menu a::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: 0.3s;
+}
+
+.neodomus-header .menu a:hover::after {
+  width: 100%;
+}
+
+/* ==========================================================
+   AYUDA
+========================================================== */
+
+.neodomus-header .icon-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neodomus-header .icon-link img {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================
+   BOTONES DERECHA
+========================================================== */
+
+.neodomus-header .nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Botón notificaciones */
+.neodomus-header .notif-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: background 0.25s, transform 0.25s;
+}
+
+.neodomus-header .notif-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
+.neodomus-header .notif-icon {
+  color: #ffffff;
+  font-size: 21px;
+  display: flex;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.25));
+  transition: transform 0.25s ease;
+}
+
+.neodomus-header .notif-button:hover .notif-icon {
+  transform: scale(1.12);
+}
+
+/* Botón carrito */
+.neodomus-header .cart-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: background 0.25s, transform 0.25s;
+}
+
+.neodomus-header .cart-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
+.neodomus-header .cart-icon {
+  color: #ffffff;
+  font-size: 21px;
+  display: flex;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.25));
+  transition: transform 0.25s ease;
+}
+
+.neodomus-header .cart-button:hover .cart-icon {
+  transform: scale(1.12);
+}
+
+.neodomus-header .cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #2c3e2f;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 2px solid #caa24d;
+  line-height: 1;
+}
+
+.neodomus-header .btn-register,
+.neodomus-header .btn-login {
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 25px;
+  transition: 0.3s;
+}
+
+/* Reset para botones de autenticación (modal sobre la página actual) */
+.neodomus-header button.btn-register,
+.neodomus-header button.btn-login {
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.neodomus-header .btn-register {
+  background: white;
+  color: #caa24d;
+  border: none;
+}
+
+.neodomus-header .btn-register:hover {
+  transform: translateY(-2px);
+}
+
+.neodomus-header .btn-login {
+  background: white;
+  color: #caa24d;
+  border: none;
+}
+
+.neodomus-header .btn-login:hover {
+  transform: translateY(-2px);
+}
+
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+
+@media (max-width: 992px) {
+  .neodomus-header header {
+    height: auto;
+    padding: 15px;
+  }
+
+  .neodomus-header .navbar {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .neodomus-header .menu {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .neodomus-header .nav-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .neodomus-header .menu {
+    flex-direction: column;
+  }
+
+  .neodomus-header .btn-register,
+  .neodomus-header .btn-login {
+    width: 180px;
+    text-align: center;
+  }
+}
+
+/* ==========================================================
+   USER MENU / DROPDOWN
+========================================================== */
+
+.neodomus-header .user-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.neodomus-header .user-welcome {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 14px;
+  transition: background 0.2s ease;
+}
+
+.neodomus-header .user-welcome:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.neodomus-header .welcome-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.neodomus-header .welcome-greeting {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.neodomus-header .welcome-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.neodomus-header .user-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.neodomus-header .user-avatar-iniciales {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.neodomus-header .user-avatar:hover {
+  transform: scale(1.1);
+  border-color: #d4a54b;
+  box-shadow: 0 0 0 4px rgba(212, 165, 75, 0.25), 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.neodomus-header .user-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 220px;
+  background: #1e1e1e;
+  border: 1px solid rgba(212, 165, 75, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  overflow: hidden;
+  animation: dropdownFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.neodomus-header .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  background: transparent;
+  color: #ebebeb;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.neodomus-header .dropdown-item:hover {
+  background: rgba(212, 165, 75, 0.12);
+  color: #d4a54b;
+}
+
+.neodomus-header .dropdown-item svg {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.neodomus-header .dropdown-logout {
+  color: #e5484d;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.neodomus-header .dropdown-logout:hover {
+  background: rgba(229, 72, 77, 0.12);
+  color: #ff7a7a;
+}
