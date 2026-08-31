@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const ACCESS_TOKEN_KEY = "neodomus.session.access_token";
 const REFRESH_TOKEN_KEY = "neodomus.session.refresh_token";
 const USER_TYPE_KEY = "neodomus.session.user_type";
-const CORREO_KEY = "neodemus.session.correo";
+const CORREO_KEY = "neodomus.session.correo";
 const ROL_KEY = "neodomus.session.rol";
 
 export type UserType = "employee" | "client";
@@ -28,9 +28,9 @@ export async function guardarSesion(sesion: SesionGuardada): Promise<void> {
     [ACCESS_TOKEN_KEY, sesion.accessToken],
     [REFRESH_TOKEN_KEY, sesion.refreshToken],
     [USER_TYPE_KEY, sesion.userType],
+    [ROL_KEY, sesion.rol ?? ""],
   ];
   if (sesion.correo !== undefined) pares.push([CORREO_KEY, sesion.correo]);
-  if (sesion.rol !== undefined && sesion.rol !== null) pares.push([ROL_KEY, sesion.rol]);
   await AsyncStorage.multiSet(pares);
 }
 

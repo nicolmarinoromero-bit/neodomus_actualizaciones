@@ -6,14 +6,12 @@
 // contraseña. Sesión persistente real contra el backend.
 // ─────────────────────────────────────────────────────────────
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import * as AuthSession from "expo-auth-session";
-import * as Crypto from "expo-crypto";
-import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import AuthScreen from "@/components/auth/AuthScreen";
@@ -22,20 +20,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/services/api";
 import { solicitarHabilitacion } from "@/services/auth.services";
 
-WebBrowser.maybeCompleteAuthSession();
-
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 const CLAVE_RECORDAR = "neodomus_remembered_email";
-
-const discovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-};
 
 export default function LoginScreen() {
   const { redirigirA } = useLocalSearchParams<{ redirigirA?: string }>();
   const { iniciarSesion, iniciarSesionGoogle } = useAuth();
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: GOOGLE_WEB_CLIENT_ID,
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,21 +43,35 @@ export default function LoginScreen() {
   const [mensajeHabilitacion, setMensajeHabilitacion] = useState<string | null>(null);
   const [cargandoGoogle, setCargandoGoogle] = useState(false);
 
-  const [nonce] = useState(() => Crypto.randomUUID());
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    GOOGLE_WEB_CLIENT_ID
-      ? {
-          clientId: GOOGLE_WEB_CLIENT_ID,
-          redirectUri: AuthSession.makeRedirectUri({ scheme: "movil" }),
-          scopes: ["openid", "profile", "email"],
-          responseType: "id_token",
-          usePKCE: false,
-          nonce,
-        }
-      : (null as any),
-    GOOGLE_WEB_CLIENT_ID ? discovery : null,
-  );
+  useEffect(() => {
+    if (response?.type === "success") {
+      const idToken = response.authentication?.idToken;
+      if (idToken) {
+        setCargandoGoogle(true);
+        setError(null);
+        iniciarSesionGoogle(idToken)
+          .then(async () => {
+            const { obtenerSesion } = await import("@/services/storage");
+            const sesion = await obtenerSesion();
+            const rol = (sesion?.rol || "").toLowerCase();
+            if (rol === "tecnico") {
+              router.replace("/(tecnico)" as Href);
+            } else if (rol === "admin" || rol === "administrador") {
+              router.replace((redirigirA ?? "/(tabs)/productos") as Href);
+            } else {
+              router.replace((redirigirA ?? "/(tabs)/productos") as Href);
+            }
+          })
+          .catch((e) => {
+            const detail = e instanceof Error ? e.message : "Error al iniciar sesión con Google";
+            setError(detail);
+          })
+          .finally(() => setCargandoGoogle(false));
+      }
+    } else if (response?.type === "error") {
+      setError("Error al autenticar con Google.");
+    }
+  }, [response, iniciarSesionGoogle, redirigirA]);
 
   // Cargar email recordado (igual que la web: solo el email).
   useEffect(() => {
@@ -106,7 +114,6 @@ export default function LoginScreen() {
       if (rol === "tecnico") {
         router.replace("/(tecnico)" as Href);
       } else if (rol === "admin" || rol === "administrador") {
-        // Admin sigue en flujo cliente por ahora (podría ir a /admin)
         router.replace((redirigirA ?? "/(tabs)/productos") as Href);
       } else {
         router.replace((redirigirA ?? "/(tabs)/productos") as Href);
@@ -150,56 +157,6 @@ export default function LoginScreen() {
       setEnviandoHabilitacion(false);
     }
   };
-
-  const manejarExitoGoogle = useCallback(async (idToken: string) => {
-    setCargandoGoogle(true);
-    setError(null);
-    setCuentaInhabilitada(false);
-    setEmailSinVerificar(false);
-    setMensajeHabilitacion(null);
-    try {
-      await iniciarSesionGoogle(idToken);
-
-      const { obtenerSesion } = await import("@/services/storage");
-      const sesion = await obtenerSesion();
-      const rol = (sesion?.rol || "").toLowerCase();
-      if (rol === "tecnico") {
-        router.replace("/(tecnico)" as Href);
-      } else if (rol === "admin" || rol === "administrador") {
-        router.replace((redirigirA ?? "/(tabs)/productos") as Href);
-      } else {
-        router.replace((redirigirA ?? "/(tabs)/productos") as Href);
-      }
-    } catch (e) {
-      const status = e instanceof ApiError ? e.status : 0;
-      const detail =
-        e instanceof Error ? e.message : "Error al iniciar sesión con Google";
-
-      if (status === 403 && detail.toLowerCase().includes("inhabilitada")) {
-        setCuentaInhabilitada(true);
-        setError(detail);
-      } else {
-        setError(detail);
-      }
-    } finally {
-      setCargandoGoogle(false);
-    }
-  }, [iniciarSesionGoogle, redirigirA]);
-
-  // Manejar respuesta de Google
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      if (id_token) {
-        manejarExitoGoogle(id_token);
-      }
-    } else if (response?.type === "error") {
-      setError("Error al iniciar sesión con Google. Intenta de nuevo.");
-      setCargandoGoogle(false);
-    } else if (response?.type === "cancel" || response?.type === "dismiss") {
-      setCargandoGoogle(false);
-    }
-  }, [response, manejarExitoGoogle]);
 
   return (
     <AuthScreen>
@@ -336,10 +293,13 @@ export default function LoginScreen() {
           style={({ pressed }) => [
             styles.botonGoogle,
             pressed && styles.presionado,
-            (!request || cargandoGoogle) && styles.deshabilitado,
+            (cargandoGoogle || !request) && styles.deshabilitado,
           ]}
-          onPress={() => void promptAsync()}
-          disabled={!request || cargandoGoogle}
+          onPress={() => {
+            setError(null);
+            promptAsync();
+          }}
+          disabled={cargandoGoogle || !request}
         >
           <FontAwesome6 name="google" size={16} color="#4285f4" />
           <Text style={styles.textoBotonGoogle}>

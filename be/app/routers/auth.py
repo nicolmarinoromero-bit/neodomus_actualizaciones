@@ -1,4 +1,8 @@
+import secrets
+import json
+import urllib.parse
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -20,6 +24,7 @@ from app.services.auth_service import (
     reset_password,
     solicitar_habilitacion,
     google_login,
+    google_login_with_code,
     request_email_change,
     verify_email_change,
 )
@@ -32,6 +37,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     VerifyCodeRequest,
     GoogleLoginRequest,
+    GoogleCodeRequest,
     RequestEmailChangeRequest,
     VerifyEmailChangeRequest,
 )
@@ -42,7 +48,10 @@ from app.utils.security import (
     REFRESH_COOKIE_NAME,
     ACCESS_COOKIE_NAME,
     decode_token,
+    create_access_token,
+    create_refresh_token,
 )
+from app.config import settings
 from app.middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -92,6 +101,161 @@ def google_login_endpoint(response: Response, req: GoogleLoginRequest, db: Sessi
     result = google_login(db, req.credential)
     set_auth_cookies(response, result.access_token, result.refresh_token)
     return result
+
+@router.post("/google-code", response_model=TokenResponse)
+def google_code_endpoint(response: Response, req: GoogleCodeRequest, db: Session = Depends(get_db)):
+    """Intercambia un authorization code de Google por tokens de sesión.
+    Usado por el móvil (Expo Go) que no puede hacer el intercambio directo."""
+    result = google_login_with_code(db, req.code, req.redirect_uri)
+    set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
+
+@router.get("/google-start")
+async def google_start(request: Request):
+    """Redirige al navegador del usuario a la pantalla de consentimiento de Google.
+    El redirect_uri apunta a nuestro propio /auth/google-callback (flujo server-side).
+    Usado por Expo Go que no puede manejar exp:// redirect URIs."""
+    if not settings.GOOGLE_SIGNIN_CLIENT_ID:
+        raise HTTPException(500, "GOOGLE_SIGNIN_CLIENT_ID no configurado")
+
+    state = secrets.token_urlsafe(32)
+
+    if settings.GOOGLE_OAUTH_REDIRECT_BASE:
+        base_url = settings.GOOGLE_OAUTH_REDIRECT_BASE.rstrip("/")
+    else:
+        base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/api/v1/auth/google-callback"
+
+    params = {
+        "client_id": settings.GOOGLE_SIGNIN_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+    }
+    google_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
+    return RedirectResponse(url=google_url)
+
+
+@router.get("/google-callback")
+async def google_callback(request: Request, code: str = None, state: str = None, error: str = None):
+    """Callback de Google OAuth. Intercambia el authorization code por tokens,
+    crea la sesión JWT y redirige de vuelta a la app móvil con los tokens como query params."""
+    if error:
+        return HTMLResponse(content=_deeplink_error_html(f"Error de Google: {error}"), status_code=400)
+    if not code:
+        return HTMLResponse(content=_deeplink_error_html("No se recibió código de autorización"), status_code=400)
+
+    import requests as _requests
+
+    if not settings.GOOGLE_SIGNIN_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        return HTMLResponse(content=_deeplink_error_html("Google OAuth no configurado en el servidor"), status_code=500)
+
+    from app.database import SessionLocal
+    from app.services.auth_service import google_login_with_code
+
+    if settings.GOOGLE_OAUTH_REDIRECT_BASE:
+        base_url = settings.GOOGLE_OAUTH_REDIRECT_BASE.rstrip("/")
+    else:
+        base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/api/v1/auth/google-callback"
+
+    db = SessionLocal()
+    try:
+        result = google_login_with_code(db, code, redirect_uri)
+    except Exception as e:
+        return HTMLResponse(content=_deeplink_error_html(str(e)), status_code=400)
+    finally:
+        db.close()
+
+    access_token = result.access_token
+    refresh_token = result.refresh_token
+    rol = result.rol or ""
+
+    params = urllib.parse.urlencode({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "rol": rol,
+    })
+    deeplink = f"movil://auth?{params}"
+
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Neodomus</title></head>
+<body>
+<script>window.location.replace('{deeplink}');</script>
+</body></html>""", status_code=200)
+
+
+def _deeplink_success_html(deeplink: str) -> str:
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Neodomus</title>
+<style>
+  body {{ font-family: -apple-system, sans-serif; display: flex; justify-content: center;
+         align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }}
+  .card {{ background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+           text-align: center; max-width: 320px; }}
+  .check {{ font-size: 3rem; margin-bottom: 1rem; }}
+  h2 {{ margin: 0 0 0.5rem; color: #1a1a1a; }}
+  p {{ color: #666; margin: 0 0 1rem; }}
+  a {{ color: #007AFF; text-decoration: none; font-weight: 600; }}
+</style></head>
+<body>
+  <div class="card">
+    <div class="check">&#10004;</div>
+    <h2>Sesi&oacute;n iniciada</h2>
+    <p>Ya puedes volver a la app.</p>
+  </div>
+</body></html>"""
+
+
+def _deeplink_error_html(msg: str) -> str:
+    safe = msg.replace("<", "&lt;").replace(">", "&gt;")
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Neodomus — Error</title>
+<style>
+  body {{ font-family: -apple-system, sans-serif; display: flex; justify-content: center;
+         align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }}
+  .card {{ background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+           text-align: center; max-width: 320px; }}
+  .err {{ font-size: 3rem; margin-bottom: 1rem; }}
+  h2 {{ margin: 0 0 0.5rem; color: #c0392b; }}
+  p {{ color: #666; margin: 0 0 1rem; }}
+  a {{ color: #007AFF; text-decoration: none; font-weight: 600; }}
+</style></head>
+<body>
+  <div class="card">
+    <div class="err">&#10060;</div>
+    <h2>Error de autenticaci&oacute;n</h2>
+    <p>{safe}</p>
+    <a href="movil://auth?error=1">Volver a la app</a>
+  </div>
+  <script>setTimeout(function(){{ window.location.href = 'movil://auth?error=1'; }}, 2000);</script>
+</body></html>"""
+
+
+@router.get("/google-result")
+async def google_result(
+    access_token: str = None,
+    refresh_token: str = None,
+    rol: str = "",
+    error: str = None,
+):
+    """Endpoint intermediario al que Google-callback redirige con los tokens
+    como query params. Devuelve HTML con un JSON embebido que el móvil
+    extrae del resultado de openAuthSessionAsync."""
+    if error:
+        return HTMLResponse(content=f"<html><body>Error: {error}</body></html>", status_code=400)
+    if not access_token or not refresh_token:
+        return HTMLResponse(content="<html><body>No se recibieron tokens</body></html>", status_code=400)
+
+    data = json.dumps({"access_token": access_token, "refresh_token": refresh_token, "rol": rol or ""})
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>AuthOK</title></head>
+<body><script>window.__NEODOMUS_AUTH__={data};</script><p>Sesion iniciada. Puedes cerrar esta ventana.</p></body>
+</html>""", status_code=200)
+
 
 @router.post("/solicitar-habilitacion")
 @limiter.limit("5/minute")

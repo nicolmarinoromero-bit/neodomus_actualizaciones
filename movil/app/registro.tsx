@@ -5,7 +5,7 @@
 // Al éxito → verificar-correo (el backend envía el código real).
 // ─────────────────────────────────────────────────────────────
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -13,8 +13,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import * as Google from "expo-auth-session/providers/google";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import AuthScreen from "@/components/auth/AuthScreen";
@@ -22,6 +23,7 @@ import PasswordChecklist from "@/components/auth/PasswordChecklist";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { registrarCliente } from "@/services/auth.services";
 import { ApiError } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   REGIONES_COLOMBIA,
   TIPOS_DOCUMENTO,
@@ -30,7 +32,45 @@ import {
   limpiarNumerico,
 } from "@/utils/validaciones";
 
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
+
 export default function RegistroScreen() {
+  const { iniciarSesionGoogle } = useAuth();
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: GOOGLE_WEB_CLIENT_ID,
+  });
+  const [cargandoGoogle, setCargandoGoogle] = useState(false);
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const idToken = response.authentication?.idToken;
+      if (idToken) {
+        setCargandoGoogle(true);
+        setError(null);
+        iniciarSesionGoogle(idToken)
+          .then(async () => {
+            const { obtenerSesion } = await import("@/services/storage");
+            const sesion = await obtenerSesion();
+            const rol = (sesion?.rol || "").toLowerCase();
+            if (rol === "tecnico") {
+              router.replace("/(tecnico)" as Href);
+            } else if (rol === "admin" || rol === "administrador") {
+              router.replace("/(tabs)/productos" as Href);
+            } else {
+              router.replace("/(tabs)/productos" as Href);
+            }
+          })
+          .catch((e) => {
+            const detail = e instanceof Error ? e.message : "Error al registrar con Google";
+            setError(detail);
+          })
+          .finally(() => setCargandoGoogle(false));
+      }
+    } else if (response?.type === "error") {
+      setError("Error al autenticar con Google.");
+    }
+  }, [response, iniciarSesionGoogle]);
+
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [tipoDocumento, setTipoDocumento] = useState("1");
@@ -299,6 +339,34 @@ export default function RegistroScreen() {
           <Text style={styles.textoBoton}>{cargando ? "Registrando..." : "Registrarse"}</Text>
         </Pressable>
 
+        {/* ── Divider ── */}
+        <View style={styles.divisorFila}>
+          <View style={styles.lineaDivisora} />
+          <Text style={styles.textoDivisor}>o</Text>
+          <View style={styles.lineaDivisora} />
+        </View>
+
+        {/* ── Google Register ── */}
+        {GOOGLE_WEB_CLIENT_ID ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.botonGoogle,
+              pressed && styles.presionado,
+              (cargandoGoogle || !request) && styles.deshabilitado,
+            ]}
+            onPress={() => {
+              setError(null);
+              promptAsync();
+            }}
+            disabled={cargandoGoogle || !request}
+          >
+            <FontAwesome6 name="google" size={16} color="#4285f4" />
+            <Text style={styles.textoBotonGoogle}>
+              {cargandoGoogle ? "Conectando..." : "Registrarse con Google"}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.filaRegistro}>
           <Text style={styles.textoRegistro}>¿Ya tienes una cuenta?</Text>
           <Pressable onPress={() => router.replace("/login")}>
@@ -506,5 +574,30 @@ const styles = StyleSheet.create({
     color: C.oroSuave,
     fontSize: 13.5,
     fontFamily: FontFamilies.bodyBold,
+  },
+
+  divisorFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    gap: 10,
+  },
+  lineaDivisora: { flex: 1, height: 1, backgroundColor: "#444" },
+  textoDivisor: { color: "#888", fontSize: 13 },
+
+  botonGoogle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: 14,
+  },
+  textoBotonGoogle: {
+    color: "#333",
+    fontFamily: FontFamilies.bodyBold,
+    fontSize: 14,
   },
 });

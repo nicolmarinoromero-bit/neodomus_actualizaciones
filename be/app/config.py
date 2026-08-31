@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REFRESH_TOKEN: str = ""
     GOOGLE_SIGNIN_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_REDIRECT_BASE: str = ""
 
     # --- Pasarela de pagos ---
     # PAYMENT_PROVIDER="simulator" (por defecto): simulador académico local,

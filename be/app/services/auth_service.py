@@ -677,3 +677,32 @@ def google_login(db: Session, credential: str) -> TokenResponse:
     respuesta = _create_tokens(new_client.id_cliente, email, "client", rol="cliente")
     respuesta.perfil_incompleto = True
     return respuesta
+
+
+def google_login_with_code(db: Session, code: str, redirect_uri: str) -> TokenResponse:
+    """Intercambia un authorization code de Google por un ID token y delega
+    en google_login. Requiere GOOGLE_SIGNIN_CLIENT_ID y GOOGLE_CLIENT_SECRET."""
+    import requests as _requests
+
+    if not settings.GOOGLE_SIGNIN_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="GOOGLE_SIGNIN_CLIENT_ID no configurado")
+    if not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_SECRET no configurado en .env")
+
+    token_url = "https://oauth2.googleapis.com/token"
+    payload = {
+        "code": code,
+        "client_id": settings.GOOGLE_SIGNIN_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }
+    resp = _requests.post(token_url, data=payload, timeout=15)
+    if resp.status_code != 200:
+        error_detail = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"raw": resp.text[:500]}
+        raise HTTPException(status_code=401, detail=f"Error al intercambiar código de Google: {error_detail}")
+    data = resp.json()
+    id_token = data.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=401, detail="Google no devolvió id_token")
+    return google_login(db, id_token)

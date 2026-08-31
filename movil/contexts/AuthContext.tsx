@@ -22,6 +22,7 @@ import {
   cerrarSesionBackend,
   iniciarSesion as iniciarSesionApi,
   googleLogin as googleLoginApi,
+  googleLoginWithCode as googleLoginWithCodeApi,
 } from "@/services/auth.services";
 import { apiFetch } from "@/services/api";
 import {
@@ -60,6 +61,8 @@ interface AuthContextValue {
   setAvatar: (dataUrl: string | null) => void;
   iniciarSesion: (email: string, password: string) => Promise<void>;
   iniciarSesionGoogle: (credential: string) => Promise<void>;
+  iniciarSesionGoogleCode: (code: string, redirectUri: string) => Promise<void>;
+  procesarTokensGoogle: (accessToken: string, refreshToken: string, rol?: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
   /**
    * Reconsulta el perfil del usuario autenticado (GET /clients/me o
@@ -178,15 +181,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const respuesta = await googleLoginApi(credential);
     const rol = (respuesta as any).rol || (respuesta as any).role || null;
 
+    // Guardar sesión PRIMERO para que construirUsuario pueda usar el token
+    // al consultar /clients/me o /users/me.
+    await guardarSesion({
+      accessToken: respuesta.access_token,
+      refreshToken: respuesta.refresh_token,
+      userType: respuesta.user_type,
+      correo: "",
+      rol: rol ?? undefined,
+    });
+
     const perfil = await construirUsuario("", respuesta.user_type, rol);
+
+    // Actualizar sesión con el correo real obtenido del perfil.
+    if (perfil.correo) {
+      await guardarSesion({
+        accessToken: respuesta.access_token,
+        refreshToken: respuesta.refresh_token,
+        userType: respuesta.user_type,
+        correo: perfil.correo,
+        rol: rol ?? undefined,
+      });
+    }
+
+    setUsuario(perfil);
+  }, []);
+
+  const iniciarSesionGoogleCode = useCallback(async (code: string, redirectUri: string) => {
+    const respuesta = await googleLoginWithCodeApi(code, redirectUri);
+    const rol = (respuesta as any).rol || (respuesta as any).role || null;
 
     await guardarSesion({
       accessToken: respuesta.access_token,
       refreshToken: respuesta.refresh_token,
       userType: respuesta.user_type,
-      correo: perfil.correo,
+      correo: "",
       rol: rol ?? undefined,
     });
+
+    const perfil = await construirUsuario("", respuesta.user_type, rol);
+
+    if (perfil.correo) {
+      await guardarSesion({
+        accessToken: respuesta.access_token,
+        refreshToken: respuesta.refresh_token,
+        userType: respuesta.user_type,
+        correo: perfil.correo,
+        rol: rol ?? undefined,
+      });
+    }
+
+    setUsuario(perfil);
+  }, []);
+
+  /** Recibe tokens directamente desde un deep link (flujo backend-mediated). */
+  const procesarTokensGoogle = useCallback(async (accessToken: string, refreshToken: string, rol?: string) => {
+    await guardarSesion({
+      accessToken,
+      refreshToken,
+      userType: "client",
+      correo: "",
+      rol: rol ?? undefined,
+    });
+
+    const perfil = await construirUsuario("", "client", rol);
+
+    if (perfil.correo) {
+      await guardarSesion({
+        accessToken,
+        refreshToken,
+        userType: perfil.userType ?? "client",
+        correo: perfil.correo,
+        rol: rol ?? undefined,
+      });
+    }
 
     setUsuario(perfil);
   }, []);
@@ -230,10 +298,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAvatar,
       iniciarSesion,
       iniciarSesionGoogle,
+      iniciarSesionGoogleCode,
+      procesarTokensGoogle,
       cerrarSesion,
       actualizarUsuario,
     }),
-    [cargando, usuario, avatar, setAvatar, iniciarSesion, iniciarSesionGoogle, cerrarSesion, actualizarUsuario],
+    [cargando, usuario, avatar, setAvatar, iniciarSesion, iniciarSesionGoogle, iniciarSesionGoogleCode, procesarTokensGoogle, cerrarSesion, actualizarUsuario],
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;

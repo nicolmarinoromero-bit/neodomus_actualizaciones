@@ -79,6 +79,13 @@ export const googleLogin = (credential: string) =>
     body: json({ credential }),
   });
 
+/** Login con Google via authorization code: envía el código al backend para intercambiarlo por tokens. */
+export const googleLoginWithCode = (code: string, redirect_uri: string) =>
+  apiFetch<TokenResponse>("/auth/google-code", {
+    method: "POST",
+    body: json({ code, redirect_uri }),
+  });
+
 /** Cuenta inhabilitada por administrador (la web lo ofrece desde el login). */
 export const solicitarHabilitacion = (email: string, password: string) =>
   apiFetch<Record<string, unknown>>("/auth/solicitar-habilitacion", {

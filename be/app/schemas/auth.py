@@ -99,3 +99,7 @@ class MessageResponse(BaseModel):
 
 class GoogleLoginRequest(BaseModel):
     credential: str
+
+class GoogleCodeRequest(BaseModel):
+    code: str
+    redirect_uri: str
