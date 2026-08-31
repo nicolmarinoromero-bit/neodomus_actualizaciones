@@ -4,8 +4,9 @@
 // Al abrir la pantalla se marcan como leídas con el endpoint EXISTENTE
 // del backend (PATCH /notificaciones/leer-todas): así nunca aparecen
 // indicadores de "no leídas" falsos ni persistentes.
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 import AppScreen from "@/components/app/AppScreen";
 import { FontFamilies } from "@/constants/theme";
@@ -17,32 +18,43 @@ import {
 } from "@/services/cliente.services";
 
 const TIPOS_CLIENTE = ["reembolso", "entrega", "producto", "promocion"];
+const INTERVALO_POLLING_MS = 30_000;
 
 export default function NotificacionesScreen() {
   const [lista, setLista] = useState<Notificacion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    let activo = true;
-    listarNotificaciones()
-      .then(async (todas) => {
-        if (!activo) return;
-        setLista(todas.filter((n) => TIPOS_CLIENTE.includes(n.tipo)));
-        // Marcar todas como leídas (backend del usuario autenticado).
-        // Mejor esfuerzo: si falla, el listado se muestra igual.
-        await marcarNotificacionesLeidas().catch(() => {});
-        if (!activo) return;
-        setLista((prev) => prev.map((n) => ({ ...n, leida: true })));
-      })
-      .catch((e) =>
-        setError(e instanceof ApiError ? e.message : "Error al cargar notificaciones."),
-      )
-      .finally(() => activo && setCargando(false));
-    return () => {
-      activo = false;
-    };
+  const cargar = useCallback(async () => {
+    try {
+      const todas = await listarNotificaciones();
+      setLista(todas.filter((n) => TIPOS_CLIENTE.includes(n.tipo)));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Error al cargar notificaciones.");
+    } finally {
+      setCargando(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+      intervaloRef.current = setInterval(() => void cargar(), INTERVALO_POLLING_MS);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
+    }, [cargar]),
+  );
+
+  // Marcar todas como leídas al abrir la pantalla.
+  useEffect(() => {
+    if (!cargando && lista.length > 0) {
+      marcarNotificacionesLeidas().catch(() => {});
+      setLista((prev) => prev.map((n) => ({ ...n, leida: true })));
+    }
+  }, [cargando, lista.length]);
 
   return (
     <AppScreen titulo="Notificaciones">

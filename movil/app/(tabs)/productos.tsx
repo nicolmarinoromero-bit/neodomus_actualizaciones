@@ -108,6 +108,7 @@ export default function ProductosScreen() {
 
   // Al volver a Productos tras una compra exitosa, recargar stock real del backend
   // sin mostrar spinner (silencioso). Esto evita que el usuario vea cantidades antiguas.
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
     useCallback(() => {
       void (async () => {
@@ -116,6 +117,15 @@ export default function ProductosScreen() {
           setProductos(res.data ?? []);
         } catch {}
       })();
+      intervaloRef.current = setInterval(async () => {
+        try {
+          const res = await listarProductos();
+          setProductos(res.data ?? []);
+        } catch {}
+      }, 30_000);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
     }, []),
   );
 

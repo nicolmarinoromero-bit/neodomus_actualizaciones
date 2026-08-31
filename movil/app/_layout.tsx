@@ -1,6 +1,7 @@
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
+import { Linking } from "react-native";
 import {
   useFonts,
   Inter_400Regular,
@@ -38,7 +39,7 @@ function ArbolFavoritos({ children }: { children: React.ReactNode }) {
 }
 
 function NavegacionRaiz() {
-  const { cargando, usuario } = useAuth();
+  const { cargando, usuario, procesarTokensGoogle } = useAuth();
   const router = useRouter();
   const segments = useSegments() as string[];
   const [fuentesCargadas] = useFonts({
@@ -48,6 +49,44 @@ function NavegacionRaiz() {
     Inter_900Black,
     Montserrat_600SemiBold,
   });
+
+  // Escuchar deep links (movil://auth?access_token=...&refresh_token=...&rol=...)
+  useEffect(() => {
+    const manejarDeepLink = async (url: string) => {
+      if (!url.startsWith("movil://auth")) return;
+
+      const parsed = new URL(url);
+      const accessToken = parsed.searchParams.get("access_token");
+      const refreshToken = parsed.searchParams.get("refresh_token");
+      const rol = parsed.searchParams.get("rol") ?? undefined;
+
+      if (!accessToken || !refreshToken) return;
+
+      try {
+        await procesarTokensGoogle(accessToken, refreshToken, rol);
+        const rolLower = (rol || "").toLowerCase();
+        if (rolLower === "tecnico") {
+          router.replace("/(tecnico)" as any);
+        } else {
+          router.replace("/(tabs)/productos" as any);
+        }
+      } catch {
+        // Error procesando tokens del deep link
+      }
+    };
+
+    // Escuchar cuando la app ya está abierta y recibe un deep link
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      manejarDeepLink(url);
+    });
+
+    // Escuchar cuando la app se abre desde un deep link (estaba cerrada)
+    Linking.getInitialURL().then((url) => {
+      if (url) manejarDeepLink(url);
+    });
+
+    return () => subscription?.remove();
+  }, [procesarTokensGoogle, router]);
 
   // Redirección automática por rol (igual que web RoleRoute)
   useEffect(() => {

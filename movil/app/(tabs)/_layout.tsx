@@ -132,6 +132,7 @@ export default function TabLayout() {
       <Tabs.Screen name="mis-tecnicos" options={{ href: null }} />
       <Tabs.Screen name="favoritos" options={{ href: null }} />
       <Tabs.Screen name="reembolsos" options={{ href: null }} />
+      <Tabs.Screen name="solicitar-devolucion" options={{ href: null }} />
       <Tabs.Screen name="resenas" options={{ href: null }} />
       <Tabs.Screen name="checkout" options={{ href: null }} />
 

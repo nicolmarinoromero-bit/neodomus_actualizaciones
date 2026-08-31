@@ -16,6 +16,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { DeviceEventEmitter } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
@@ -24,7 +25,7 @@ import {
   googleLogin as googleLoginApi,
   googleLoginWithCode as googleLoginWithCodeApi,
 } from "@/services/auth.services";
-import { apiFetch } from "@/services/api";
+import { apiFetch, SESION_EXPIRADA_EVENTO } from "@/services/api";
 import {
   borrarSesion,
   guardarSesion,
@@ -159,6 +160,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       activo = false;
     };
+  }, []);
+
+  // Si api.ts detecta una sesión inválida (cuenta inhabilitada, token
+  // caducado sin refresh posible), limpia el estado React de inmediato
+  // para que la UI reaccione (redirigir a login, mostrar invitado, etc.).
+  useEffect(() => {
+    const suscripcion = DeviceEventEmitter.addListener(SESION_EXPIRADA_EVENTO, () => {
+      setUsuario(null);
+    });
+    return () => suscripcion.remove();
   }, []);
 
   const iniciarSesion = useCallback(async (email: string, password: string) => {

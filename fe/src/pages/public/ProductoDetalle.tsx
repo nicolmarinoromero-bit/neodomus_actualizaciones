@@ -5,6 +5,7 @@ import api from '@services/api';
 import { useCart } from '@contexts/CartContext';
 import { useFavoritos } from '@utils/favoritos';
 import { useIdioma } from '@i18n/IdiomaContext';
+import ProductoCard from '@components/productos/ProductoCard';
 import '@styles/producto-detalle.css';
 
 interface Producto {
@@ -155,11 +156,12 @@ const ProductoDetalle = () => {
   const [color, setColor] = useState('');
   const [tamano, setTamano] = useState('');
   const [cantidad, setCantidad] = useState(1);
-  const [displayValue, setDisplayValue] = useState('');
+  const [displayValue, setDisplayValue] = useState<string | undefined>(undefined);
   const [metros, setMetros] = useState(10);
   const [unidadesMetros, setUnidadesMetros] = useState(1);
   const [displayUnidades, setDisplayUnidades] = useState('');
   const [toast, setToast] = useState('');
+  const [recomendados, setRecomendados] = useState<Producto[]>([]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -211,6 +213,8 @@ const ProductoDetalle = () => {
       }
     };
     fetchProducto();
+    setCantidad(1);
+    setDisplayValue(undefined);
   }, [id]);
 
   useEffect(() => {
@@ -229,6 +233,38 @@ const ProductoDetalle = () => {
       window.clearInterval(interval);
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!producto) return;
+    const fetchRecomendados = async () => {
+      try {
+        const res = await api.get('/productos/?limit=100');
+        const todos = res.data as Producto[];
+        const mismos = todos.filter(
+          (p) =>
+            p.id_producto !== producto.id_producto &&
+            p.id_cate_pr === producto.id_cate_pr &&
+            p.stock_producto != null &&
+            p.stock_producto > 0,
+        );
+        if (mismos.length >= 4) {
+          setRecomendados(mismos.slice(0, 4));
+        } else {
+          const otros = todos.filter(
+            (p) =>
+              p.id_producto !== producto.id_producto &&
+              p.id_cate_pr !== producto.id_cate_pr &&
+              p.stock_producto != null &&
+              p.stock_producto > 0,
+          );
+          setRecomendados([...mismos, ...otros].slice(0, 4));
+        }
+      } catch {
+        // Silenciar errores de recomendaciones
+      }
+    };
+    fetchRecomendados();
+  }, [producto]);
 
   useEffect(() => {
     if (producto) {
@@ -661,7 +697,7 @@ const ProductoDetalle = () => {
                       type="text"
                       inputMode="numeric"
                       className="cantidad-input"
-                      value={displayValue || String(cantidad)}
+                      value={displayValue !== undefined ? displayValue : String(cantidad)}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, '');
                         setDisplayValue(val);
@@ -673,7 +709,13 @@ const ProductoDetalle = () => {
                         } else {
                           setCantidad(num > stockDisponible ? stockDisponible : num);
                         }
-                        setDisplayValue('');
+                        setDisplayValue(undefined);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          (e.target as HTMLInputElement).blur();
+                        }
                       }}
                       aria-label="Cantidad"
                     />
@@ -780,6 +822,17 @@ const ProductoDetalle = () => {
             </div>
           </div>
         </div>
+
+        {recomendados.length > 0 && (
+          <section className="detalle-recomendados">
+            <h2 className="detalle-recomendados-titulo">Más recomendados para ti</h2>
+            <div className="detalle-recomendados-grid">
+              {recomendados.map((p) => (
+                <ProductoCard key={p.id_producto} producto={p} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

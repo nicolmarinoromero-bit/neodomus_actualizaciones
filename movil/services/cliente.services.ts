@@ -456,3 +456,73 @@ export const crearPedido = (payload: {
     ordenes_instalacion?: Record<string, unknown>[];
     entrega?: Record<string, unknown>;
   }>("/pedidos", { method: "POST", body: JSON.stringify(payload) });
+
+// ── Devoluciones ──────────────────────────────────────────────
+
+export interface ProductoElegible {
+  id_detalle: number;
+  id_producto: number;
+  nombre: string;
+  cantidad_comprada: number;
+  cantidad_disponible: number;
+  precio_unitario: number;
+  monto_maximo: number;
+}
+
+export interface ElegibilidadDevolucion {
+  elegible: boolean;
+  razon?: string | null;
+  pedido: { id_pedido: number; total: number; estado_entrega: string };
+  productos: ProductoElegible[];
+  motivos: { key: string; label: string }[];
+}
+
+export const verificarElegibilidadDevolucion = (idPedido: number) =>
+  apiFetch<ElegibilidadDevolucion>(`/devoluciones/elegibilidad/${idPedido}`);
+
+export interface ItemDevolucion {
+  id_producto: number;
+  cantidad: number;
+}
+
+export const solicitarDevolucion = (data: {
+  id_pedido: number;
+  items: ItemDevolucion[];
+  motivo_tipo: string;
+  motivo_otro?: string;
+  comentario?: string;
+}) =>
+  apiFetch("/devoluciones/solicitudes", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export interface SolicitudDevolucion {
+  id_solicitud: number;
+  numero: string;
+  id_pedido: number;
+  estado: string;
+  resolucion?: string | null;
+  motivo_tipo?: string | null;
+  motivo_label?: string | null;
+  motivo_rechazo?: string | null;
+  monto_total?: number;
+  comentario?: string | null;
+  created_at: string;
+  lineas?: {
+    id_producto: number;
+    nombre_producto: string;
+    cantidad: number;
+    precio_unitario: number;
+    subtotal: number;
+  }[];
+}
+
+export const listarMisSolicitudesDevolucion = () =>
+  apiFetch<SolicitudDevolucion[]>("/devoluciones/mis-solicitudes");
+
+export const solicitarReembolsoPedido = (idPedido: number, motivo?: string) =>
+  apiFetch(`/reembolsos/pedido/${idPedido}`, {
+    method: "POST",
+    body: JSON.stringify({ motivo }),
+  });

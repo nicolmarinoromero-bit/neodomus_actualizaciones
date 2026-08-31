@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import AuthScreen from "@/components/auth/AuthScreen";
@@ -19,17 +19,12 @@ import PasswordInput from "@/components/auth/PasswordInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/services/api";
 import { solicitarHabilitacion } from "@/services/auth.services";
-
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
+import { BACKEND_HOST_URL } from "@/constants/api";
 const CLAVE_RECORDAR = "neodomus_remembered_email";
 
 export default function LoginScreen() {
   const { redirigirA } = useLocalSearchParams<{ redirigirA?: string }>();
-  const { iniciarSesion, iniciarSesionGoogle } = useAuth();
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_WEB_CLIENT_ID,
-  });
+  const { iniciarSesion } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,35 +38,18 @@ export default function LoginScreen() {
   const [mensajeHabilitacion, setMensajeHabilitacion] = useState<string | null>(null);
   const [cargandoGoogle, setCargandoGoogle] = useState(false);
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const idToken = response.authentication?.idToken;
-      if (idToken) {
-        setCargandoGoogle(true);
-        setError(null);
-        iniciarSesionGoogle(idToken)
-          .then(async () => {
-            const { obtenerSesion } = await import("@/services/storage");
-            const sesion = await obtenerSesion();
-            const rol = (sesion?.rol || "").toLowerCase();
-            if (rol === "tecnico") {
-              router.replace("/(tecnico)" as Href);
-            } else if (rol === "admin" || rol === "administrador") {
-              router.replace((redirigirA ?? "/(tabs)/productos") as Href);
-            } else {
-              router.replace((redirigirA ?? "/(tabs)/productos") as Href);
-            }
-          })
-          .catch((e) => {
-            const detail = e instanceof Error ? e.message : "Error al iniciar sesión con Google";
-            setError(detail);
-          })
-          .finally(() => setCargandoGoogle(false));
-      }
-    } else if (response?.type === "error") {
-      setError("Error al autenticar con Google.");
+  const iniciarSesionGoogleNavegador = async () => {
+    setCargandoGoogle(true);
+    setError(null);
+    try {
+      const url = `${BACKEND_HOST_URL}/api/v1/auth/google-start`;
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      setError("No se pudo abrir el navegador para autenticar con Google.");
+    } finally {
+      setCargandoGoogle(false);
     }
-  }, [response, iniciarSesionGoogle, redirigirA]);
+  };
 
   // Cargar email recordado (igual que la web: solo el email).
   useEffect(() => {
@@ -288,25 +266,20 @@ export default function LoginScreen() {
       </View>
 
       {/* ── Google Login ── */}
-      {GOOGLE_WEB_CLIENT_ID ? (
-        <Pressable
-          style={({ pressed }) => [
-            styles.botonGoogle,
-            pressed && styles.presionado,
-            (cargandoGoogle || !request) && styles.deshabilitado,
-          ]}
-          onPress={() => {
-            setError(null);
-            promptAsync();
-          }}
-          disabled={cargandoGoogle || !request}
-        >
+      <Pressable
+        style={({ pressed }) => [
+          styles.botonGoogle,
+          pressed && styles.presionado,
+          cargandoGoogle && styles.deshabilitado,
+        ]}
+        onPress={() => void iniciarSesionGoogleNavegador()}
+        disabled={cargandoGoogle}
+      >
           <FontAwesome6 name="google" size={16} color="#4285f4" />
           <Text style={styles.textoBotonGoogle}>
             {cargandoGoogle ? "Conectando..." : "Continuar con Google"}
           </Text>
         </Pressable>
-      ) : null}
 
       <View style={styles.filaRegistro}>
         <Text style={styles.textoRegistro}>¿No tienes una cuenta?</Text>

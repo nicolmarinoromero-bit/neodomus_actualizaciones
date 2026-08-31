@@ -1,9 +1,9 @@
 // Mis pedidos — réplica de OrdersTab (WEB):
 // GET /pedidos/mis-pedidos, acordeón de detalle, confirmar pago
 // pendiente, rastrear pedido y descargar factura PDF real.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import AppScreen from "@/components/app/AppScreen";
@@ -44,9 +44,17 @@ export default function PedidosScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void cargar();
-  }, [cargar]);
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+      intervaloRef.current = setInterval(() => void cargar(), 30_000);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
+    }, [cargar]),
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -188,6 +196,16 @@ export default function PedidosScreen() {
                   >
                     <FontAwesome6 name="file-pdf" size={13} color="#f0c96f" />
                     <Text style={S.textoOutline}>Descargar factura PDF</Text>
+                  </Pressable>
+                )}
+
+                {p.estado === "Pagado" && (p.estado_entrega === "Entregado" || p.estado_entrega === "Completado") && (
+                  <Pressable
+                    style={({ pressed }) => [S.botonOutline, pressed && S.presionado]}
+                    onPress={() => router.push({ pathname: "/(tabs)/solicitar-devolucion", params: { id: String(p.id_pedido) } })}
+                  >
+                    <FontAwesome6 name="rotate-left" size={13} color="#f0c96f" />
+                    <Text style={S.textoOutline}>Solicitar devolución</Text>
                   </Pressable>
                 )}
               </View>

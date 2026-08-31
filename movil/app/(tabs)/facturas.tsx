@@ -1,6 +1,7 @@
 // Mis facturas — FacturasTab de la WEB: pedidos con factura + PDF real.
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 import AppScreen from "@/components/app/AppScreen";
 import { FontFamilies } from "@/constants/theme";
@@ -18,15 +19,29 @@ export default function FacturasScreen() {
   const [cargando, setCargando] = useState(true);
   const [, setError] = useState<string | null>(null);
   const [descargandoId, setDescargandoId] = useState<number | null>(null);
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    listarMisPedidos()
-      .then((lista) => setPedidos(lista.filter((p) => p.factura)))
-      .catch((e) =>
-        setError(e instanceof ApiError ? e.message : "Error al cargar facturas."),
-      )
-      .finally(() => setCargando(false));
+  const cargar = useCallback(async () => {
+    try {
+      const lista = await listarMisPedidos();
+      setPedidos(lista.filter((p) => p.factura));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Error al cargar facturas.");
+    } finally {
+      setCargando(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+      intervaloRef.current = setInterval(() => void cargar(), 30_000);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
+    }, [cargar]),
+  );
 
   const descargar = async (pedido: Pedido) => {
     if (!usuario || !pedido.factura?.pdf_url) return;

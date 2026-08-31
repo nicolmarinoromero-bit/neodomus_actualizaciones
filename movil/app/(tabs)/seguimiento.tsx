@@ -1,8 +1,8 @@
 // Rastrear pedido — GET /pedidos/{id}/seguimiento (igual que WEB).
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 
 import AppScreen from "@/components/app/AppScreen";
 import { FontFamilies } from "@/constants/theme";
@@ -17,17 +17,27 @@ export default function SeguimientoScreen() {
   const [datos, setDatos] = useState<SeguimientoPedido | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let activo = true;
-    obtenerSeguimiento(Number(id))
-      .then((d) => activo && setDatos(d))
-      .catch((e) =>
-        activo && setError(e instanceof ApiError ? e.message : "Error al cargar el seguimiento."),
-      );
-    return () => {
-      activo = false;
-    };
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const cargar = useCallback(async () => {
+    try {
+      const d = await obtenerSeguimiento(Number(id));
+      setDatos(d);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Error al cargar el seguimiento.");
+    }
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+      intervaloRef.current = setInterval(() => void cargar(), 30_000);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
+    }, [cargar]),
+  );
 
   return (
     <AppScreen titulo={`Rastrear pedido #${id}`}>

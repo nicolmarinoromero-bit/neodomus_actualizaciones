@@ -2,7 +2,7 @@
 // Agendar (POST /citas, horarios desde /citas/horas-disponibles,
 // L–V 8:00-18:00 según backend, pago con simulación) + Mis citas
 // (editar/cancelar regla 48 h, calificar técnico obligatorio).
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
@@ -121,9 +121,17 @@ export default function PantallaCitas({
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    cargarMisCitas();
-  }, [cargarMisCitas]);
+  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      cargarMisCitas();
+      intervaloRef.current = setInterval(() => cargarMisCitas(), 30_000);
+      return () => {
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+      };
+    }, [cargarMisCitas]),
+  );
 
   // Horarios disponibles (regla WEB actual: lunes a sábado).
   // Domingo NO disponible: ni se consultan horas. Sábado SÍ disponible.

@@ -15,6 +15,10 @@ import {
   type SesionGuardada,
 } from "./storage";
 
+/** Emisor de eventos global para notificar expiración de sesión (type-safe). */
+import { DeviceEventEmitter } from "react-native";
+export const SESION_EXPIRADA_EVENTO = "neodomus:sesion-expirada";
+
 const TIMEOUT_MS = 15000;
 
 /** Error de API con código HTTP para manejarlo desde las pantallas. */
@@ -157,6 +161,7 @@ async function request<T>(
       return request<T>(endpoint, options, true);
     }
     await borrarSesion();
+    DeviceEventEmitter.emit(SESION_EXPIRADA_EVENTO);
   }
 
   const texto = await response.text();
