@@ -22,6 +22,7 @@ export interface PerfilCliente {
   documento_cliente?: number | null;
   telefono_cliente?: number | null;
   address?: string | null;
+  foto_url?: string | null;
 }
 
 export const obtenerPerfilCliente = () =>
@@ -40,6 +41,23 @@ export const actualizarPerfilCliente = (datos: {
     method: "PUT",
     body: JSON.stringify(datos),
   });
+
+export const subirFotoPerfil = async (uri: string): Promise<string> => {
+  const formData = new FormData();
+  const filename = uri.split("/").pop() || "photo.jpg";
+  const ext = filename.split(".").pop()?.toLowerCase() || "jpg";
+  formData.append("file", {
+    uri,
+    name: filename,
+    type: `image/${ext === "jpg" ? "jpeg" : ext}`,
+  } as any);
+  const res = await apiFetch<{ foto_url: string }>("/clients/me/foto", {
+    method: "POST",
+    body: formData,
+    headers: {},
+  });
+  return res.foto_url;
+};
 
 // ── Cambio de correo con código al correo ACTUAL ─────────────
 

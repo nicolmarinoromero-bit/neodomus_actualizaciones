@@ -20,7 +20,7 @@ Endpoints:
 Impacto: Sin este módulo el admin no podría gestionar cuentas de clientes
   ni el cliente podría ver o editar su propio perfil.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from typing import List
@@ -171,6 +171,7 @@ async def habilitar_cliente(
 @router.put("/{id_cliente}/inhabilitar", response_model=ClientResponse)
 async def inhabilitar_cliente(
     id_cliente: int,
+    motivo: str = "",
     current_admin: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):
@@ -188,7 +189,7 @@ async def inhabilitar_cliente(
 
     from app.routers.solicitudes import _notificar_cliente
 
-    await _notificar_cliente(cliente, aprobada=True, tipo="inhabilitar")
+    await _notificar_cliente(cliente, aprobada=True, tipo="inhabilitar", motivo=motivo or None)
     return cliente
 
 
@@ -355,3 +356,27 @@ def update_my_profile(
     db.commit()
     db.refresh(current_client)
     return current_client
+
+
+@router.post("/me/foto", response_model=dict)
+async def subir_foto_perfil(
+    file: UploadFile = File(...),
+    current_client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Sube una foto de perfil del cliente a MinIO."""
+    from pathlib import Path
+    import uuid
+    from app.services import minio_service
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
+    contenido = await file.read()
+    if not contenido or len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo está vacío o supera los 5 MB")
+    nombre = f"perfil_{current_client.id_cliente}_{uuid.uuid4().hex[:8]}{ext}"
+    url = minio_service.subir_imagen("perfiles", nombre, contenido)
+    current_client.foto_url = url
+    db.commit()
+    return {"foto_url": url}

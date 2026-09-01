@@ -83,6 +83,7 @@ const AdminClientes = () => {
   // Deshabilitar/habilitar
   const [confirmModal, setConfirmModal] = useState<{ cliente: ClienteAdmin; accion: 'inhabilitar' | 'habilitar' } | null>(null);
   const [procesando, setProcesando] = useState(false);
+  const [motivoInhabilitar, setMotivoInhabilitar] = useState('');
 
   const cargar = async () => {
     setCargando(true);
@@ -184,11 +185,14 @@ const AdminClientes = () => {
     if (!confirmModal || procesando) return;
     setProcesando(true);
     try {
-      const endpoint = confirmModal.accion === 'inhabilitar'
-        ? `/clients/${confirmModal.cliente.id_cliente}/inhabilitar`
-        : `/clients/${confirmModal.cliente.id_cliente}/habilitar`;
-      await api.put(endpoint);
+      if (confirmModal.accion === 'inhabilitar') {
+        const params = motivoInhabilitar.trim() ? { params: { motivo: motivoInhabilitar.trim() } } : {};
+        await api.put(`/clients/${confirmModal.cliente.id_cliente}/inhabilitar`, null, params);
+      } else {
+        await api.put(`/clients/${confirmModal.cliente.id_cliente}/habilitar`);
+      }
       setConfirmModal(null);
+      setMotivoInhabilitar('');
       await cargar();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Error al procesar la acción');
@@ -630,7 +634,7 @@ const AdminClientes = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => !procesando && setConfirmModal(null)}
+            onClick={() => { if (!procesando) { setConfirmModal(null); setMotivoInhabilitar(''); } }}
           >
             <motion.div
               className="modal-content"
@@ -648,11 +652,39 @@ const AdminClientes = () => {
                   ? `¿Estás seguro de inhabilitar la cuenta de ${confirmModal.cliente.first_name} ${confirmModal.cliente.last_name}? El cliente no podrá iniciar sesión.`
                   : `¿Estás seguro de habilitar la cuenta de ${confirmModal.cliente.first_name} ${confirmModal.cliente.last_name}? El cliente podrá iniciar sesión nuevamente.`}
               </p>
+              {confirmModal.accion === 'inhabilitar' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', color: '#c9c0ab', fontSize: 13, marginBottom: 6, fontWeight: 600 }}>
+                    Motivo de la inhabilitación
+                  </label>
+                  <textarea
+                    value={motivoInhabilitar}
+                    onChange={(e) => setMotivoInhabilitar(e.target.value)}
+                    placeholder="Describe el motivo de la inhabilitación..."
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(212,165,75,0.3)',
+                      background: '#0f0d0a',
+                      color: '#f0e6d2',
+                      fontSize: 14,
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                    Este motivo se enviará por correo al cliente.
+                  </p>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button
                   type="button"
                   className="ap-btn ap-btn-ghost"
-                  onClick={() => setConfirmModal(null)}
+                  onClick={() => { setConfirmModal(null); setMotivoInhabilitar(''); }}
                   disabled={procesando}
                 >
                   Cancelar

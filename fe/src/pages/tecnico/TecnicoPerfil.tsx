@@ -35,6 +35,7 @@ interface PerfilTecnico {
   certificacion_t?: string | null;
   especializaciones?: { id_especializacion: number; nombre: string; descripcion?: string | null }[];
   created_at?: string;
+  foto_url?: string | null;
 }
 
 const TechnicalPerfil = () => {
@@ -75,6 +76,7 @@ const TechnicalPerfil = () => {
         setDocumento(res.data.documento_usuario ? String(res.data.documento_usuario) : '');
         setCertificacion(res.data.certificacion_t || '');
         setEspecializaciones(res.data.especializaciones || []);
+        if (res.data.foto_url) setAvatar(res.data.foto_url);
       } catch (err) {
         console.error('Error cargando perfil del técnico:', err);
         const partes = (user?.nombre || t('tec.tecnico')).trim().split(' ');
@@ -178,21 +180,24 @@ const TechnicalPerfil = () => {
     window.setTimeout(() => setToast(null), 3200);
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
       notify(t('tec.fotoPesada'), 'error');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setAvatar(dataUrl);
-      setTechnicalAvatar(dataUrl);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post<{ foto_url: string }>('/users/me/foto', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setAvatar(res.data.foto_url);
       notify(t('tec.fotoActualizada'));
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      notify(t('tec.fotoPesada'), 'error');
+    }
   };
 
   const handleEliminarFoto = () => {

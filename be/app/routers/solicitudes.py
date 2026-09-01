@@ -37,7 +37,7 @@ router = APIRouter(prefix="/admin/account-requests", tags=["Solicitudes de cuent
 TIPOS_ACTIVACION = {"inhabilitar": False, "habilitar": True}
 
 
-def _plantilla_resultado_solicitud(nombre: str, aprobada: bool, tipo: str) -> tuple[str, str]:
+def _plantilla_resultado_solicitud(nombre: str, aprobada: bool, tipo: str, motivo: str | None = None) -> tuple[str, str]:
     if aprobada:
         if tipo == "habilitar":
             subject = "Tu cuenta Neodomus ha sido habilitada"
@@ -48,6 +48,12 @@ def _plantilla_resultado_solicitud(nombre: str, aprobada: bool, tipo: str) -> tu
     else:
         subject = "Tu solicitud en Neodomus fue rechazada"
         detalle = "Lamentablemente tu solicitud fue <strong>rechazada</strong> por el administrador."
+    motivo_html = ""
+    if motivo and motivo.strip():
+        motivo_html = (
+            f"<p style='margin:12px 0;color:#555;font-size:14px'><strong>Motivo:</strong></p>"
+            f"<p style='margin:0 0 16px;padding:12px 14px;background:#fdf6e7;border:1px solid #eed7a8;border-radius:8px;color:#555;font-size:14px'>{motivo.strip()}</p>"
+        )
     body = (
         "<div style='background:#f6f4ef;padding:24px;font-family:Arial,Helvetica,sans-serif'>"
         "<div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e8e2d6'>"
@@ -57,6 +63,7 @@ def _plantilla_resultado_solicitud(nombre: str, aprobada: bool, tipo: str) -> tu
         "<div style='padding:26px'>"
         f"<p style='margin:0 0 8px;color:#333;font-size:14px'>Hola <strong>{nombre}</strong>,</p>"
         f"<p style='margin:0 0 16px;color:#555;font-size:14px'>{detalle}</p>"
+        f"{motivo_html}"
         "<p style='margin:18px 0 0;padding:12px 14px;background:#fdf6e7;border:1px solid #eed7a8;border-radius:8px;color:#7a5a14;font-size:13px'>"
         "Para cualquier inquietud, responde este correo o contacta al equipo de Neodomus.</p>"
         "</div>"
@@ -67,12 +74,12 @@ def _plantilla_resultado_solicitud(nombre: str, aprobada: bool, tipo: str) -> tu
     return subject, body
 
 
-async def _notificar_cliente(cliente: Cliente, aprobada: bool, tipo: str) -> None:
+async def _notificar_cliente(cliente: Cliente, aprobada: bool, tipo: str, motivo: str | None = None) -> None:
     from app.utils.email import send_email
 
     try:
         nombre = f"{cliente.first_name} {cliente.last_name}".strip() or "cliente"
-        subject, body = _plantilla_resultado_solicitud(nombre, aprobada, tipo)
+        subject, body = _plantilla_resultado_solicitud(nombre, aprobada, tipo, motivo=motivo)
         await send_email(cliente.email, subject, body)
     except HTTPException:
         pass

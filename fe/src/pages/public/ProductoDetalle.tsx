@@ -163,6 +163,7 @@ const ProductoDetalle = () => {
   const [displayUnidades, setDisplayUnidades] = useState('');
   const [toast, setToast] = useState('');
   const [recomendados, setRecomendados] = useState<Producto[]>([]);
+  const scrollRecomendados = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -815,10 +816,26 @@ const ProductoDetalle = () => {
         {recomendados.length > 0 && (
           <section className="detalle-recomendados">
             <h2 className="detalle-recomendados-titulo">Más recomendados para ti</h2>
-            <div className="detalle-recomendados-grid">
-              {recomendados.map((p) => (
-                <ProductoCard key={p.id_producto} producto={p} />
-              ))}
+            <div className="detalle-recomendados-wrap">
+              <button
+                className="detalle-recomendados-arrow"
+                onClick={() => scrollRecomendados.current?.scrollBy({ left: -280, behavior: 'smooth' })}
+                aria-label="Anterior"
+              >
+                <FaChevronLeft />
+              </button>
+              <div className="detalle-recomendados-grid" ref={scrollRecomendados}>
+                {recomendados.map((p) => (
+                  <ProductoCard key={p.id_producto} producto={p} />
+                ))}
+              </div>
+              <button
+                className="detalle-recomendados-arrow"
+                onClick={() => scrollRecomendados.current?.scrollBy({ left: 280, behavior: 'smooth' })}
+                aria-label="Siguiente"
+              >
+                <FaChevronRight />
+              </button>
             </div>
           </section>
         )}

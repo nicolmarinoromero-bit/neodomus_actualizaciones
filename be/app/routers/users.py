@@ -18,7 +18,7 @@ Endpoints:
 Impacto: Sin este módulo el admin no podría crear, editar ni desactivar
   empleados; los técnicos no tendrían cuenta en el sistema.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -253,6 +253,30 @@ def update_me(
     db.commit()
     db.refresh(current_user)
     return _perfil_empleado(current_user, db)
+
+
+@router.post("/me/foto", response_model=dict)
+async def subir_foto_perfil(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    """Sube una foto de perfil del empleado a MinIO."""
+    from pathlib import Path
+    import uuid
+    from app.services import minio_service
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
+    contenido = await file.read()
+    if not contenido or len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo está vacío o supera los 5 MB")
+    nombre = f"perfil_{current_user.id_usuario}_{uuid.uuid4().hex[:8]}{ext}"
+    url = minio_service.subir_imagen("perfiles", nombre, contenido)
+    current_user.foto_url = url
+    db.commit()
+    return {"foto_url": url}
 
 
 @router.get("/roles", response_model=List[dict])

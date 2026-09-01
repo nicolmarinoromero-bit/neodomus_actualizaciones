@@ -26,6 +26,7 @@ interface PerfilTecnico {
   documento_usuario?: number | null;
   certificacion_t?: string | null;
   especializaciones?: { id_especializacion: number; nombre: string }[];
+  foto_url?: string | null;
 }
 
 export default function TecnicoPerfilScreen() {
@@ -81,6 +82,7 @@ export default function TecnicoPerfilScreen() {
         setSelectedEspecializaciones(espIds);
         setEmail(mail);
         setSnapshot({ nombre: n, apellido: a, telefono: tel, documento: doc, certificacion: cert, selectedEspecializaciones: espIds, email: mail });
+        if (res.foto_url) setAvatar(res.foto_url);
       } catch {
         const partes = (usuario?.nombre || "").trim().split(" ");
         setNombre(partes[0] || "");

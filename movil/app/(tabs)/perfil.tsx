@@ -36,6 +36,7 @@ import {
   obtenerPerfilCliente,
   obtenerSolicitudCuenta,
   solicitarCambioCorreo,
+  subirFotoPerfil,
   verificarCambioCorreo,
 } from "@/services/cliente.services";
 
@@ -89,6 +90,7 @@ export default function PerfilScreen() {
           address: p.address ?? "",
         });
         setEmailOriginal((p.email ?? usuario?.correo ?? "").trim().toLowerCase());
+        if (p.foto_url) setAvatar(p.foto_url);
       })
       .catch(() => {})
       .finally(() => activo && setCargando(false));
@@ -123,12 +125,16 @@ export default function PerfilScreen() {
     });
     if (resultado.canceled || !resultado.assets[0]) return;
     const asset = resultado.assets[0];
-    // Límite de la web: 4 MB.
     if ((asset.fileSize ?? 0) > 4 * 1024 * 1024) {
       setError("La imagen supera los 4 MB.");
       return;
     }
-    setAvatar(asset.uri);
+    try {
+      const url = await subirFotoPerfil(asset.uri);
+      setAvatar(url);
+    } catch {
+      setAvatar(asset.uri);
+    }
   };
 
   /** El correo del formulario es diferente al original (cambio real). */

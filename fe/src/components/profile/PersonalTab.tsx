@@ -20,6 +20,7 @@ interface ClientProfile {
   email: string;
   telefono_cliente?: number | null;
   address?: string | null;
+  foto_url?: string | null;
 }
 
 const PersonalTab = ({ notify, onProfileChanged }: PersonalTabProps) => {
@@ -53,6 +54,7 @@ const PersonalTab = ({ notify, onProfileChanged }: PersonalTabProps) => {
         setEmailOriginal(res.data.email || '');
         setTelefono(res.data.telefono_cliente ? String(res.data.telefono_cliente) : '');
         setDireccion(res.data.address || '');
+        if (res.data.foto_url) setAvatar(res.data.foto_url);
       })
       .catch((err) => {
         if (err.response?.status === 403) syncFromContext();
@@ -65,22 +67,24 @@ const PersonalTab = ({ notify, onProfileChanged }: PersonalTabProps) => {
     return () => window.removeEventListener('client-profile-updated', sync);
   }, []);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
       notify(t('perfil.fotoPesada'), 'error');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setAvatar(dataUrl);
-      localStorage.setItem(PF_AVATAR_KEY, dataUrl);
-      window.dispatchEvent(new CustomEvent('client-profile-updated'));
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post<{ foto_url: string }>('/clients/me/foto', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setAvatar(res.data.foto_url);
       notify(t('perfil.fotoActualizada'), 'success');
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      notify(t('perfil.fotoPesada'), 'error');
+    }
   };
 
   const handleEliminarFoto = () => {
