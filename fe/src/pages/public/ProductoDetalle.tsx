@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaHeart, FaCheck, FaTruckFast, FaShieldHalved, FaRotateLeft, FaUsers } from 'react-icons/fa6';
+import { FaArrowLeft, FaHeart, FaCheck, FaTruckFast, FaShieldHalved, FaRotateLeft, FaUsers, FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
 import api from '@services/api';
 import { useCart } from '@contexts/CartContext';
 import { useFavoritos } from '@utils/favoritos';
 import { useIdioma } from '@i18n/IdiomaContext';
-import ProductoCard from '@components/productos/ProductoCard';
 import '@styles/producto-detalle.css';
+import '@styles/productos-publicos.css';
+import ProductoCard from '@components/productos/ProductoCard';
 
 interface Producto {
   id_producto: number;
@@ -156,7 +157,7 @@ const ProductoDetalle = () => {
   const [color, setColor] = useState('');
   const [tamano, setTamano] = useState('');
   const [cantidad, setCantidad] = useState(1);
-  const [displayValue, setDisplayValue] = useState<string | undefined>(undefined);
+  const [displayValue, setDisplayValue] = useState('');
   const [metros, setMetros] = useState(10);
   const [unidadesMetros, setUnidadesMetros] = useState(1);
   const [displayUnidades, setDisplayUnidades] = useState('');
@@ -213,8 +214,6 @@ const ProductoDetalle = () => {
       }
     };
     fetchProducto();
-    setCantidad(1);
-    setDisplayValue(undefined);
   }, [id]);
 
   useEffect(() => {
@@ -239,7 +238,7 @@ const ProductoDetalle = () => {
     const fetchRecomendados = async () => {
       try {
         const res = await api.get('/productos/?limit=100');
-        const todos = res.data as Producto[];
+        const todos = (res.data.data || []) as Producto[];
         const mismos = todos.filter(
           (p) =>
             p.id_producto !== producto.id_producto &&
@@ -247,18 +246,14 @@ const ProductoDetalle = () => {
             p.stock_producto != null &&
             p.stock_producto > 0,
         );
-        if (mismos.length >= 4) {
-          setRecomendados(mismos.slice(0, 4));
-        } else {
-          const otros = todos.filter(
-            (p) =>
-              p.id_producto !== producto.id_producto &&
-              p.id_cate_pr !== producto.id_cate_pr &&
-              p.stock_producto != null &&
-              p.stock_producto > 0,
-          );
-          setRecomendados([...mismos, ...otros].slice(0, 4));
-        }
+        const otros = todos.filter(
+          (p) =>
+            p.id_producto !== producto.id_producto &&
+            p.id_cate_pr !== producto.id_cate_pr &&
+            p.stock_producto != null &&
+            p.stock_producto > 0,
+        );
+        setRecomendados([...mismos, ...otros]);
       } catch {
         // Silenciar errores de recomendaciones
       }
@@ -697,7 +692,7 @@ const ProductoDetalle = () => {
                       type="text"
                       inputMode="numeric"
                       className="cantidad-input"
-                      value={displayValue !== undefined ? displayValue : String(cantidad)}
+                      value={displayValue || String(cantidad)}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, '');
                         setDisplayValue(val);
@@ -709,13 +704,7 @@ const ProductoDetalle = () => {
                         } else {
                           setCantidad(num > stockDisponible ? stockDisponible : num);
                         }
-                        setDisplayValue(undefined);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          (e.target as HTMLInputElement).blur();
-                        }
+                        setDisplayValue('');
                       }}
                       aria-label="Cantidad"
                     />

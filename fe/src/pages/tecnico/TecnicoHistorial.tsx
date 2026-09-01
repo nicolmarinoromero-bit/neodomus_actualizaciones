@@ -288,7 +288,7 @@ const TecnicoHistorial = () => {
           {loading || entregas.length === 0 ? (
             <div className="ap-states">
               <div className="ap-states-icon"><FaTruckFast /></div>
-              <h3>{'No tienes entregas completadas todavía.'}</h3>
+              <h3>{'Sin entregas'}</h3>
             </div>
           ) : entregasVisibles.length === 0 ? (
             <div className="ap-states">

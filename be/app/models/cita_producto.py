@@ -1,3 +1,22 @@
+"""
+Módulo: models/cita_producto.py
+
+Tabla: cita_producto
+Descripción: Productos asociados a una cita de servicio, permite al técnico ver los productos que se utilizarán o instalaron.
+
+Campos clave:
+  - id_cita_producto: int (PK)
+  - id_cita: int (FK → citas, cascade delete)
+  - id_producto: int (FK → productos)
+  - id_variante: int (FK → producto_variantes, opcional)
+  - cantidad: int (unidades a usar/instalar)
+  - notas: String(255) (observaciones del técnico)
+
+Relaciones:
+  - cita → Cita (cita a la que pertenece)
+  - producto → Producto (producto asociado)
+  - variante → ProductoVariante (variante específica)
+"""
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base

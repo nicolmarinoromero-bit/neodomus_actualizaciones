@@ -118,13 +118,15 @@ def citas_futuras_de_tecnico(db: Session, id_tecnico: int) -> list[Cita]:
 
 
 def entregas_pendientes_de_tecnico(db: Session, id_tecnico: int) -> list[Pedido]:
-    """Entregas activas (Asignada/En camino) de hoy en adelante del técnico."""
-    hoy = date.today()
+    """Entregas activas (Asignada/Recogido/En camino) del técnico.
+
+    Incluye entregas con fecha pasada (atrasadas) y sin fecha asignada,
+    para que siempre se reasignen al desactivar al técnico.
+    """
     return (
         db.query(Pedido)
         .filter(
             Pedido.id_tecnico_entrega == id_tecnico,
-            Pedido.fecha_entrega >= hoy,
             Pedido.estado_entrega.in_(ESTADOS_ENTREGA_OCUPAN),
         )
         .order_by(Pedido.fecha_entrega)
@@ -499,20 +501,36 @@ def reasignar_entrega(db: Session, pedido: Pedido, excluir_ids: set[int] | None 
     db.commit()
 
     # Notificar al nuevo técnico.
-    from app.services.notificaciones import notificar_entrega_asignada_tecnico
+    from app.services.notificaciones import (
+        notificar_entrega_asignada_tecnico,
+        notificar_entrega_tecnico_cambiado_cliente,
+    )
 
-    cliente = pedido.cliente if hasattr(pedido, "cliente") else None
+    # Cargar cliente explícitamente (el lazy-loading puede fallar tras commits
+    # previos en desactivar_tecnico_proceso).
+    cliente = pedido.cliente
+    if cliente is None and pedido.id_cliente_pe:
+        from app.models.cliente import Cliente as ClienteModel
+        cliente = db.query(ClienteModel).filter(ClienteModel.id_cliente == pedido.id_cliente_pe).first()
     ini_e, fin_e = ventana_entrega(pedido)
     rango_txt = (
         f"{pedido.hora_entrega or '10:00'} - {pedido.hora_entrega_fin}"
         if pedido.hora_entrega_fin
         else f"{pedido.hora_entrega or '10:00'}"
     )
-    if elegido.usuario and elegido.usuario.email:
+
+    # Cargar usuario del técnico elegido explícitamente (lazy-loading
+    # puede fallar tras commits previos).
+    usuario_elegido = elegido.usuario
+    if usuario_elegido is None and elegido.id_usuario_t:
+        from app.models.user import User as UserModel
+        usuario_elegido = db.query(UserModel).filter(UserModel.id_usuario == elegido.id_usuario_t).first()
+
+    if usuario_elegido and usuario_elegido.email:
         notificar_entrega_asignada_tecnico(
             db,
-            elegido.usuario.id_usuario,
-            elegido.usuario.email,
+            usuario_elegido.id_usuario,
+            usuario_elegido.email,
             pedido.nombre_tecnico_entrega or "técnico",
             {
                 "pedido": pedido.id_pedido,
@@ -525,6 +543,19 @@ def reasignar_entrega(db: Session, pedido: Pedido, excluir_ids: set[int] | None 
                 "hora": rango_txt,
             },
         )
+
+    # Notificar al cliente sobre el cambio de técnico (solo si hubo cambio real).
+    if anterior and cliente:
+        notificar_entrega_tecnico_cambiado_cliente(
+            db,
+            cliente_id=cliente.id_cliente,
+            correo=cliente.email,
+            cliente_nombre=f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+            pedido_id=pedido.id_pedido,
+            tecnico_anterior=anterior,
+            tecnico_nuevo=pedido.nombre_tecnico_entrega or "técnico",
+        )
+        db.commit()
 
     # Alertar a administradores si se usó una especialización alternativa.
     if alternativa:

@@ -9,6 +9,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
@@ -61,7 +62,7 @@ export default function NotificacionesScreen() {
       {cargando && <Text style={S.gris}>Cargando...</Text>}
       {error && <Text style={S.error}>{error}</Text>}
       {!cargando && lista.length === 0 && (
-        <Text style={S.gris}>No tienes notificaciones nuevas.</Text>
+        <EmptyState icono="bell" texto="Sin notificaciones" />
       )}
 
       {lista.map((n) => (

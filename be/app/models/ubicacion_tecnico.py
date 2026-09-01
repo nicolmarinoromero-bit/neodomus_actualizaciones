@@ -1,3 +1,19 @@
+"""
+Módulo: models/ubicacion_tecnico.py
+
+Tabla: ubicaciones_tecnico
+Descripción: Última ubicación GPS real reportada por el dispositivo del técnico. Solo se expone al cliente mientras su entrega esté En camino.
+
+Campos clave:
+  - id_ubicacion: int (PK)
+  - id_tecnico_ut: int (FK → tecnicos, único por técnico)
+  - latitud: Float (coordenada latitud)
+  - longitud: Float (coordenada longitud)
+  - actualizado_en: DateTime (fecha de última actualización)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, func

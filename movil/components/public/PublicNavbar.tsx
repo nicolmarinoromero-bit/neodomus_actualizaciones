@@ -235,6 +235,7 @@ export default function PublicNavbar() {
             onPress={() => {
               setMenuUsuarioVisible(false);
               void cerrarSesion();
+              router.replace("/(tabs)");
             }}
           >
             <FontAwesome6 name="right-from-bracket" size={13} color="#e5484d" />

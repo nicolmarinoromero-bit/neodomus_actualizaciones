@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import ProductCard from "@/components/public/ProductCard";
 import { FontFamilies } from "@/constants/theme";
 import { useFavoritos } from "@/contexts/FavoritosContext";
@@ -44,12 +45,7 @@ export default function FavoritosScreen() {
       {cargando && <Text style={S.gris}>Cargando...</Text>}
 
       {!cargando && visibles.length === 0 ? (
-        <>
-          <Text style={S.vacioTitulo}>No tienes productos en favoritos aún.</Text>
-          <Text style={S.vacioTexto}>
-            Navega por el catálogo y marca productos con el corazón.
-          </Text>
-        </>
+        <EmptyState icono="heart" texto="Sin favoritos" />
       ) : (
         <View style={S.grid}>
           {visibles.map((producto) => (

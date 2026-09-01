@@ -29,6 +29,7 @@ import { ApiError } from "@/services/api";
 import {
   crearPedido,
   descargarFacturaPdf,
+  listarHorasDisponibles,
   listarTecnicosPublicos,
   obtenerMetodosPago,
   obtenerPerfilCliente,
@@ -70,6 +71,7 @@ export default function CheckoutScreen() {
   const [tipoActivo, setTipoActivo] = useState<string | null>(null);
   const [fechaServicio, setFechaServicio] = useState("");
   const [horaServicio, setHoraServicio] = useState("");
+  const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
   const [tecnicosDisponibles, setTecnicosDisponibles] = useState<TecnicoPublico[]>([]);
   const [idTecnicoSel, setIdTecnicoSel] = useState<number | null>(null);
 
@@ -129,6 +131,20 @@ export default function CheckoutScreen() {
       }
     }, [exitoDatos, pendienteDatos, rechazadoDatos, items.length]),
   );
+
+  // Horas disponibles desde el backend (como en Citas).
+  useEffect(() => {
+    if (!tipoActivo || !fechaServicio) {
+      setHorasDisponibles([]);
+      return;
+    }
+    let activo = true;
+    setHoraServicio("");
+    listarHorasDisponibles({ fecha: fechaServicio, tipo_servicio: tipoActivo })
+      .then((horas) => activo && setHorasDisponibles(horas))
+      .catch(() => activo && setHorasDisponibles([]));
+    return () => { activo = false; };
+  }, [tipoActivo, fechaServicio]);
 
   // Técnicos disponibles cuando hay servicio con fecha/hora.
   useEffect(() => {
@@ -421,10 +437,16 @@ export default function CheckoutScreen() {
         ))}
       </View>
 
-      {/* Servicio técnico opcional */}
-      {paso === "servicio" && (
-        <View style={S.tarjeta}>
-          <Text style={S.subtitulo}>¿Deseas agregar servicio técnico?</Text>
+      {/* Servicio técnico opcional — visible siempre como la web */}
+      <View style={S.tarjeta}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <Text style={S.subtitulo}>Servicios técnicos opcionales</Text>
+          {paso === "pago" && (
+            <Pressable onPress={() => setPaso("servicio")}>
+              <Text style={[S.textoOutline, { fontSize: 12 }]}>← Volver a servicios</Text>
+            </Pressable>
+          )}
+        </View>
           <Text style={S.gris}>
             Opcional. Los servicios se agendan con al menos 3 días de
             anticipación, de lunes a viernes.
@@ -451,17 +473,25 @@ export default function CheckoutScreen() {
                 onChange={setFechaServicio}
                 minFecha={new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)}
               />
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {Array.from({ length: 11 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`).map((h) => (
-                  <Pressable
-                    key={h}
-                    onPress={() => setHoraServicio(h)}
-                    style={[S.chip, horaServicio === h && S.chipActivo]}
-                  >
-                    <Text style={[S.chipTexto, horaServicio === h && S.chipTextoActivo]}>{h}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              {horasDisponibles.length > 0 ? (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {horasDisponibles.map((h) => (
+                    <Pressable
+                      key={h}
+                      onPress={() => setHoraServicio(h)}
+                      style={[S.chip, horaServicio === h && S.chipActivo]}
+                    >
+                      <Text style={[S.chipTexto, horaServicio === h && S.chipTextoActivo]}>{h}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <Text style={S.gris}>
+                  {fechaServicio
+                    ? "No hay horarios disponibles para esta fecha."
+                    : "Selecciona una fecha para ver los horarios."}
+                </Text>
+              )}
 
               {tecnicosDisponibles.length > 0 && (
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -516,7 +546,6 @@ export default function CheckoutScreen() {
             </View>
           )}
         </View>
-      )}
 
       {/* Método de pago — tarjetas visuales estilo WEB */}
       {paso === "pago" && (

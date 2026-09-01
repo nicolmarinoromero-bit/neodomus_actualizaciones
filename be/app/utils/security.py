@@ -1,3 +1,16 @@
+"""
+Módulo: app/utils/security.py
+
+¿Qué hace?
+  Gestiona la autenticación completa: hashing de contraseñas con bcrypt,
+  creación/decodificación de tokens JWT (access y refresh), manejo de
+  cookies HttpOnly y dependencias de FastAPI que resuelven el usuario
+  actual según su rol (empleado o cliente).
+
+Impacto: Sin este módulo no habría forma de autenticar usuarios,
+controlar acceso por roles ni proteger endpoints sensibles.
+"""
+
 import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Union

@@ -8,10 +8,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -26,6 +28,7 @@ import { useFavoritos } from "@/contexts/FavoritosContext";
 import { useCart } from "@/contexts/CartContext";
 import {
   formatearPrecio,
+  listarProductos,
   obtenerProducto,
   precioFinalDe,
   tieneDescuento,
@@ -55,7 +58,10 @@ export default function ProductoDetalleScreen() {
   const [tamano, setTamano] = useState("");
   const [metros, setMetros] = useState(10);
   const [cantidad, setCantidad] = useState(1);
+  const [displayCantidad, setDisplayCantidad] = useState<string | undefined>(undefined);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [recomendados, setRecomendados] = useState<ProductoType[]>([]);
 
   const { esFavorito, toggleFavorito } = useFavoritos();
   const { addItem } = useCart();
@@ -84,6 +90,37 @@ export default function ProductoDetalleScreen() {
     const temporizador = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(temporizador);
   }, [toast]);
+
+  useEffect(() => {
+    if (!producto) return;
+    let cancelado = false;
+    const fetchRecomendados = async () => {
+      try {
+        const res = await listarProductos();
+        const todos = (res.data ?? []) as ProductoType[];
+        if (cancelado) return;
+        const mismos = todos.filter(
+          (p) =>
+            p.id_producto !== producto.id_producto &&
+            p.id_cate_pr === producto.id_cate_pr &&
+            p.stock_producto != null &&
+            p.stock_producto > 0,
+        );
+        const otros = todos.filter(
+          (p) =>
+            p.id_producto !== producto.id_producto &&
+            p.id_cate_pr !== producto.id_cate_pr &&
+            p.stock_producto != null &&
+            p.stock_producto > 0,
+        );
+        setRecomendados([...mismos, ...otros]);
+      } catch {
+        // Silenciar errores de recomendaciones
+      }
+    };
+    fetchRecomendados();
+    return () => { cancelado = true; };
+  }, [producto]);
 
   // ── Lógica de variantes EXACTA de la WEB (ProductoDetalle.tsx) ──
   const variantes = useMemo(() => producto?.variantes ?? [], [producto]);
@@ -188,7 +225,7 @@ export default function ProductoDetalleScreen() {
     }
 
     addItem(producto, {
-      cantidad,
+      cantidad: stockDisponible > 0 ? Math.min(cantidad, stockDisponible) : cantidad,
       metros,
       // Color SIEMPRE según la paleta seleccionada (como la web).
       color: color || undefined,
@@ -438,15 +475,46 @@ export default function ProductoDetalleScreen() {
               <View style={styles.contador}>
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => setCantidad((actual) => Math.max(1, actual - 1))}
+                  onPress={() => {
+                    const nueva = Math.max(1, cantidad - 1);
+                    setCantidad(nueva);
+                    setDisplayCantidad(undefined);
+                  }}
                   accessibilityLabel="Reducir cantidad"
                 >
                   <FontAwesome6 name="minus" size={13} color={C.blanco} />
                 </Pressable>
-                <Text style={styles.contadorValor}>{cantidad}</Text>
+                <TextInput
+                  style={[styles.contadorValor, { minWidth: 36, textAlign: "center" }]}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={displayCantidad !== undefined ? displayCantidad : String(cantidad)}
+                  onChangeText={(v) => {
+                    const solo = v.replace(/[^0-9]/g, "");
+                    setDisplayCantidad(solo);
+                  }}
+                  onBlur={() => {
+                    const num = parseInt(displayCantidad ?? "", 10);
+                    if (isNaN(num) || num < 1) {
+                      setCantidad(1);
+                    } else if (num > stockDisponible && stockDisponible > 0) {
+                      setCantidad(stockDisponible);
+                    } else {
+                      setCantidad(num);
+                    }
+                    setDisplayCantidad(undefined);
+                  }}
+                  accessibilityLabel="Cantidad"
+                />
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => setCantidad((actual) => actual + 1)}
+                  onPress={() => {
+                    const nueva = cantidad + 1;
+                    if (stockDisponible > 0 && nueva > stockDisponible) return;
+                    setCantidad(nueva);
+                    setDisplayCantidad(undefined);
+                  }}
                   accessibilityLabel="Aumentar cantidad"
                 >
                   <FontAwesome6 name="plus" size={13} color={C.blanco} />
@@ -479,7 +547,7 @@ export default function ProductoDetalleScreen() {
 
           {/* Beneficios fijos de la web */}
           <View style={styles.beneficios}>
-            <Beneficio icono="truck-fast" texto="Envío seguro a todo el país" />
+            <Beneficio icono="truck-fast" texto="Envío solo en Bogotá" />
             <Beneficio icono="shield-halved" texto="Garantía oficial Neodomus" />
             {(producto.tecnicos_requeridos ?? 1) > 0 && (
               <Beneficio
@@ -489,8 +557,7 @@ export default function ProductoDetalleScreen() {
             )}
           </View>
 
-          {/* Bloque de compra DENTRO del flujo del scroll: nunca flota
-              ni tapa descripción/garantías. Se actualiza con la cantidad. */}
+          {/* Bloque de compra: primero para que el usuario lo vea rápido */}
           <View style={styles.bloqueCompra}>
             <View style={styles.compraFila}>
               <View>
@@ -532,6 +599,57 @@ export default function ProductoDetalleScreen() {
               </Text>
             )}
           </View>
+
+          {/* Más recomendados para ti — después del bloque de compra */}
+          {recomendados.length > 0 && (
+            <View style={styles.recomendados}>
+              <Text style={styles.recomendadosTitulo}>Más recomendados para ti</Text>
+              <FlatList
+                horizontal
+                data={recomendados}
+                keyExtractor={(p) => String(p.id_producto)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recomendadosLista}
+                renderItem={({ item: p }) => {
+                  const img = urlImagenProducto(p);
+                  const conDesc = tieneDescuento(p);
+                  const precio = precioFinalDe(p);
+                  return (
+                    <Pressable
+                      style={styles.recomendadoCard}
+                      onPress={() => router.push(`/(tabs)/producto/${p.id_producto}`)}
+                    >
+                      <View style={styles.recomendadoImagenWrap}>
+                        <Image
+                          source={{ uri: img }}
+                          style={styles.recomendadoImagen}
+                          contentFit="cover"
+                          transition={150}
+                          cachePolicy="memory-disk"
+                        />
+                        {conDesc && (
+                          <View style={styles.recomendadoBadge}>
+                            <Text style={styles.recomendadoBadgeTexto}>-{p.descuento_activo}%</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.recomendadoInfo}>
+                        <Text style={styles.recomendadoNombre} numberOfLines={2}>
+                          {p.nombre_producto}
+                        </Text>
+                        <Text style={styles.recomendadoCategoria} numberOfLines={1}>
+                          {p.nombre_categoria || "Producto"}
+                        </Text>
+                        <Text style={styles.recomendadoPrecio}>
+                          {formatearPrecio(precio)} COP
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -1006,5 +1124,86 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontFamily: FontFamilies.bodyMedium,
     textAlign: "center",
+  },
+
+  recomendados: {
+    marginTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.09)",
+    paddingTop: 14,
+  },
+
+  recomendadosTitulo: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontFamily: FontFamilies.bodyBold,
+    marginBottom: 12,
+  },
+
+  recomendadosLista: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+
+  recomendadoCard: {
+    width: 140,
+    backgroundColor: "#161616",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    overflow: "hidden",
+  },
+
+  recomendadoImagenWrap: {
+    width: "100%",
+    aspectRatio: 1,
+    backgroundColor: "#0f0f0f",
+  },
+
+  recomendadoImagen: {
+    width: "100%",
+    height: "100%",
+  },
+
+  recomendadoBadge: {
+    position: "absolute",
+    left: 6,
+    bottom: 6,
+    backgroundColor: "#e5484d",
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+
+  recomendadoBadgeTexto: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  recomendadoInfo: {
+    padding: 8,
+    gap: 3,
+  },
+
+  recomendadoNombre: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontFamily: FontFamilies.bodyBold,
+    lineHeight: 16,
+  },
+
+  recomendadoCategoria: {
+    color: "#9e9e9e",
+    fontSize: 10,
+    fontFamily: FontFamilies.bodyMedium,
+    textTransform: "uppercase",
+  },
+
+  recomendadoPrecio: {
+    color: "#f0c96f",
+    fontSize: 12.5,
+    fontFamily: FontFamilies.bodyBold,
+    marginTop: 2,
   },
 });

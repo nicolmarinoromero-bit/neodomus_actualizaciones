@@ -1,3 +1,35 @@
+"""
+Módulo: routers/auth.py
+
+¿Qué hace?
+  Gestiona todo el ciclo de autenticación de usuarios: registro, login,
+  verificación de email, recuperación de contraseña y flujo OAuth con Google.
+
+Endpoints:
+  - POST /auth/register/client   → Registro de cliente nuevo
+  - POST /auth/verify-email      → Verificación de email con código
+  - POST /auth/resend-verification → Reenvío de código de verificación
+  - POST /auth/login             → Login con email/contraseña
+  - POST /auth/google            → Login con credential de Google
+  - POST /auth/google-code       → Login con authorization code (móvil)
+  - GET  /auth/google-start      → Redirige al consent screen de Google
+  - GET  /auth/google-callback   → Callback de Google OAuth
+  - GET  /auth/google-result     → HTML intermedio para el móvil
+  - POST /auth/solicitar-habilitacion → Solicitud para reactivar cuenta
+  - POST /auth/refresh           → Renueva el access token
+  - POST /auth/logout            → Cierra sesión (borra cookies)
+  - GET  /auth/session           → Devuelve tipo/rol de la sesión actual
+  - POST /auth/change-password   → Cambio de contraseña (requiere actual)
+  - POST /auth/update-password   → Actualiza contraseña sin pedir la actual
+  - POST /auth/forgot-password   → Envía código de recuperación por email
+  - POST /auth/verify-code       → Valida código de recuperación
+  - POST /auth/reset-password    → Restablece contraseña con token
+  - POST /auth/request-email-change → Solicita cambio de correo
+  - POST /auth/verify-email-change  → Confirma cambio de correo
+
+Impacto: Sin este módulo no existiría autenticación; todos los endpoints
+  protegidos quedarían inaccesibles y nadie podría iniciar sesión.
+"""
 import secrets
 import json
 import urllib.parse

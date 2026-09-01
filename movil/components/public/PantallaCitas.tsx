@@ -17,6 +17,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import CalendarioMes from "@/components/app/CalendarioMes";
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import Dropdown from "@/components/ui/Dropdown";
 import PaymentMethodCards from "@/components/public/PaymentMethodCards";
 import { FontFamilies } from "@/constants/theme";
@@ -29,10 +30,12 @@ import {
   listarHorasDisponibles,
   listarMisCitas,
   listarTarifas,
+  listarTecnicosPublicos,
   obtenerPerfilCliente,
   obtenerMetodosPago,
   type Cita,
   type Tarifa,
+  type TecnicoPublico,
 } from "@/services/cliente.services";
 
 const TIPOS = ["instalacion", "mantenimiento", "reparacion", "revision", "soporte"];
@@ -59,7 +62,7 @@ export default function PantallaCitas({
   }>();
 
   const [vista, setVista] = useState<"agendar" | "mis">(params.vista === "mis-citas" ? "mis" : "agendar");
-  const [tipoServicio, setTipoServicio] = useState("instalacion");
+  const [tipoServicio, setTipoServicio] = useState<string | null>("instalacion");
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [direccion, setDireccion] = useState("");
@@ -71,6 +74,45 @@ export default function PantallaCitas({
     return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
   })();
   const nombreTecnico = params.nombre ? decodeURIComponent(params.nombre) : null;
+
+  // Selección de hasta 3 técnicos (1 líder + 2 compañeros)
+  type SlotTecnico = { id: number; nombre: string; rol: string };
+  const [tecnicosSeleccionados, setTecnicosSeleccionados] = useState<SlotTecnico[]>([]);
+  const [tecnicosLista, setTecnicosLista] = useState<TecnicoPublico[]>([]);
+  const [tecnicosLoading, setTecnicosLoading] = useState(false);
+
+  // Inicializar desde params si viene de PantallaTecnicos.
+  useEffect(() => {
+    if (tecnicoId && nombreTecnico) {
+      setTecnicosSeleccionados([{ id: tecnicoId, nombre: nombreTecnico, rol: "Líder" }]);
+    }
+  }, [tecnicoId, nombreTecnico]);
+
+  // Cargar técnicos disponibles cuando cambian fecha/hora/servicio.
+  useEffect(() => {
+    if (!fecha || !hora || vista !== "agendar") return;
+    let activo = true;
+    setTecnicosLoading(true);
+    listarTecnicosPublicos({ tipo_servicio: tipoServicio ?? undefined, fecha, hora })
+      .then((res) => { if (activo) setTecnicosLista(res || []); })
+      .catch(() => { if (activo) setTecnicosLista([]); })
+      .finally(() => { if (activo) setTecnicosLoading(false); });
+    return () => { activo = false; };
+  }, [fecha, hora, tipoServicio, vista]);
+
+  const toggleTecnico = (tec: TecnicoPublico) => {
+    const nombre = `${tec.first_name} ${tec.last_name}`;
+    setTecnicosSeleccionados((prev) => {
+      const exists = prev.find((t) => t.id === tec.id_tecnico);
+      if (exists) {
+        const next = prev.filter((t) => t.id !== tec.id_tecnico);
+        return next.map((t, i) => ({ ...t, rol: i === 0 ? "Líder" : `Compañero ${i}` }));
+      }
+      if (prev.length >= 3) return prev;
+      const rol = prev.length === 0 ? "Líder" : `Compañero ${prev.length}`;
+      return [...prev, { id: tec.id_tecnico, nombre, rol }];
+    });
+  };
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
     const [tarifas, setTarifas] = useState<Tarifa[]>([]);
   const [bancos, setBancos] = useState<string[]>([]);
@@ -145,7 +187,7 @@ export default function PantallaCitas({
     listarHorasDisponibles({
       fecha,
       tecnico_id: tecnicoId ?? undefined,
-      tipo_servicio: tipoServicio,
+      tipo_servicio: tipoServicio ?? undefined,
     })
       .then((horas) => activo && setHorasDisponibles(horas))
       .catch(() => activo && setHorasDisponibles([]));
@@ -163,13 +205,15 @@ export default function PantallaCitas({
     tarifas.find((tf) => tf.tipo_servicio === tipoServicio)?.costo ?? null;
 
   const payloadBase = () => ({
-    tipo_servicio: tipoServicio,
+    tipo_servicio: tipoServicio ?? "",
     fecha,
     hora,
     direccion: direccion.trim(),
     descripcion: descripcion.trim(),
-    id_tecnico: tecnicoId,
-    nombre_tecnico: nombreTecnico,
+    id_tecnico: tecnicosSeleccionados[0]?.id ?? tecnicoId ?? null,
+    nombre_tecnico: tecnicosSeleccionados[0]?.nombre ?? nombreTecnico ?? null,
+    id_tecnico_2: tecnicosSeleccionados[1]?.id ?? null,
+    id_tecnico_3: tecnicosSeleccionados[2]?.id ?? null,
   });
 
   const datosPagoValidos = (): Record<string, unknown> | null => {
@@ -248,9 +292,13 @@ export default function PantallaCitas({
       setError("Selecciona una hora disponible.");
       return;
     }
+    if (!tipoServicio) {
+      setError("Selecciona un tipo de servicio.");
+      return;
+    }
     // El técnico es obligatorio al crear (igual que la web): debe venir de Técnicos
-    if (!editandoId && tecnicoId == null) {
-      setError("Debes seleccionar un técnico primero. Ve a Técnicos y pulsa Seleccionar.");
+    if (!editandoId && tecnicosSeleccionados.length === 0 && tecnicoId == null) {
+      setError("Debes seleccionar al menos un técnico. Ve a Técnicos y pulsa Seleccionar, o elige abajo.");
       return;
     }
 
@@ -382,26 +430,83 @@ export default function PantallaCitas({
       {/* ── AGENDAR ── */}
       {vista === "agendar" && (
         <View style={{ gap: 8 }}>
-          {!!nombreTecnico && (
+          {/* Banner de técnico pre-seleccionado desde fuera */}
+          {tecnicosSeleccionados.length > 0 && (
             <View style={S.bannerTecnico}>
               <FontAwesome6 name="user" size={11} color="#141414" />
-              <Text style={S.bannerTexto}>Técnico asociado: {nombreTecnico}</Text>
+              <Text style={S.bannerTexto}>
+                {tecnicosSeleccionados.map((t, i) => `${i === 0 ? "⭐ " : ""}${t.rol}: ${t.nombre}`).join(" · ")}
+              </Text>
             </View>
           )}
 
-          <Text style={S.label}>Tipo de servicio *</Text>
+          {/* Selector de técnicos (hasta 3) */}
+          {fecha && hora ? (
+            <>
+              <Text style={S.label}>Técnicos * (selecciona hasta 3)</Text>
+              {tecnicosLoading ? (
+                <Text style={S.gris}>Cargando técnicos disponibles...</Text>
+              ) : tecnicosLista.length === 0 ? (
+                <Text style={S.gris}>No hay técnicos disponibles para esta fecha/hora.</Text>
+              ) : (
+                <View style={{ gap: 8 }}>
+                  {tecnicosLista.map((tec) => {
+                    const idx = tecnicosSeleccionados.findIndex((t) => t.id === tec.id_tecnico);
+                    const seleccionado = idx !== -1;
+                    const rol = seleccionado ? tecnicosSeleccionados[idx].rol : null;
+                    return (
+                      <Pressable
+                        key={tec.id_tecnico}
+                        onPress={() => toggleTecnico(tec)}
+                        disabled={!tec.disponible}
+                        style={[S.tecCard, !tec.disponible && S.tecCardDisabled, seleccionado && S.tecCardSelected]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={S.tecNombre}>{tec.first_name} {tec.last_name}</Text>
+                          {tec.certificacion_t ? <Text style={S.tecCert}>{tec.certificacion_t}</Text> : null}
+                          <Text style={[S.tecDisp, { color: tec.disponible ? "#7ee29a" : "#e5484d" }]}>
+                            {tec.disponible ? "Disponible" : "Ocupado"}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                          {seleccionado && (
+                            <View style={[S.rolBadge, idx === 0 && S.rolLider]}>
+                              <Text style={[S.rolBadgeTxt, idx === 0 && { color: "#141414" }]}>{rol}</Text>
+                            </View>
+                          )}
+                          <Text style={seleccionado ? S.tecSeleccionadoTxt : S.tecSeleccionarTxt}>
+                            {seleccionado ? "✓ Seleccionado" : tec.disponible ? "+ Seleccionar" : "No disponible"}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={S.gris}>Selecciona fecha y hora primero para ver técnicos disponibles.</Text>
+          )}
+
+          <Text style={S.label}>Tipo de servicio *{tipoServicio ? "" : " (selecciona uno)"}</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
-            {TIPOS.map((tipo) => (
-              <Pressable
-                key={tipo}
-                onPress={() => setTipoServicio(tipo)}
-                style={[S.chip, tipoServicio === tipo && S.chipActivo]}
-              >
-                <Text style={[S.chipTexto, tipoServicio === tipo && S.chipTextoActivo]}>
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
+            {TIPOS.map((tipo) => {
+              const activo = tipoServicio === tipo;
+              return (
+                <Pressable
+                  key={tipo}
+                  onPress={() => setTipoServicio(activo ? null : tipo)}
+                  style={[S.chip, activo && S.chipActivo]}
+                >
+                  <Text style={[S.chipTexto, activo && S.chipTextoActivo]}>
+                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                  </Text>
+                  {activo && (
+                    <FontAwesome6 name="xmark" size={11} color="#141414" style={{ marginLeft: 5 }} />
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
 
           {tarifaActual != null && (
@@ -611,7 +716,7 @@ export default function PantallaCitas({
       {vista === "mis" && (
         <View style={{ gap: 12 }}>
           {misCitas.length === 0 && (
-            <Text style={S.gris}>No tienes citas agendadas.</Text>
+            <EmptyState icono="calendar-check" texto="Sin citas" />
           )}
 
           {[...misCitas]
@@ -785,6 +890,17 @@ const S = StyleSheet.create({
     paddingHorizontal: 13,
   },
   bannerTexto: { color: "#141414", fontFamily: FontFamilies.button, fontSize: 12.5 },
+  tecCard: { flexDirection: "row", backgroundColor: "#1e1e1e", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 12, alignItems: "center", gap: 10 },
+  tecCardDisabled: { opacity: 0.45 },
+  tecCardSelected: { borderColor: "#caa24d", backgroundColor: "rgba(202,162,77,0.10)" },
+  tecNombre: { color: "#ffffff", fontFamily: FontFamilies.bodyBold, fontSize: 13.5 },
+  tecCert: { color: "#bdbdbd", fontSize: 12, marginTop: 2 },
+  tecDisp: { fontSize: 12, fontFamily: FontFamilies.bodyMedium, marginTop: 4 },
+  tecSeleccionadoTxt: { color: "#7ee29a", fontFamily: FontFamilies.button, fontSize: 12 },
+  tecSeleccionarTxt: { color: "#caa24d", fontFamily: FontFamilies.button, fontSize: 12 },
+  rolBadge: { backgroundColor: "rgba(188,188,188,0.18)", borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8 },
+  rolLider: { backgroundColor: "#caa24d" },
+  rolBadgeTxt: { color: "#bdbdbd", fontSize: 11, fontFamily: FontFamilies.button },
   error: { color: "#f0858a", fontSize: 13, lineHeight: 19 },
   exito: { color: "#7ee29a", fontSize: 13, lineHeight: 19 },
   gris: { color: "#bdbdbd", fontSize: 12.5, lineHeight: 18 },

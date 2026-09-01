@@ -143,6 +143,10 @@ export interface SeguimientoPedido {
     longitud: number;
     actualizado_en?: string;
   } | null;
+  ubicacion_cliente?: {
+    latitud: number;
+    longitud: number;
+  } | null;
 }
 
 export const obtenerSeguimiento = (idPedido: number) =>
@@ -525,4 +529,12 @@ export const solicitarReembolsoPedido = (idPedido: number, motivo?: string) =>
   apiFetch(`/reembolsos/pedido/${idPedido}`, {
     method: "POST",
     body: JSON.stringify({ motivo }),
+  });
+
+// ── Ubicación del cliente (compartir con técnico) ────────────
+
+export const compartirUbicacionCliente = (idPedido: number, latitud: number, longitud: number) =>
+  apiFetch<{ ok: boolean; mensaje: string }>(`/pedidos/${idPedido}/ubicacion`, {
+    method: "POST",
+    body: JSON.stringify({ latitud, longitud }),
   });

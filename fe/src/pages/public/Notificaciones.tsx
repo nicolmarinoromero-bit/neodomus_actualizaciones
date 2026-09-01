@@ -97,7 +97,7 @@ const Notificaciones = () => {
         {cargando && <p className="notif-vacio">Cargando...</p>}
         {error && <p className="notif-vacio">{error}</p>}
         {!cargando && notificaciones.length === 0 && (
-          <p className="notif-vacio">No tienes notificaciones nuevas.</p>
+          <p className="notif-vacio">Sin notificaciones</p>
         )}
 
         <div className="notif-list">

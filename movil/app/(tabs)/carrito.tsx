@@ -13,6 +13,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
@@ -267,6 +268,8 @@ function TarjetaItem({  item,
 }) {
   const esMetros = !!item.venta_por_metros;
   const cantidadEfectiva = esMetros ? (item.metros ?? 10) * (item.cantidad || 1) : item.cantidad;
+  const [displayCantidad, setDisplayCantidad] = useState<string | undefined>(undefined);
+  const [displayMetros, setDisplayMetros] = useState<string | undefined>(undefined);
   // Misma resolución de imagen que Productos (cubre ítems guardados antes
   // del fix: si imagen vino null, aplica la convención /uploads/{id}.jpg).
   const urlImagen = urlImagenProducto({
@@ -313,15 +316,33 @@ function TarjetaItem({  item,
               <View style={styles.contador}>
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => onCantidad(Math.max(1, (item.cantidad || 1) - 1))}
+                  onPress={() => { onCantidad(Math.max(1, (item.cantidad || 1) - 1)); setDisplayCantidad(undefined); }}
                   accessibilityLabel="Reducir unidades"
                 >
                   <FontAwesome6 name="minus" size={10} color={C.blanco} />
                 </Pressable>
-                <Text style={styles.chipMetros}>{item.cantidad}</Text>
+                <TextInput
+                  style={[styles.chipMetros, { minWidth: 30, textAlign: "center" }]}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={displayCantidad !== undefined ? displayCantidad : String(item.cantidad)}
+                  onChangeText={(v) => setDisplayCantidad(v.replace(/[^0-9]/g, ""))}
+                  onBlur={() => {
+                    const raw = displayCantidad ?? "";
+                    const num = parseInt(raw, 10);
+                    if (raw === "" || isNaN(num) || num < 1) {
+                      onCantidad(1);
+                    } else {
+                      onCantidad(num);
+                    }
+                    setDisplayCantidad(undefined);
+                  }}
+                  accessibilityLabel="Unidades"
+                />
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => onCantidad((item.cantidad || 1) + 1)}
+                  onPress={() => { onCantidad((item.cantidad || 1) + 1); setDisplayCantidad(undefined); }}
                   accessibilityLabel="Aumentar unidades"
                 >
                   <FontAwesome6 name="plus" size={10} color={C.blanco} />
@@ -330,15 +351,33 @@ function TarjetaItem({  item,
               <View style={styles.contador}>
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => onMetros(Math.max(10, (item.metros ?? 10) - 10))}
+                  onPress={() => { onMetros(Math.max(10, (item.metros ?? 10) - 10)); setDisplayMetros(undefined); }}
                   accessibilityLabel="Reducir metros"
                 >
                   <FontAwesome6 name="minus" size={10} color={C.blanco} />
                 </Pressable>
-                <Text style={styles.chipMetros}>{item.metros ?? 10} m</Text>
+                <TextInput
+                  style={[styles.chipMetros, { minWidth: 30, textAlign: "center" }]}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={3}
+                  value={displayMetros !== undefined ? displayMetros : String(item.metros ?? 10)}
+                  onChangeText={(v) => setDisplayMetros(v.replace(/[^0-9]/g, ""))}
+                  onBlur={() => {
+                    const raw = displayMetros ?? "";
+                    const num = parseInt(raw, 10);
+                    if (raw === "" || isNaN(num) || num < 10) {
+                      onMetros(10);
+                    } else {
+                      onMetros(Math.min(50, num));
+                    }
+                    setDisplayMetros(undefined);
+                  }}
+                  accessibilityLabel="Metros"
+                />
                 <Pressable
                   style={styles.contadorBoton}
-                  onPress={() => onMetros(Math.min(50, (item.metros ?? 10) + 10))}
+                  onPress={() => { onMetros(Math.min(50, (item.metros ?? 10) + 10)); setDisplayMetros(undefined); }}
                   accessibilityLabel="Aumentar metros"
                 >
                   <FontAwesome6 name="plus" size={10} color={C.blanco} />
@@ -349,15 +388,33 @@ function TarjetaItem({  item,
             <View style={styles.contador}>
               <Pressable
                 style={styles.contadorBoton}
-                onPress={() => onCantidad(item.cantidad - 1)}
+                onPress={() => { onCantidad(item.cantidad - 1); setDisplayCantidad(undefined); }}
                 accessibilityLabel="Reducir cantidad"
               >
                 <FontAwesome6 name="minus" size={11} color={C.blanco} />
               </Pressable>
-              <Text style={styles.chipMetros}>{item.cantidad}</Text>
+              <TextInput
+                style={[styles.chipMetros, { minWidth: 30, textAlign: "center" }]}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={5}
+                value={displayCantidad !== undefined ? displayCantidad : String(item.cantidad)}
+                onChangeText={(v) => setDisplayCantidad(v.replace(/[^0-9]/g, ""))}
+                onBlur={() => {
+                  const raw = displayCantidad ?? "";
+                  const num = parseInt(raw, 10);
+                  if (raw === "" || isNaN(num) || num < 1) {
+                    onCantidad(1);
+                  } else {
+                    onCantidad(num);
+                  }
+                  setDisplayCantidad(undefined);
+                }}
+                accessibilityLabel="Cantidad"
+              />
               <Pressable
                 style={styles.contadorBoton}
-                onPress={() => onCantidad(item.cantidad + 1)}
+                onPress={() => { onCantidad(item.cantidad + 1); setDisplayCantidad(undefined); }}
                 accessibilityLabel="Aumentar cantidad"
               >
                 <FontAwesome6 name="plus" size={11} color={C.blanco} />

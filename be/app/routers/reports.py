@@ -1,3 +1,25 @@
+"""
+Módulo: routers/reports.py
+
+¿Qué hace?
+  Genera reportes analíticos del dashboard administrativo: métricas
+  operativas, resumen general, ventas, citas, rendimiento por técnico
+  y descarga de PDFs profesionales.
+
+Endpoints:
+  - GET  /reports/operativo     → Métricas operativas del día (admin)
+  - GET  /reports/resumen       → Resumen general con métricas (admin)
+  - GET  /reports/ventas        → Reporte de ventas por periodo (admin)
+  - GET  /reports/citas         → Reporte de citas por periodo (admin)
+  - GET  /reports/tecnico       → Reporte detallado de un técnico (admin)
+  - GET  /reports/tecnicos      → Lista de técnicos con métricas (admin)
+  - GET  /reports/ventas/pdf    → Descarga PDF de ventas
+  - GET  /reports/citas/pdf     → Descarga PDF de citas
+  - GET  /reports/pdf           → Reporte general completo en PDF
+
+Impacto: Sin este módulo el admin no tendría visibilidad sobre ventas,
+  rendimiento de técnicos ni podría descargar reportes para análisis.
+"""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta

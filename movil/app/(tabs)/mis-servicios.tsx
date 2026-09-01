@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
@@ -41,7 +42,7 @@ export default function MisServiciosScreen() {
       {cargando && <Text style={S.gris}>Cargando...</Text>}
       {error && <Text style={S.error}>{error}</Text>}
       {!cargando && citas.length === 0 && (
-        <Text style={S.gris}>No tienes servicios asociados.</Text>
+        <EmptyState icono="wrench" texto="Sin servicios" />
       )}
 
       {citas.map((cita) => (

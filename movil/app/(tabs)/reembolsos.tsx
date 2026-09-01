@@ -5,6 +5,7 @@ import { useFocusEffect } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
@@ -93,7 +94,7 @@ export default function ReembolsosScreen() {
       {pestana === "reembolsos" && !cargando && (
         <>
           {reembolsos.length === 0 && (
-            <Text style={S.gris}>No tienes reembolsos registrados.</Text>
+            <EmptyState icono="money-bill-transfer" texto="Sin reembolsos" />
           )}
 
           {reembolsos.length > 0 && (
@@ -129,7 +130,7 @@ export default function ReembolsosScreen() {
       {pestana === "devoluciones" && !cargando && (
         <>
           {devoluciones.length === 0 && (
-            <Text style={S.gris}>No tienes solicitudes de devolución.</Text>
+            <EmptyState icono="rotate-left" texto="Sin devoluciones" />
           )}
 
           {devoluciones.map((d) => (

@@ -7,6 +7,7 @@ import { router, useFocusEffect } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import { FontFamilies } from "@/constants/theme";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,7 +95,7 @@ export default function PedidosScreen() {
       {error && <Text style={S.error}>{error}</Text>}
 
       {!cargando && pedidos.length === 0 && (
-        <Text style={S.gris}>No tienes pedidos todavía.</Text>
+        <EmptyState icono="bag-shopping" texto="Sin pedidos" />
       )}
 
       {pedidos.map((p) => (

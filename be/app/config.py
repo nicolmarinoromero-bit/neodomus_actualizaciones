@@ -1,3 +1,14 @@
+"""
+Módulo: app/config.py
+
+¿Qué hace?
+  Define la configuración centralizada de la aplicación (base de datos,
+  JWT, SMTP, MinIO, pagos y URLs) cargada desde variables de entorno .env.
+
+Impacto: Sin este módulo ningún otro componente podría acceder a los
+parámetros críticos de conexión, seguridad o integraciones externas.
+"""
+
 import os
 from typing import Optional
 from pydantic_settings import BaseSettings

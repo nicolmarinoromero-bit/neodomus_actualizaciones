@@ -1,3 +1,25 @@
+"""
+Módulo: models/producto.py
+
+Tabla: productos
+Descripción: Catálogo de productos de domótica disponibles para venta e instalación, con precios, stock, variantes y requisitos de instalación.
+
+Campos clave:
+  - id_producto: int (PK)
+  - nombre_producto: String(100) (nombre del producto)
+  - referencia_producto: String(50) (referencia única)
+  - precio_venta_producto: Float (precio de venta)
+  - stock_producto: int (unidades disponibles)
+  - estado_producto: String(20) (activo | inactivo)
+  - id_cate_pr: int (FK → categorias)
+  - id_proveedor_pr: int (FK → proveedores)
+
+Relaciones:
+  - categoria → Categoria (categoría del producto)
+  - proveedor → Proveedor (proveedor del producto)
+  - especializaciones_requeridas → Especializacion (habilidades necesarias)
+  - variantes → ProductoVariante (variantes de color/tamaño)
+"""
 from sqlalchemy import Column, Integer, String, Float, DateTime, Date, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base

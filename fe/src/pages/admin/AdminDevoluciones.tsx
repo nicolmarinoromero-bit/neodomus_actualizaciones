@@ -681,8 +681,8 @@ const AdminDevoluciones = () => {
 
       {/* ── Modal: aprobar con resolución ── */}
       {aprobarSol && (
-        <div className="ap-modal-overlay" onClick={() => setAprobarSol(null)}>
-          <div className="ap-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="ap-modal-overlay">
+          <div className="ap-modal" style={{ maxWidth: 420 }}>
             <div className="ap-modal-head">
               <h3>Aprobar {aprobarSol.numero}</h3>
               <button type="button" className="ap-modal-x" onClick={() => setAprobarSol(null)}>×</button>
@@ -715,8 +715,8 @@ const AdminDevoluciones = () => {
 
       {/* ── Modal: rechazar con motivo ── */}
       {rechazarSol && (
-        <div className="ap-modal-overlay" onClick={() => setRechazarSol(null)}>
-          <div className="ap-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="ap-modal-overlay">
+          <div className="ap-modal" style={{ maxWidth: 420 }}>
             <div className="ap-modal-head">
               <h3>Rechazar {rechazarSol.numero}</h3>
               <button type="button" className="ap-modal-x" onClick={() => setRechazarSol(null)}>×</button>

@@ -1,3 +1,22 @@
+"""
+Módulo: models/solicitud_devolucion.py
+
+Tabla: solicitudes_devolucion
+Descripción: Solicitud de devolución creada por el cliente sobre un pedido entregado. Agrupa una o varias líneas de devolución (tabla devoluciones). Puede ser parcial o total.
+
+Campos clave:
+  - id_solicitud: int (PK)
+  - numero: String(20) (número público DEV-000001)
+  - id_cliente_s: int (FK → clientes)
+  - id_pedido_s: int (FK → pedidos)
+  - motivo_tipo: String(40) (clave del catálogo de motivos)
+  - estado: String(30) (Solicitada → En revisión → Aprobada → Recibida)
+  - tipo_devolucion: String(10) (parcial | total)
+  - monto_total: Float (valor estimado a devolver)
+
+Relaciones:
+  - lineas → Devolucion (líneas individuales de devolución)
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func

@@ -184,11 +184,12 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             if (p.venta_por_metros and linea["metros"])
             else linea["cantidad"]
         )
-        requerido_prod[p.id_producto] += unidades
         productos_por_id[p.id_producto] = p
         if v is not None:
             requerido_var[v.id] += unidades
             variantes_por_id[v.id] = v
+        else:
+            requerido_prod[p.id_producto] += unidades
 
     for pid, req in requerido_prod.items():
         prod = productos_por_id[pid]
@@ -1214,7 +1215,7 @@ async def crear_pedido(
 
     pedido = Pedido(
         id_cliente_pe=cliente.id_cliente,
-        fecha_peedido=datetime.now(),
+        fecha_peedido=fecha_bogota(),
         total_pedido=total,
         estado_pedido=estado_pedido,
     )

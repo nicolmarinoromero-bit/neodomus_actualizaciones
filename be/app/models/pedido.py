@@ -1,3 +1,30 @@
+"""
+Módulo: models/pedido.py
+
+Tabla: pedidos / detalle_pedido
+Descripción: Pedido de compra del cliente con sus líneas de detalle (productos, cantidades, precios). Incluye gestión de entrega y asignación de técnico.
+
+Campos clave (pedidos):
+  - id_pedido: int (PK)
+  - id_cliente_pe: int (FK → clientes)
+  - total_pedido: Float (total del pedido)
+  - estado_pedido: String(50) (Pendiente | Pagado | Enviado | Entregado)
+  - fecha_entrega: Date (fecha programada de entrega)
+  - id_tecnico_entrega: int (técnico asignado para entrega)
+
+Campos clave (detalle_pedido):
+  - id_detalle: int (PK)
+  - id_pedido_d: int (FK → pedidos)
+  - id_producto_d: int (FK → productos)
+  - cantidad_detalle: int (unidades)
+  - precio_unitario_detalle: Float (precio unitario)
+  - subtotal_detalle: Float (subtotal línea)
+
+Relaciones:
+  - cliente → Cliente (quien realizó el pedido)
+  - detalles → DetallePedido (líneas del pedido)
+  - tecnico_entrega → Tecnico (técnico que entrega)
+"""
 from datetime import datetime, date
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,6 +47,8 @@ class Pedido(Base):
     estado_entrega: Mapped[str] = mapped_column(String(20), nullable=True)
     entrega_actualizada_en: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     evidencia_entrega_url: Mapped[str] = mapped_column(String(255), nullable=True)
+    latitud_cliente: Mapped[float] = mapped_column(Float, nullable=True)
+    longitud_cliente: Mapped[float] = mapped_column(Float, nullable=True)
 
     cliente = relationship("Cliente", foreign_keys=[id_cliente_pe])
     detalles = relationship("DetallePedido", back_populates="pedido")

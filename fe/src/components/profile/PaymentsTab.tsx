@@ -50,7 +50,7 @@ const PayFormModal = ({ metodo, onClose, onGuardar }: PayFormProps) => {
   };
 
   return (
-    <div className="pf-modal-backdrop" onClick={onClose}>
+    <div className="pf-modal-backdrop">
       <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pf-modal-header">
           <h3>{metodo ? 'Editar método de pago' : 'Agregar método de pago'}</h3>
@@ -246,7 +246,7 @@ const PaymentsTab = ({ notify }: { notify: NotifyFn }) => {
       )}
 
       {eliminando && (
-        <div className="pf-modal-backdrop" onClick={() => setEliminando(null)}>
+        <div className="pf-modal-backdrop">
           <div className="pf-modal pf-modal-small" onClick={(e) => e.stopPropagation()}>
             <div className="pf-modal-header">
               <h3>Eliminar método de pago</h3>

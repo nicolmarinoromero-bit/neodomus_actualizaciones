@@ -1,3 +1,20 @@
+"""
+Módulo: models/pago.py
+
+Tabla: pagos
+Descripción: Pago simulado de un pedido (tarjeta, PSE, PayPal, punto de pago). Estados: aprobado | rechazado | pendiente.
+
+Campos clave:
+  - id_pago: int (PK)
+  - id_pedido: int (FK → pedidos)
+  - metodo_pago: String(30) (tarjeta | PSE | PayPal | punto_pago)
+  - estado: String(20) (aprobado | rechazado | pendiente)
+  - monto: Float (monto pagado)
+  - numero_transaccion: String(50) (referencia de la pasarela)
+
+Relaciones:
+  - pedido → Pedido (pedido pagado)
+"""
 from datetime import datetime
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship

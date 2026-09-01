@@ -1,3 +1,23 @@
+"""
+Módulo: routers/users.py
+
+¿Qué hace?
+  Gestión de usuarios empleados (técnicos y admin): CRUD completo,
+  perfil propio, habilitación/inhabilitación con notificación por correo
+  y proceso automático de reasignación al desactivar un técnico.
+
+Endpoints:
+  - GET  /users/me        → Perfil del empleado autenticado
+  - PUT  /users/me        → Actualiza perfil propio
+  - GET  /users/roles     → Lista roles del sistema (admin)
+  - GET  /users/          → Lista todos los empleados (admin)
+  - POST /users           → Registra empleado nuevo (admin)
+  - PUT  /users/{id}      → Edita empleado (admin)
+  - DELETE /users/{id}    → Desactiva empleado (admin)
+
+Impacto: Sin este módulo el admin no podría crear, editar ni desactivar
+  empleados; los técnicos no tendrían cuenta en el sistema.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session

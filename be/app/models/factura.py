@@ -1,3 +1,22 @@
+"""
+Módulo: models/factura.py
+
+Tabla: facturas
+Descripción: Factura generada a partir de un pedido o cita aprobado, con datos de pago y envío por correo.
+
+Campos clave:
+  - id_factura: int (PK)
+  - id_pedido: int (FK → pedidos, opcional)
+  - id_cita: int (FK → citas, opcional)
+  - numero_factura: String(30) (número único de factura)
+  - monto_total: Float (total facturado)
+  - metodo_pago: String(30) (método utilizado)
+  - enviada_por_correo: Boolean (si ya fue enviada)
+
+Relaciones:
+  - pedido → Pedido (pedido asociado)
+  - cita → Cita (cita asociada)
+"""
 from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship

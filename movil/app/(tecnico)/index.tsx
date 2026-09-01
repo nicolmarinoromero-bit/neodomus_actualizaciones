@@ -5,6 +5,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -15,8 +17,8 @@ import {
   Linking,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInUp, FadeIn } from "react-native-reanimated";
 
@@ -99,6 +101,10 @@ export default function TecnicoDashboard() {
   const [marcandoLeidas, setMarcandoLeidas] = useState(false);
   const [recogiendoId, setRecogiendoId] = useState<number | null>(null);
   const [confirmRecogida, setConfirmRecogida] = useState<Entrega | null>(null);
+  const [confirmEnCamino, setConfirmEnCamino] = useState<Entrega | null>(null);
+  const [subiendoEvidenciaId, setSubiendoEvidenciaId] = useState<number | null>(null);
+  const [compartiendoUbicacion, setCompartiendoUbicacion] = useState(false);
+  const watchRef = useRef<Location.LocationSubscription | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -185,10 +191,6 @@ export default function TecnicoDashboard() {
     setMarcandoLeidas(false);
   };
 
-  const handleYaRecogi = (entrega: Entrega) => {
-    setConfirmRecogida(entrega);
-  };
-
   const confirmarRecogida = async () => {
     if (!confirmRecogida) return;
     setRecogiendoId(confirmRecogida.id_pedido);
@@ -204,6 +206,84 @@ export default function TecnicoDashboard() {
       setToast(e?.message || "Error al actualizar entrega");
     }
     setRecogiendoId(null);
+  };
+
+  const actualizarEntrega = async (pedidoId: number, nuevoEstado: string) => {
+    setUpdatingId(pedidoId);
+    try {
+      await apiFetch(`/tecnicos/entregas/${pedidoId}/estado`, {
+        method: "PUT",
+        body: JSON.stringify({ estado: nuevoEstado }),
+      });
+      setToast(
+        nuevoEstado === "En camino" ? "En camino al cliente" : "Estado actualizado"
+      );
+      setConfirmEnCamino(null);
+      fetchAll();
+    } catch (e: any) {
+      setToast(e?.message || "Error al actualizar");
+    }
+    setUpdatingId(null);
+  };
+
+  const subirEvidenciasEntrega = async (pedidoId: number, fromCamera: boolean) => {
+    if (fromCamera) {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { setToast("Permiso de cámara denegado"); return; }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { setToast("Permiso de galería denegado"); return; }
+    }
+    const launcher = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const res = await launcher({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsMultipleSelection: !fromCamera,
+    });
+    if (res.canceled || !res.assets?.length) return;
+    setSubiendoEvidenciaId(pedidoId);
+    try {
+      const fd = new FormData();
+      res.assets.forEach((a) => {
+        fd.append("files", { uri: a.uri, name: "evidencia.jpg", type: "image/jpeg" } as any);
+      });
+      await apiFetch(`/tecnicos/entregas/${pedidoId}/evidencias`, { method: "POST", body: fd, headers: {} as any });
+      await apiFetch(`/tecnicos/entregas/${pedidoId}/estado`, { method: "PUT", body: JSON.stringify({ estado: "Entregado" }) });
+      setToast("Pedido entregado con evidencias");
+      fetchAll();
+    } catch (e: any) {
+      setToast(e?.message || "Error al subir evidencias");
+    }
+    setSubiendoEvidenciaId(null);
+  };
+
+  const elegirEvidenciaEntrega = (pedidoId: number) => {
+    Alert.alert("Evidencia de entrega", "¿Cómo deseas capturar la evidencia?", [
+      { text: "Cámara", onPress: () => subirEvidenciasEntrega(pedidoId, true) },
+      { text: "Galería", onPress: () => subirEvidenciasEntrega(pedidoId, false) },
+    ]);
+  };
+
+  const compartirUbicacion = async () => {
+    if (compartiendoUbicacion) {
+      if (watchRef.current) { watchRef.current.remove(); watchRef.current = null; }
+      setCompartiendoUbicacion(false);
+      return;
+    }
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") { setToast("Permiso de ubicación denegado"); return; }
+    setCompartiendoUbicacion(true);
+    watchRef.current = await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, timeInterval: 10000, distanceInterval: 10 },
+      async (pos) => {
+        try {
+          await apiFetch("/tecnicos/ubicacion", {
+            method: "POST",
+            body: JSON.stringify({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
+          });
+        } catch {}
+      }
+    );
   };
 
   if (loading) {
@@ -314,24 +394,90 @@ export default function TecnicoDashboard() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemTitulo}>{e.cliente} · Pedido #{e.id_pedido}</Text>
-                      <Text style={styles.itemSub}>{e.fecha_entrega || ""} {e.hora_entrega || ""} · {e.direccion || ""}</Text>
-                      <Text style={styles.itemSub}>{e.telefono || ""}</Text>
+                      <Text style={styles.itemSub}>
+                        {e.fecha_entrega || ""}{" "}
+                        {e.hora_entrega_fin
+                          ? `Entre ${e.hora_entrega || "10:00"} y ${e.hora_entrega_fin}`
+                          : e.hora_entrega || ""}{" "}
+                        · {e.direccion || ""}
+                      </Text>
+                      {e.telefono ? <Text style={styles.itemSub}>Tel: {e.telefono}</Text> : null}
+                      {e.email ? <Text style={styles.itemSub}>{e.email}</Text> : null}
+                      {/* Productos */}
+                      {e.productos && e.productos.length > 0 && (
+                        <View style={{ backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 6, marginTop: 4, gap: 2 }}>
+                          {e.productos.map((p, idx) => (
+                            <Text key={idx} style={{ color: "#bdbdbd", fontSize: 11 }}>× {p.cantidad} {p.descripcion}</Text>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   </View>
-                  <View style={[styles.badge, e.estado_entrega === "Entregado" ? styles.badgeOk : e.estado_entrega === "En camino" ? styles.badgeInfo : styles.badgePend]}>
+                  <View style={[styles.badge, e.estado_entrega === "Entregado" ? styles.badgeOk : e.estado_entrega === "En camino" ? styles.badgeInfo : e.estado_entrega === "Recogido" ? styles.badgeProc : styles.badgePend]}>
                     <Text style={styles.badgeTxt}>{e.estado_entrega || "Asignada"}</Text>
                   </View>
                 </View>
-                {(e.estado_entrega === "Asignada" || !e.estado_entrega) && (
-                  <Pressable
-                    onPress={() => handleYaRecogi(e)}
-                    disabled={recogiendoId === e.id_pedido}
-                    style={[styles.btnRecogida, recogiendoId === e.id_pedido && { opacity: 0.6 }]}
-                  >
-                    <FontAwesome6 name="box-open" size={12} color="#141414" />
-                    <Text style={styles.btnRecogidaTxt}>{recogiendoId === e.id_pedido ? t("entregas.actualizando") : t("entregas.yaRecogi")}</Text>
-                  </Pressable>
+
+                {/* Evidencias subidas */}
+                {e.estado_entrega === "Entregado" && (e.evidencias_entrega || []).length > 0 && (
+                  <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {(e.evidencias_entrega || []).slice(0, 4).map((url, idx) => {
+                      const imgUrl = url.startsWith("http") ? url : `http://192.168.1.13:9000${url}`;
+                      return <Image key={idx} source={{ uri: imgUrl }} style={{ width: 44, height: 44, borderRadius: 8 }} />;
+                    })}
+                    {(e.evidencias_entrega || []).length > 4 && (
+                      <Text style={styles.gris}>+{(e.evidencias_entrega || []).length - 4}</Text>
+                    )}
+                  </View>
                 )}
+
+                {/* Botones de acción */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                  {/* Asignada → Recogido */}
+                  {(e.estado_entrega === "Asignada" || !e.estado_entrega) && (
+                    <Pressable
+                      onPress={() => setConfirmRecogida(e)}
+                      disabled={recogiendoId === e.id_pedido}
+                      style={[styles.btnRecogida, recogiendoId === e.id_pedido && { opacity: 0.6 }]}
+                    >
+                      <FontAwesome6 name="box-open" size={12} color="#141414" />
+                      <Text style={styles.btnRecogidaTxt}>{recogiendoId === e.id_pedido ? "Procesando..." : t("entregas.yaRecogi")}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Recogido → En camino */}
+                  {e.estado_entrega === "Recogido" && (
+                    <Pressable
+                      onPress={() => setConfirmEnCamino(e)}
+                      disabled={updatingId === e.id_pedido}
+                      style={[styles.btnRecogida, updatingId === e.id_pedido && { opacity: 0.6 }]}
+                    >
+                      <FontAwesome6 name="route" size={12} color="#141414" />
+                      <Text style={styles.btnRecogidaTxt}>{updatingId === e.id_pedido ? "Procesando..." : "En camino"}</Text>
+                    </Pressable>
+                  )}
+
+                  {/* En camino → Entregado (sube fotos) */}
+                  {e.estado_entrega === "En camino" && (
+                    <>
+                      <Pressable
+                        onPress={() => elegirEvidenciaEntrega(e.id_pedido)}
+                        disabled={subiendoEvidenciaId === e.id_pedido}
+                        style={[styles.btnRecogida, { backgroundColor: "#7ee29a" }, subiendoEvidenciaId === e.id_pedido && { opacity: 0.5 }]}
+                      >
+                        <FontAwesome6 name="circle-check" size={12} color="#141414" />
+                        <Text style={styles.btnRecogidaTxt}>{subiendoEvidenciaId === e.id_pedido ? "Subiendo..." : "Entregado"}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={compartirUbicacion}
+                        style={[styles.btnRecogida, compartiendoUbicacion && { backgroundColor: "#e5484d" }]}
+                      >
+                        <FontAwesome6 name="location-dot" size={12} color="#141414" />
+                        <Text style={styles.btnRecogidaTxt}>{compartiendoUbicacion ? "GPS On" : "GPS"}</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
               </View>
             ))
           )}
@@ -512,6 +658,35 @@ export default function TecnicoDashboard() {
               </Pressable>
               <Pressable onPress={confirmarRecogida} disabled={!!recogiendoId} style={[styles.btnPrimary, !!recogiendoId && { opacity: 0.6 }]}>
                 <Text style={styles.btnPrimaryTxt}>{recogiendoId ? t("common.guardando") : t("common.confirmar")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal confirmar en camino */}
+      <Modal visible={!!confirmEnCamino} transparent animationType="fade" onRequestClose={() => setConfirmEnCamino(null)} statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>¿Ir en camino?</Text>
+              <Pressable onPress={() => setConfirmEnCamino(null)} hitSlop={8} style={styles.modalClose}>
+                <FontAwesome6 name="xmark" size={14} color="#ffffff" />
+              </Pressable>
+            </View>
+            <Text style={styles.gris}>Se marcará como "En camino" y podrás compartir tu ubicación GPS.</Text>
+            {confirmEnCamino ? (
+              <View style={{ backgroundColor: "rgba(212,165,75,0.08)", borderWidth: 1, borderColor: "rgba(212,165,75,0.18)", borderRadius: 10, padding: 10, marginTop: 6 }}>
+                <Text style={styles.modalValue}>Pedido #{confirmEnCamino.id_pedido}</Text>
+                <Text style={styles.gris}>{confirmEnCamino.cliente} · {confirmEnCamino.direccion || ""}</Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              <Pressable onPress={() => setConfirmEnCamino(null)} style={styles.btnGhost}>
+                <Text style={styles.btnGhostTxt}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={() => confirmEnCamino && actualizarEntrega(confirmEnCamino.id_pedido, "En camino")} style={[styles.btnPrimary, { flex: 1 }]}>
+                <Text style={styles.btnPrimaryTxt}>Confirmar</Text>
               </Pressable>
             </View>
           </View>
@@ -715,6 +890,7 @@ const styles = StyleSheet.create({
   badgeOk: { backgroundColor: "rgba(126,226,154,0.15)", borderWidth: 1, borderColor: "rgba(126,226,154,0.3)" },
   badgeInfo: { backgroundColor: "rgba(212,165,75,0.12)", borderWidth: 1, borderColor: "rgba(212,165,75,0.25)" },
   badgePend: { backgroundColor: "rgba(246,195,68,0.12)", borderWidth: 1, borderColor: "rgba(246,195,68,0.25)" },
+  badgeProc: { backgroundColor: "rgba(120,180,255,0.12)", borderWidth: 1, borderColor: "rgba(120,180,255,0.25)" },
   badgeErr: { backgroundColor: "rgba(240,133,138,0.12)", borderWidth: 1, borderColor: "rgba(240,133,138,0.25)" },
   badgeTxt: { color: "#ffffff", fontSize: 10.5, fontFamily: FontFamilies.bodyBold },
   verTxt: { color: C.oro, fontSize: 11, fontFamily: FontFamilies.bodyBold },

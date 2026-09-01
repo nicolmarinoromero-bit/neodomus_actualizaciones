@@ -79,16 +79,6 @@ def descontar_stock(
             .first()
         )
 
-    disponible_prod = prod.stock_producto or 0
-    if unidades > disponible_prod:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Stock insuficiente de '{prod.nombre_producto}' "
-                f"(disponible: {disponible_prod}, solicitado: {unidades})"
-            ),
-        )
-
     disponible_var = None
     if var is not None:
         disponible_var = var.stock or 0
@@ -100,12 +90,23 @@ def descontar_stock(
                     f"seleccionada (disponible: {disponible_var}, solicitado: {unidades})"
                 ),
             )
+    else:
+        disponible_prod = prod.stock_producto or 0
+        if unidades > disponible_prod:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Stock insuficiente de '{prod.nombre_producto}' "
+                    f"(disponible: {disponible_prod}, solicitado: {unidades})"
+                ),
+            )
 
-    prod.stock_producto = disponible_prod - unidades
     variante_agotada = False
     if var is not None:
         var.stock = disponible_var - unidades
         variante_agotada = var.stock == 0
+    else:
+        prod.stock_producto = disponible_prod - unidades
 
     # Notificar stock bajo después del descuento.
     _verificar_stock_bajo(db, prod)

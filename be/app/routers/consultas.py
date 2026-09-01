@@ -1,3 +1,18 @@
+"""
+Módulo: routers/consultas.py
+
+¿Qué hace?
+  Gestiona el formulario de contacto/soporte: creación de consultas por
+  visitantes o usuarios y respuesta por parte del administrador.
+
+Endpoints:
+  - POST /contacto                  → Crea una consulta (público)
+  - GET  /admin/consultas           → Lista consultas recibidas (admin)
+  - PUT  /admin/consultas/{id}      → Responde/marca una consulta (admin)
+
+Impacto: Sin este módulo no existiría canal de soporte; los usuarios
+  no podrían enviar consultas ni el admin podría responderlas.
+"""
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field

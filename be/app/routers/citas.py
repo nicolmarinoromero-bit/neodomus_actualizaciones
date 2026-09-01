@@ -1,3 +1,23 @@
+"""
+Módulo: routers/citas.py
+
+¿Qué hace?
+  Administra el ciclo completo de citas (servicios/instalaciones): creación
+  por parte del cliente, gestión por parte del admin y consulta de
+  disponibilidad horaria y de técnicos.
+
+Endpoints:
+  - GET  /citas/all-admin              → Lista todas las citas (admin)
+  - POST /citas                        → Crea una cita (cliente)
+  - GET  /citas/horas-disponibles      → Franjas libres para una fecha
+  - GET  /citas/tecnico-ocupado        → Horas ocupadas de un técnico
+  - PUT  /citas/admin/{cita_id}        → Actualiza estado/técnico (admin)
+  - GET  /citas/admin/reasignar-pendientes → Citas con técnico inactivo
+  - GET  /citas/admin/{id}/tecnicos-disponibles → Técnicos libres para reasignar
+
+Impacto: Sin este módulo los clientes no podrían agendar servicios y el
+  admin perdería el control sobre la programación de citas e instalaciones.
+"""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select, or_, text
 from sqlalchemy.orm import Session
@@ -327,6 +347,39 @@ def _notificar_tecnicos_cita(db: Session, cita: Cita, cliente: Optional[Cliente]
         if cliente
         else "Cliente"
     )
+
+    # Construir mapa de roles: líder vs compañeros.
+    tecnicos_roles: dict[int, str] = {}
+    if cita.id_tecnico is not None:
+        tecnicos_roles[cita.id_tecnico] = "Líder"
+    if cita.id_tecnico_2 is not None:
+        tecnicos_roles[cita.id_tecnico_2] = "Compañero"
+    if cita.id_tecnico_3 is not None:
+        tecnicos_roles[cita.id_tecnico_3] = "Compañero"
+
+    # Nombres de los compañeros para incluir en la notificación.
+    nombres_companeros = []
+    for tid in [cita.id_tecnico_2, cita.id_tecnico_3]:
+        if tid is None:
+            continue
+        t_obj = db.query(Tecnico).filter(Tecnico.id_tecnico == tid).first()
+        if t_obj and t_obj.usuario:
+            nombres_companeros.append(
+                f"{t_obj.usuario.first_name} {t_obj.usuario.last_name}".strip()
+            )
+
+    # Productos asociados a la cita (si tiene pedido vinculado).
+    productos_txt = ""
+    if hasattr(cita, "pedido") and cita.pedido:
+        pedido = cita.pedido
+        if hasattr(pedido, "detalles") and pedido.detalles:
+            lineas = []
+            for det in pedido.detalles:
+                prod = getattr(det, "producto", None)
+                nombre = getattr(prod, "nombre_producto", "Producto") if prod else "Producto"
+                lineas.append(f"× {det.cantidad} {nombre}")
+            productos_txt = ", ".join(lineas)
+
     ids = [cita.id_tecnico, cita.id_tecnico_2, cita.id_tecnico_3]
     for id_tecnico in ids:
         if id_tecnico is None:
@@ -336,20 +389,26 @@ def _notificar_tecnicos_cita(db: Session, cita: Cita, cliente: Optional[Cliente]
         tecnico_obj = db.query(Tecnico).filter(Tecnico.id_tecnico == id_tecnico).first()
         if not tecnico_obj or not tecnico_obj.usuario or not tecnico_obj.usuario.email:
             continue
+
+        rol = tecnicos_roles.get(id_tecnico, "Técnico")
+        datos = {
+            "cliente": nombre_cliente,
+            "servicio": cita.tipo_servicio,
+            "fecha": cita.fecha.strftime("%d/%m/%Y"),
+            "hora": cita.hora,
+            "direccion": cita.direccion,
+            "telefono": cliente.telefono_cliente if cliente else None,
+            "descripcion": cita.descripcion,
+            "rol": rol,
+            "companeros": ", ".join(nombres_companeros) if nombres_companeros else None,
+            "productos": productos_txt or None,
+        }
         notificar_cita_asignada_tecnico(
             db,
             tecnico_obj.usuario.id_usuario,
             tecnico_obj.usuario.email,
             tecnico_obj.usuario.first_name or "técnico",
-            {
-                "cliente": nombre_cliente,
-                "servicio": cita.tipo_servicio,
-                "fecha": cita.fecha.strftime("%d/%m/%Y"),
-                "hora": cita.hora,
-                "direccion": cita.direccion,
-                "telefono": cliente.telefono_cliente if cliente else None,
-                "descripcion": cita.descripcion,
-            },
+            datos,
         )
 
 
@@ -574,6 +633,8 @@ def crear_cita(
     # El técnico debe ser uno real: se ignora el nombre enviado por el cliente
     # y se valida especialidad + disponibilidad en la BD.
     nombre_tecnico = None
+    nombre_tecnico_2 = None
+    nombre_tecnico_3 = None
     if data.id_tecnico is not None:
         _validar_tecnico_cita(
             db,
@@ -584,12 +645,36 @@ def crear_cita(
             duracion_horas=duracion,
         )
         nombre_tecnico = _nombre_tecnico_real(db, data.id_tecnico)
+    if data.id_tecnico_2 is not None:
+        _validar_tecnico_cita(
+            db,
+            data.id_tecnico_2,
+            data.tipo_servicio,
+            data.fecha,
+            data.hora,
+            duracion_horas=duracion,
+        )
+        nombre_tecnico_2 = _nombre_tecnico_real(db, data.id_tecnico_2)
+    if data.id_tecnico_3 is not None:
+        _validar_tecnico_cita(
+            db,
+            data.id_tecnico_3,
+            data.tipo_servicio,
+            data.fecha,
+            data.hora,
+            duracion_horas=duracion,
+        )
+        nombre_tecnico_3 = _nombre_tecnico_real(db, data.id_tecnico_3)
     cita = Cita(
         id_cliente=client.id_cliente,
         **data.model_dump(
             exclude={
                 "id_tecnico",
                 "nombre_tecnico",
+                "id_tecnico_2",
+                "nombre_tecnico_2",
+                "id_tecnico_3",
+                "nombre_tecnico_3",
                 "metodo_pago",
                 "datos_pago",
                 "costo_cita",
@@ -599,6 +684,10 @@ def crear_cita(
         ),
         id_tecnico=data.id_tecnico,
         nombre_tecnico=nombre_tecnico,
+        id_tecnico_2=data.id_tecnico_2,
+        nombre_tecnico_2=nombre_tecnico_2,
+        id_tecnico_3=data.id_tecnico_3,
+        nombre_tecnico_3=nombre_tecnico_3,
         estado="Confirmada",
         costo_cita=tarifa.costo,
     )
@@ -639,7 +728,7 @@ def crear_cita(
     )
 
     # Notificar por correo a TODOS los técnicos asignados (1, 2 y 3).
-    if cita.id_tecnico is not None:
+    if cita.id_tecnico is not None or cita.id_tecnico_2 is not None or cita.id_tecnico_3 is not None:
         _notificar_tecnicos_cita(db, cita, client)
 
     # Generar factura PDF y enviarla por correo si el pago fue aprobado.

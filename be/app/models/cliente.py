@@ -1,3 +1,21 @@
+"""
+Módulo: models/cliente.py
+
+Tabla: clientes
+Descripción: Cuenta de cliente de la plataforma NeoDomus, con datos personales, autenticación (local o Google) y verificación por email.
+
+Campos clave:
+  - id_cliente: int (PK)
+  - first_name: String(100) (nombre)
+  - last_name: String(100) (apellido)
+  - email: String(100) (email único, usado para login)
+  - password_hash: String(255) (hash de contraseña)
+  - is_active: Boolean (cuenta activada tras verificación)
+  - auth_provider: String(20) (local | google)
+
+Relaciones:
+  - email_verification_tokens → EmailVerificationToken (tokens de verificación)
+"""
 from datetime import datetime
 from typing import TYPE_CHECKING, List
 from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, func

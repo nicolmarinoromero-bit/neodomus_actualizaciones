@@ -141,6 +141,7 @@ const CitasPage = () => {
   const { toggleFavorito: toggleTecnicoFav } = useTecnicosFavoritos();
 
   const [tecnicoSel, setTecnicoSel] = useState<{ id: number; nombre: string } | null>(null);
+  const [tecnicosSeleccionados, setTecnicosSeleccionados] = useState<{ id: number; nombre: string; rol: string }[]>([]);
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [tecnicosLoading, setTecnicosLoading] = useState(false);
 
@@ -153,6 +154,24 @@ const CitasPage = () => {
 
   const [deTecnicosPage, setDeTecnicosPage] = useState(false);
   const [direccionPerfil, setDireccionPerfil] = useState('');
+
+  // Toggle selection of up to 3 technicians (1 leader + 2 companions).
+  const toggleTecnico = (tec: Tecnico) => {
+    const nombre = `${tec.nombre} ${tec.apellido}`;
+    setTecnicosSeleccionados((prev) => {
+      const exists = prev.find((t) => t.id === tec.id);
+      if (exists) {
+        // Remove and re-number roles.
+        const next = prev.filter((t) => t.id !== tec.id);
+        return next.map((t, i) => ({ ...t, rol: i === 0 ? 'Líder' : `Compañero ${i}` }));
+      }
+      if (prev.length >= 3) return prev;
+      const rol = prev.length === 0 ? 'Líder' : `Compañero ${prev.length}`;
+      return [...prev, { id: tec.id, nombre, rol }];
+    });
+    // Keep legacy state for backwards compat.
+    setTecnicoSel(tec.disponible ? { id: tec.id, nombre } : null);
+  };
 
   const [aplazandoId, setAplazandoId] = useState<number | null>(null);
   const [aplazandoFecha, setAplazandoFecha] = useState('');
@@ -199,7 +218,9 @@ const CitasPage = () => {
     if (idParam) {
       const id = Number(idParam);
       if (id) {
-        setTecnicoSel({ id, nombre: nombreParam ? decodeURIComponent(nombreParam) : '' });
+        const nombre = nombreParam ? decodeURIComponent(nombreParam) : '';
+        setTecnicoSel({ id, nombre });
+        setTecnicosSeleccionados([{ id, nombre, rol: 'Líder' }]);
         setDeTecnicosPage(true);
       }
     }
@@ -420,8 +441,8 @@ const CitasPage = () => {
       openAuth('ingresar');
       return;
     }
-    if (!tecnicoSel) {
-      setToast({ msg: 'Debes seleccionar un técnico primero', tipo: 'error' });
+    if (tecnicosSeleccionados.length === 0 && !tecnicoSel) {
+      setToast({ msg: 'Debes seleccionar al menos un técnico', tipo: 'error' });
       return;
     }
     if (!form.tipo_servicio || !form.fecha || !form.hora || !form.direccion.trim() || !form.descripcion.trim()) {
@@ -479,8 +500,10 @@ const CitasPage = () => {
     }
     const payload = {
       ...form,
-      id_tecnico: tecnicoSel?.id ?? null,
-      nombre_tecnico: tecnicoSel?.nombre ?? null,
+      id_tecnico: tecnicosSeleccionados[0]?.id ?? tecnicoSel?.id ?? null,
+      nombre_tecnico: tecnicosSeleccionados[0]?.nombre ?? tecnicoSel?.nombre ?? null,
+      id_tecnico_2: tecnicosSeleccionados[1]?.id ?? null,
+      id_tecnico_3: tecnicosSeleccionados[2]?.id ?? null,
       ...(editandoId === null ? { metodo_pago: metodoPago, datos_pago: datosPago } : {}),
     };
     setSubmitting(true);
@@ -662,9 +685,20 @@ const CitasPage = () => {
         <span className="citas-card-icon"><FaUserTie /></span>
         <div className="citas-card-heading">
           <h2>{t('citas.tituloSeleccionTecnico')}</h2>
-          <p>{t('citas.subSeleccionTecnico')}</p>
+          <p>Selecciona hasta 3 técnicos. El primero será el líder del servicio.</p>
         </div>
       </div>
+
+      {tecnicosSeleccionados.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {tecnicosSeleccionados.map((sel, i) => (
+            <span key={sel.id} className={`ap-badge ${i === 0 ? 'ok' : 'info'}`} style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
+              {i === 0 ? '⭐ ' : ''}{sel.rol}: {sel.nombre}
+            </span>
+          ))}
+        </div>
+      )}
+
       {tecnicosLoading ? (
         <p className="citas-hint">{t('citas.cargandoTecnicos')}</p>
       ) : tecnicos.length === 0 ? (
@@ -675,7 +709,10 @@ const CitasPage = () => {
       ) : (
         <div className="citas-tecnicos-list">
           {tecnicos.map((tec) => {
-            const seleccionado = tecnicoSel?.id === tec.id;
+            const idx = tecnicosSeleccionados.findIndex((t) => t.id === tec.id);
+            const seleccionado = idx !== -1;
+            const rol = seleccionado ? tecnicosSeleccionados[idx].rol : null;
+            const enSlot = seleccionado ? idx + 1 : null;
             return (
               <div
                 key={tec.id}
@@ -697,20 +734,23 @@ const CitasPage = () => {
                   <span className={`citas-tecnico-estado ${tec.disponible ? 'tec-ok' : 'tec-ocu'}`}>
                     {tec.disponible ? t('citas.tecnicoDisponible') : t('citas.tecnicoOcupado')}
                   </span>
+                  {seleccionado && (
+                    <span className="ap-badge ok" style={{ marginLeft: 8, fontSize: '0.75rem' }}>
+                      {rol} (#{enSlot})
+                    </span>
+                  )}
                 </div>
                 <div className="citas-tecnico-actions">
                   <button
                     type="button"
                     className={`citas-btn ${seleccionado ? 'citas-btn-confirmado' : 'citas-btn-ghost'}`}
-                    onClick={() =>
-                      setTecnicoSel(seleccionado ? null : { id: tec.id, nombre: `${tec.nombre} ${tec.apellido}` })
-                    }
+                    onClick={() => toggleTecnico(tec)}
                     disabled={!tec.disponible}
                   >
                     {seleccionado ? (
-                      <><FaCircleCheckFilled /> {t('citas.tecnicoSeleccionado')}</>
+                      <><FaCircleCheckFilled /> Seleccionado ({rol})</>
                     ) : tec.disponible ? (
-                      <><FaCheck /> {t('citas.seleccionarTecnico')}</>
+                      <><FaCheck /> {tecnicosSeleccionados.length === 0 ? 'Elegir como líder' : 'Agregar'}</>
                     ) : (
                       t('citas.tecnicoNoDisponible')
                     )}
@@ -892,7 +932,6 @@ const CitasPage = () => {
           <div className="citas-empty">
             <FaCalendarDays />
             <p>{t('citas.vacias')}</p>
-            <p className="citas-empty-hint">{t('citas.vaciasHint')}</p>
           </div>
         ) : (
           <>

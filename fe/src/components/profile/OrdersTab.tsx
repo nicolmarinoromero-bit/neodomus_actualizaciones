@@ -476,7 +476,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
       ) : pedidos.length === 0 ? (
         <div className="pf-empty">
           <span className="pf-empty-icon"><FaBoxOpen /></span>
-          <p>No tienes pedidos todavía. Cuando realices una compra, aparecerá aquí.</p>
+          <p>Sin pedidos</p>
         </div>
       ) : (
         <div className="pf-orders-list">
@@ -915,7 +915,7 @@ const OrdersTab = ({ notify }: { notify: NotifyFn }) => {
 
       {/* ── Modal: wizard de solicitud de devolución ── */}
       {wizardPedido && (
-        <div className="pf-modal-backdrop" onClick={cerrarWizard}>
+        <div className="pf-modal-backdrop">
           <div className="pf-modal pf-modal-dev" onClick={(e) => e.stopPropagation()}>
             <div className="pf-modal-header">
               <h3>

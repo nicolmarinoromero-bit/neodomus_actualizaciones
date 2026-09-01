@@ -1,3 +1,20 @@
+"""
+Módulo: models/solicitud_cuenta.py
+
+Tabla: solicitudes_cuenta
+Descripción: Solicitud de inhabilitación o habilitación de cuenta de cliente, gestionada por el administrador.
+
+Campos clave:
+  - id: int (PK)
+  - id_cliente: int (FK → clientes)
+  - tipo: String(20) (inhabilitar | habilitar)
+  - estado: String(20) (pendiente | aprobada | rechazada)
+  - motivo: Text (razón de la solicitud)
+  - resuelta_por: int (ID del admin que resolvió)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column

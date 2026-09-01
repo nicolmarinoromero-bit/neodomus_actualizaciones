@@ -1,3 +1,21 @@
+"""
+Módulo: models/contacto.py
+
+Tabla: contactos
+Descripción: Consultas o solicitudes de soporte enviadas desde la plataforma y gestionadas por el administrador.
+
+Campos clave:
+  - id: int (PK)
+  - nombre_usuario: String(120) (nombre del remitente)
+  - email_usuario: String(120) (email del remitente)
+  - asunto: String(180) (asunto del mensaje)
+  - mensaje: Text (contenido de la consulta)
+  - estado: String(20) (pendiente | respondida)
+  - respuesta: Text (respuesta del admin)
+
+Relaciones:
+  (sin relaciones FK explícitas)
+"""
 from datetime import datetime
 from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column

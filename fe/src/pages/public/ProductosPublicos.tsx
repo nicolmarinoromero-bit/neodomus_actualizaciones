@@ -65,7 +65,12 @@ const ProductosPublicos = () => {
     if (!silencioso) setLoading(true);
     try {
       const res = await api.get('/productos/?limit=100');
-      const productosArray = res.data.data || [];
+      const productosArray = (res.data.data || []).filter((p: any) => {
+        if (p.variantes && p.variantes.length > 0) {
+          return p.variantes.some((v: any) => (v.stock ?? 0) > 0);
+        }
+        return (p.stock_producto ?? 0) > 0;
+      });
       setProductos(productosArray);
     } catch (err: any) {
       console.error(err);

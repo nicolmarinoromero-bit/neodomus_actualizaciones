@@ -1,3 +1,32 @@
+"""
+Módulo: routers/productos.py
+
+¿Qué hace?
+  CRUD completo del catálogo de productos: listado con filtros, variantes de
+  color, categorías, proveedores, imágenes, visibilidad, reabastecimiento
+  y notificaciones de promociones a clientes.
+
+Endpoints:
+  - GET  /productos/                  → Lista productos paginados (público/admin)
+  - GET  /productos/categorias        → Lista categorías
+  - GET  /productos/proveedores       → Lista proveedores (admin)
+  - POST /productos/proveedores       → Crea proveedor (admin)
+  - PUT  /productos/proveedores/{id}  → Actualiza proveedor (admin)
+  - POST /productos/proveedores/{id}/solicitar-reabastecimiento → Solicitud al proveedor
+  - GET  /productos/{id}              → Detalle de un producto
+  - GET  /productos/{id}/variantes    → Variantes de un producto
+  - POST /productos/{id}/variantes    → Crea variante (admin)
+  - PUT  /productos/{id}/variantes/{id} → Actualiza variante (admin)
+  - DELETE /productos/{id}/variantes/{id} → Elimina variante (admin)
+  - POST /productos/upload-imagen     → Sube imagen a MinIO (admin)
+  - POST /productos                   → Crea producto (admin)
+  - PUT  /productos/{id}              → Actualiza producto (admin)
+  - PUT  /productos/{id}/visibilidad  → Alterna visibilidad para clientes
+  - DELETE /productos/{id}            → Elimina/desactiva producto (admin)
+
+Impacto: Sin este módulo no existiría catálogo; los clientes no podrían
+  ver productos y el admin no podría gestionar el inventario.
+"""
 from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile, Request
 from sqlalchemy import select, and_, or_, exists
 from sqlalchemy.exc import IntegrityError

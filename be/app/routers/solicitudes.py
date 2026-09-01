@@ -1,3 +1,22 @@
+"""
+Módulo: routers/solicitudes.py
+
+¿Qué hace?
+  Gestiona las solicitudes de inhabilitación/habilitación de cuentas
+  (clientes y empleados/técnicos) por parte del administrador.
+
+Endpoints:
+  - GET  /admin/account-requests                → Solicitudes de clientes pendientes
+  - PUT  /admin/account-requests/{id}/habilitar-cuenta → Habilita cuenta directamente
+  - PUT  /admin/account-requests/{id}/aprobar   → Aprueba solicitud
+  - PUT  /admin/account-requests/{id}/rechazar  → Rechaza solicitud
+  - GET  /admin/account-requests/empleados      → Solicitudes de empleados pendientes
+  - PUT  /admin/account-requests/empleados/{id}/aprobar → Aprueba empleado
+  - PUT  /admin/account-requests/empleados/{id}/rechazar → Rechaza empleado
+
+Impacto: Sin este módulo los clientes y técnicos no podrían solicitar
+  el cambio de estado de su cuenta, y el admin no podría procesar esas solicitudes.
+"""
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select

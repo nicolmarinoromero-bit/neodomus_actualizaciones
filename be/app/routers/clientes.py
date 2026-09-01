@@ -1,3 +1,25 @@
+"""
+Módulo: routers/clientes.py
+
+¿Qué hace?
+  CRUD de clientes: perfil propio, listado admin con conteos de pedidos/citas,
+  habilitación/inhabilitación, historial de pedidos, servicios y devoluciones.
+
+Endpoints:
+  - GET  /clients                  → Lista todos los clientes (admin)
+  - GET  /clients/me               → Perfil del cliente autenticado
+  - GET  /clients/me/cuenta-solicitud → Última solicitud del cliente
+  - POST /clients/me/cuenta-solicitud → Crea solicitud inhabilitar/habilitar
+  - PUT  /clients/{id}/habilitar   → Habilita cuenta (admin)
+  - PUT  /clients/{id}/inhabilitar → Inhabilita cuenta (admin)
+  - GET  /clients/{id}/pedidos     → Historial de pedidos (admin)
+  - GET  /clients/{id}/servicios   → Historial de servicios (admin)
+  - GET  /clients/{id}/devoluciones → Historial de devoluciones (admin)
+  - PUT  /clients/me               → Actualiza perfil del cliente
+
+Impacto: Sin este módulo el admin no podría gestionar cuentas de clientes
+  ni el cliente podría ver o editar su propio perfil.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session

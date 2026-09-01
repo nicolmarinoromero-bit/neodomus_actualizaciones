@@ -622,7 +622,7 @@ const Perfil = () => {
 
       {/* ── Modal inhabilitar cuenta ─────────────────────────── */}
       {confirmarInhabilitar && (
-        <div className="pf-modal-backdrop" onClick={() => !enviandoSolicitud && setConfirmarInhabilitar(false)}>
+        <div className="pf-modal-backdrop">
           <div className="pf-modal pf-modal-small" onClick={(e) => e.stopPropagation()}>
             <div className="pf-modal-header">
               <h3>Inhabilitar cuenta</h3>

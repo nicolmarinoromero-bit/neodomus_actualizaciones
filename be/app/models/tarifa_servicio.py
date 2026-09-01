@@ -1,3 +1,18 @@
+"""
+Módulo: models/tarifa_servicio.py
+
+Tabla: tarifas_servicio
+Descripción: Tarifa fija configurable por tipo de servicio para citas de servicio técnico.
+
+Campos clave:
+  - id_tarifa: int (PK)
+  - tipo_servicio: String(30) (nombre único del tipo de servicio)
+  - costo: Numeric(12,2) (costo fijo del servicio)
+  - descripcion: String(150) (descripción opcional)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from decimal import Decimal
 
 from sqlalchemy import Numeric, String

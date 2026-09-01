@@ -19,7 +19,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -39,7 +43,20 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Neodomus necesita tu ubicación para que el técnico pueda encontrarte durante la entrega."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Neodomus necesita acceso a tus fotos para subir evidencias de entrega.",
+          "cameraPermission": "Neodomus necesita acceso a la cámara para tomar fotos de evidencia."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

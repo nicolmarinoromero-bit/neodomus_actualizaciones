@@ -984,6 +984,17 @@ def reasignar_tecnico_recogida(
             f"devolución #{id_devolucion}."
         ),
     )
+    if cliente and cliente.email:
+        programar_correo(
+            cliente.email,
+            f"Cambio de técnico en devolución #{id_devolucion} - Neodomus",
+            "<div style='font-family:Arial,sans-serif;max-width:560px;margin:auto'>"
+            "<h2 style='color:#1f1a12'>Cambio de técnico</h2>"
+            f"<p>Hola <strong>{nombre_cliente}</strong>, el técnico encargado de "
+            f"recoger tu devolución #{id_devolucion} fue cambiado.</p>"
+            f"<p><strong>Nuevo técnico:</strong> {nombre_nuevo}</p>"
+            "<p>Puedes hacer seguimiento desde la app o el sitio web.</p></div>",
+        )
 
     return {
         "id_devolucion": id_devolucion,

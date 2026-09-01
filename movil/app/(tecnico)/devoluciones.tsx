@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useIdioma } from "@/contexts/IdiomaContext";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, Modal } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View, Modal } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -145,10 +145,16 @@ export default function TecnicoDevolucionesScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendientes, historial, vista, busqueda, estadoFiltro, fechaFiltro, horaFiltro]);
 
-  const subirEvidencia = async (id: number) => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { setToast("Permiso denegado"); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
+  const subirEvidencia = async (id: number, fromCamera: boolean) => {
+    if (fromCamera) {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { setToast("Permiso de cámara denegado"); return; }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { setToast("Permiso de galería denegado"); return; }
+    }
+    const launcher = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const res = await launcher({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
     if (res.canceled || !res.assets?.[0]) return;
     const asset = res.assets[0];
     setSubiendo(id);
@@ -160,6 +166,13 @@ export default function TecnicoDevolucionesScreen() {
       fetchWithHistorial();
     } catch (e: any) { setToast(e.message || "Error"); }
     setSubiendo(null);
+  };
+
+  const elegirEvidenciaDevolucion = (id: number) => {
+    Alert.alert("Evidencia de recogida", "¿Cómo deseas capturar la evidencia?", [
+      { text: "Cámara", onPress: () => subirEvidencia(id, true) },
+      { text: "Galería", onPress: () => subirEvidencia(id, false) },
+    ]);
   };
 
   const abrirDetalle = (item: any) => {
@@ -292,7 +305,7 @@ export default function TecnicoDevolucionesScreen() {
                 {selected.motivo ? <><Text style={styles.label}>{t("devoluciones.motivo")}</Text><Text style={styles.gris}>{selected.motivo}</Text></> : null}
                 <Text style={styles.label}>{t("devoluciones.preferencia")}</Text><Text style={styles.value}>{selected.preferencia || "No especificada"}</Text>
                 {selected.recogida_estado !== "Recogida" && vista === "pendientes" && (
-                  <Pressable onPress={() => { setDetalleVisible(false); subirEvidencia(selected.id_devolucion); }} disabled={subiendo === selected.id_devolucion} style={[styles.btn, subiendo === selected.id_devolucion && { opacity: 0.5 }]}>
+                  <Pressable onPress={() => { setDetalleVisible(false); elegirEvidenciaDevolucion(selected.id_devolucion); }} disabled={subiendo === selected.id_devolucion} style={[styles.btn, subiendo === selected.id_devolucion && { opacity: 0.5 }]}>
                     <FontAwesome6 name="camera" size={12} color="#141414" />
                     <Text style={styles.btnTxt}>{subiendo === selected.id_devolucion ? "Subiendo..." : t("devoluciones.subirEvidencia")}</Text>
                   </Pressable>

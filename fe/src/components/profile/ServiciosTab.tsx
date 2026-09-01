@@ -324,7 +324,7 @@ const ServiciosTab = () => {
 
       {/* Modal de calificación */}
       {calificandoCita && (
-        <div className="pf-modal-backdrop" onClick={() => setCalificandoCita(null)}>
+        <div className="pf-modal-backdrop">
           <div className="pf-modal pf-modal-small" onClick={(e) => e.stopPropagation()}>
             <div className="pf-modal-header">
               <h3><FaStar /> Califica al técnico</h3>

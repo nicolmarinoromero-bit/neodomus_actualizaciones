@@ -277,20 +277,22 @@ def notificar_cita_asignada_tecnico(
 ) -> None:
     """Correo + notificación de plataforma al técnico cuando recibe una cita
     (agendada por cliente o pedido)."""
+    rol = datos.get("rol", "Técnico")
     if id_tecnico_usuario is not None:
         crear_notificacion(
             db,
             id_tecnico_usuario,
             "cita",
-            "Nueva cita asignada",
+            f"Nueva cita asignada ({rol})",
             (
                 f"Servicio de {datos['servicio']} para {datos['cliente']} el "
                 f"{datos['fecha']} a las {datos['hora']} en {datos['direccion']}."
             ),
         )
-    subject = "Nueva cita asignada en Neodomus"
+    subject = f"Nueva cita asignada — {rol} en Neodomus"
     filas = [
         ("Cliente", datos["cliente"]),
+        ("Rol", rol),
         ("Servicio", datos["servicio"]),
         ("Fecha", datos["fecha"]),
         ("Hora", datos["hora"]),
@@ -298,9 +300,13 @@ def notificar_cita_asignada_tecnico(
         ("Teléfono cliente", str(datos.get("telefono") or "-")),
         ("Descripción", datos.get("descripcion") or "-"),
     ]
+    if datos.get("companeros"):
+        filas.append(("Compañeros", datos["companeros"]))
+    if datos.get("productos"):
+        filas.append(("Productos", datos["productos"]))
     body = _plantilla(
         "CITA ASIGNADA",
-        f"Hola {tecnico_nombre}, se te asignó una nueva cita. Revisa la agenda del panel para ver los productos y datos completos del cliente.",
+        f"Hola {tecnico_nombre}, se te asignó una nueva cita como {rol.lower()}. Revisa la agenda del panel para ver los productos y datos completos del cliente.",
         filas,
         "Si no puedes atender esta cita, comunícate con el administrador.",
     )
@@ -667,6 +673,57 @@ def notificar_en_camino_cliente(
             ),
         )
     notificar_aviso_entrega_cliente(correo, cliente_nombre, datos)
+
+
+def notificar_entrega_tecnico_cambiado_cliente(
+    db, cliente_id: int | None, correo: str | None, cliente_nombre: str,
+    pedido_id: int, tecnico_anterior: str | None, tecnico_nuevo: str,
+) -> None:
+    """Correo + notificación in-app al cliente cuando el técnico de entrega
+    cambia (reasignación automática o manual del admin).
+    ``tecnico_anterior`` puede ser None si es la primera asignación."""
+    titulo = (
+        "Técnico de entrega actualizado"
+        if tecnico_anterior
+        else "Entrega programada"
+    )
+    if tecnico_anterior:
+        mensaje = (
+            f"El técnico de tu pedido #{pedido_id} cambió de "
+            f"{tecnico_anterior} a {tecnico_nuevo}."
+        )
+    else:
+        mensaje = (
+            f"Tu pedido #{pedido_id} fue asignado al técnico {tecnico_nuevo}."
+        )
+    if cliente_id is not None:
+        crear_notificacion(
+            db,
+            id_usuario=None,
+            id_cliente=cliente_id,
+            tipo="entrega",
+            titulo=titulo,
+            mensaje=mensaje,
+        )
+    if correo:
+        subject = (
+            f"Cambio de técnico en tu pedido Neodomus #{pedido_id}"
+            if tecnico_anterior
+            else f"Tu pedido Neodomus #{pedido_id} tiene técnico asignado"
+        )
+        filas = [("Pedido", f"#{pedido_id}")]
+        if tecnico_anterior:
+            filas.append(("Técnico anterior", tecnico_anterior))
+        filas.append(("Nuevo técnico", tecnico_nuevo))
+        body = _plantilla(
+            titulo.upper(),
+            f"Hola {cliente_nombre}, {mensaje.lower()}",
+            filas,
+            "Puedes hacer seguimiento del estado de tu entrega desde Mis pedidos.",
+            color="#1a2e1a",
+            acento="#8fd98a",
+        )
+        programar_correo(correo, subject, body)
 
 
 def notificar_entrega_desasignada_cliente(

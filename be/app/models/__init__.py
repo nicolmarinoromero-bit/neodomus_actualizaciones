@@ -1,3 +1,6 @@
+"""
+Modelos SQLAlchemy — re-exporta todos los modelos para que Alembic los detecte.
+"""
 from .user import User
 from .cliente import Cliente
 from .roles_usuario import RolesUsuario

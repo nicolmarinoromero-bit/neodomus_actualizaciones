@@ -1,3 +1,21 @@
+"""
+Módulo: models/password_reset_token.py
+
+Tabla: password_reset_tokens
+Descripción: Token de restablecimiento de contraseña para empleados y clientes, con código de verificación y expiración.
+
+Campos clave:
+  - id: int (PK)
+  - email: String(255) (email del usuario)
+  - user_type: String(20) (employee | client)
+  - token: String(500) (token único)
+  - code: String(10) (código numérico)
+  - expires_at: DateTime (fecha de expiración)
+  - used: Boolean (si ya fue consumido)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func

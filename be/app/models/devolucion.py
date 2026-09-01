@@ -1,3 +1,22 @@
+"""
+Módulo: models/devolucion.py
+
+Tabla: devoluciones
+Descripción: Línea de devolución de un producto recibido, creada por el cliente desde la calificación del pedido entregado. Estados: Pendiente → Aprobada | Rechazada.
+
+Campos clave:
+  - id_devolucion: int (PK)
+  - id_cliente_d: int (FK → clientes)
+  - id_pedido_d: int (FK → pedidos)
+  - id_producto_d: int (FK → productos)
+  - motivo: Text (razón de la devolución)
+  - estado: String(20) (Pendiente | Aprobada | Rechazada)
+  - preferencia: String(10) (producto | dinero)
+  - cantidad: int (unidades devueltas)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func

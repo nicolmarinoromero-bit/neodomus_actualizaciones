@@ -2142,7 +2142,7 @@
 .tecnico-badge {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   padding: 5px 12px;
   border-radius: 999px;
   font-size: 0.7rem;

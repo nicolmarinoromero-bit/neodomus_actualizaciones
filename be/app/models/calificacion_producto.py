@@ -1,3 +1,22 @@
+"""
+Módulo: models/calificacion_producto.py
+
+Tabla: calificaciones_producto
+Descripción: Calificación (1-5 estrellas + comentario + foto opcional) que el cliente da a un producto recibido, disponible cuando el pedido quedó Entregado.
+
+Campos clave:
+  - id_calificacion_producto: int (PK)
+  - id_cliente_cp: int (FK → clientes)
+  - id_pedido_cp: int (FK → pedidos)
+  - id_producto_cp: int (FK → productos)
+  - calificacion: SmallInteger (puntuación 1-5)
+  - foto_url: String (imagen opcional de la experiencia)
+
+Relaciones:
+  - cliente → Cliente (quien califica)
+  - pedido → Pedido (pedido asociado)
+  - producto → Producto (producto calificado)
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger, String, Text, func

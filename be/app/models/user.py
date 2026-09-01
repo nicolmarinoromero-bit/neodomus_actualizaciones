@@ -1,3 +1,22 @@
+"""
+Módulo: models/user.py
+
+Tabla: usuarios
+Descripción: Cuenta de usuario del sistema (empleados: administradores, técnicos, operadores) con autenticación, rol y control de activación.
+
+Campos clave:
+  - id_usuario: int (PK)
+  - first_name: String(100) (nombre)
+  - last_name: String(100) (apellido)
+  - email: String(100) (email único, login)
+  - password_hash: String(255) (hash de contraseña)
+  - id_rol_u: int (FK → roles_usuario)
+  - is_active: Boolean (cuenta activa)
+  - desactivado_hasta: DateTime (fecha de reactivación automática)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column

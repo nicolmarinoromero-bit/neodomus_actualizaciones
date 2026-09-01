@@ -8,6 +8,8 @@ class CitaBase(BaseModel):
     nombre_tecnico: Optional[str] = None
     id_tecnico_2: Optional[int] = None
     nombre_tecnico_2: Optional[str] = None
+    id_tecnico_3: Optional[int] = None
+    nombre_tecnico_3: Optional[str] = None
     tipo_servicio: str
     fecha: date
     hora: str
@@ -21,6 +23,8 @@ class CitaBase(BaseModel):
 
 class CitaCreate(CitaBase):
     id_tecnico: Optional[int] = None
+    id_tecnico_2: Optional[int] = None
+    id_tecnico_3: Optional[int] = None
     metodo_pago: str
     datos_pago: Optional[dict[str, Any]] = None
 

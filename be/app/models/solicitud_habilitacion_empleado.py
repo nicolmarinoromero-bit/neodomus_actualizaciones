@@ -1,3 +1,18 @@
+"""
+Módulo: models/solicitud_habilitacion_empleado.py
+
+Tabla: solicitudes_habilitacion_empleado
+Descripción: Solicitud de habilitación de cuenta de empleado (técnico/operador), gestionada por el administrador.
+
+Campos clave:
+  - id: int (PK)
+  - id_usuario: int (FK → usuarios, cascade delete)
+  - estado: String(20) (pendiente | aprobada | rechazada)
+  - resuelta_por: int (ID del admin que resolvió)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column

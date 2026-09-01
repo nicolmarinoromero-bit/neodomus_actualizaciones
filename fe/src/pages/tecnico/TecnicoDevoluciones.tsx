@@ -286,7 +286,6 @@ const TecnicoDevoluciones = () => {
           <div className="ap-states">
             <div className="ap-states-icon"><FaBoxOpen /></div>
             <h3>{busqueda ? t('tec.vacioHistorial') : t('tec.sinDevoluciones')}</h3>
-            {!busqueda && <p>{t('tec.sinDevolucionesHint')}</p>}
           </div>
         </div>
       ) : (
@@ -436,7 +435,7 @@ const TecnicoDevoluciones = () => {
       )}
 
       {detalle && (
-        <div className="ap-modal-overlay" onClick={() => setDetalle(null)}>
+        <div className="ap-modal-overlay">
           <div className="ap-modal ap-cita-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="ap-cita-modal-head">
               <div>

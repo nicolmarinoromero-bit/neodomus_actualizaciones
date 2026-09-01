@@ -1,3 +1,19 @@
+"""
+Módulo: models/email_verification_token.py
+
+Tabla: email_verification_tokens
+Descripción: Token de verificación de email (código de 6 dígitos) para activar la cuenta del cliente tras registrarse.
+
+Campos clave:
+  - id: int (PK)
+  - email_cliente: String(100) (FK → clientes.email)
+  - code: String(6) (código numérico de verificación)
+  - expires_at: DateTime (fecha de expiración)
+  - used: Boolean (si ya fue consumido)
+
+Relaciones:
+  - cliente → Cliente (propietario del token)
+"""
 from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func

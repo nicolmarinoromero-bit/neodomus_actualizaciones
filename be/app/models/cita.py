@@ -1,3 +1,24 @@
+"""
+Módulo: models/cita.py
+
+Tabla: citas
+Descripción: Cita de servicio técnico agendada por un cliente, con asignación de técnico, tipo de servicio, fecha/hora y gestión de pago.
+
+Campos clave:
+  - id_cita: int (PK)
+  - id_cliente: int (FK → clientes)
+  - id_tecnico: int (FK → tecnicos, asignación principal)
+  - tipo_servicio: String(30) (tipo de servicio domótico)
+  - fecha: Date (fecha programada)
+  - hora: String(10) (hora programada)
+  - estado: String(20) (Pendiente | En curso | Completada | Cancelada)
+  - costo_cita: Numeric(12,2) (costo total)
+
+Relaciones:
+  - cliente → Cliente (quien agenda)
+  - especializacion → Especializacion (requisito de habilidad)
+  - productos_asociados → CitaProducto (productos usados en la cita)
+"""
 from datetime import datetime, date
 from decimal import Decimal
 

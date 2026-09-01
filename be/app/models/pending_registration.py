@@ -1,3 +1,21 @@
+"""
+Módulo: models/pending_registration.py
+
+Tabla: pending_registrations
+Descripción: Registro de cliente pendiente de verificación por email. Almacena los datos temporalmente hasta que el usuario confirme el código de verificación.
+
+Campos clave:
+  - id: int (PK)
+  - first_name: String(100) (nombre)
+  - last_name: String(100) (apellido)
+  - email: String(100) (email único pendiente)
+  - password_hash: String(255) (hash de contraseña)
+  - code: String(6) (código de verificación)
+  - expires_at: DateTime (expiración del código)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from sqlalchemy import Column, Integer, String, DateTime, BigInteger
 from sqlalchemy.sql import func
 from app.database import Base

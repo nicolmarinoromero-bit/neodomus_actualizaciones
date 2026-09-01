@@ -1,3 +1,22 @@
+"""
+Módulo: models/producto_variante.py
+
+Tabla: producto_variantes
+Descripción: Variantes de color/tamaño de un producto: nombre, color (hex), dimensiones, precio propio estock independiente. Un producto puede no tener variantes.
+
+Campos clave:
+  - id: int (PK)
+  - id_producto: int (FK → productos, cascade delete)
+  - nombre: String(60) (nombre de la variante)
+  - hex: String(10) (código de color #RRGGBB)
+  - ancho_cm: int (ancho en centímetros)
+  - alto_cm: int (alto en centímetros)
+  - precio: Float (NULL = usa precio del producto)
+  - stock: int (unidades disponibles)
+
+Relaciones:
+  - producto → Producto (producto padre)
+"""
 from sqlalchemy import Column, Float, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base

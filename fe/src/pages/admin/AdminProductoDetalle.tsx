@@ -997,13 +997,19 @@ const AdminProductoDetalle = () => {
                 )}
                 {variantesForm.map((v, i) => (
                   <div className="ap-variante-row" key={i}>
-                    <input
-                      className="ap-form-input"
-                      type="text"
-                      placeholder={t('adm.productoDetalle.phVarianteColor')}
+                    <select
+                      className="ap-form-select"
                       value={v.nombre}
                       onChange={(e) => setVariante(i, 'nombre', e.target.value)}
-                    />
+                    >
+                      <option value="">Seleccionar color</option>
+                      {colores.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      {v.nombre && !colores.includes(v.nombre) && (
+                        <option value={v.nombre}>{v.nombre}</option>
+                      )}
+                    </select>
                     <input
                       className="ap-form-input"
                       type="color"

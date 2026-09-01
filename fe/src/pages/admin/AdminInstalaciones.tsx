@@ -1256,7 +1256,7 @@ const AdminInstalaciones = () => {
       )}
 
       {citaACancelar && (
-        <div className="ap-modal-overlay" onClick={() => setCitaACancelar(null)}>
+        <div className="ap-modal-overlay">
           <div className="ap-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ap-modal-head">
               <h3><FaBan /> Cancelar cita #{citaACancelar.id_cita}</h3>

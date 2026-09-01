@@ -813,7 +813,7 @@ const TechnicianDashboard = () => {
         </div>
         {recogidas.length === 0 ? (
           <p style={{ margin: '8px 0', color: '#bdbdbd' }}>
-            No tienes recogidas por devolución asignadas.
+            Sin recogidas asignadas
           </p>
         ) : (
           recogidas.map((r) => (

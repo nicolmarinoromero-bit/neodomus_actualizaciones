@@ -1,3 +1,17 @@
+"""
+Módulo: routers/tarifas.py
+
+¿Qué hace?
+  Administra las tarifas de servicio: listado público para que el cliente
+  conozca costos antes de agendar, y actualización por parte del admin.
+
+Endpoints:
+  - GET  /tarifas              → Lista tarifas por tipo de servicio (público)
+  - PUT  /tarifas/{tipo}       → Actualiza costo/descripción de una tarifa (admin)
+
+Impacto: Sin este módulo no habría tarifas configuradas; los clientes no
+  verían costos al agendar citas y el admin no podría fijar precios.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session

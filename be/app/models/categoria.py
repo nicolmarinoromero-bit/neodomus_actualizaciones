@@ -1,3 +1,17 @@
+"""
+Módulo: models/categoria.py
+
+Tabla: categorias
+Descripción: Catálogo de categorías de productos (ej. domótica, iluminación, seguridad) para organizar el catálogo.
+
+Campos clave:
+  - id_categoria: int (PK)
+  - nombre_categoria: String(50) (nombre único de la categoría)
+  - descripcion: String(200) (descripción opcional)
+
+Relaciones:
+  - productos → Producto (listado de productos en esta categoría)
+"""
 from sqlalchemy import Column, Integer, String
 from app.database import Base
 

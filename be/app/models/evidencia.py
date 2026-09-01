@@ -1,3 +1,23 @@
+"""
+Módulo: models/evidencia.py
+
+Tabla: evidencias_entrega / evidencias
+Descripción: Evidencias fotográficas subidas por técnicos: fotos de entrega de pedidos y evidencias de trabajo realizado en citas.
+
+Campos clave (evidencias_entrega):
+  - id: int (PK)
+  - id_pedido: int (FK → pedidos)
+  - url_archivo: String(255) (URL en MinIO)
+
+Campos clave (evidencias):
+  - id_evidencia: int (PK)
+  - id_cita: int (FK → citas)
+  - id_tecnico: int (FK → tecnicos)
+  - url_archivo: String(255) (URL en MinIO)
+
+Relaciones:
+  (sin relationship declarados)
+"""
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column

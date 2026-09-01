@@ -18,6 +18,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -39,7 +40,14 @@ import {
 
 const LIMITE_PAGINA = 10;
 
+const COLUMNAS = 2;
+const GAP = 12;
+const PADDINGHorizontal = 12;
+
 export default function ProductosScreen() {
+  const { width: screenWidth } = useWindowDimensions();
+  const CARD_WIDTH = (screenWidth - PADDINGHorizontal * 2 - GAP) / COLUMNAS;
+
   const { esFavorito } = useFavoritos();
   const listaRef = useRef<FlatList<Producto> | null>(null);
   // Al entrar a la sección desde otro tab → la lista empieza arriba.
@@ -73,7 +81,12 @@ export default function ProductosScreen() {
         if ((productosRes.data?.length ?? 0) === 0) console.log("[productos] Escenario A/B: lista vacía — verificar backend / productos activos / filtros");
         else console.log(`[productos] Escenario B/C: ${productosRes.data.length} productos recibidos, primer producto:`, JSON.stringify(productosRes.data[0]).slice(0, 400));
       }
-      const lista = productosRes.data ?? [];
+      const lista = (productosRes.data ?? []).filter((p) => {
+        if (p.variantes && p.variantes.length > 0) {
+          return p.variantes.some((v) => (v.stock ?? 0) > 0);
+        }
+        return (p.stock_producto ?? 0) > 0;
+      });
       if (__DEV__) console.log('Productos recibidos:', lista);
       if (lista.length === 0 && __DEV__) {
         console.log("[productos] ⚠️ data vacía — revisar si el backend tiene productos con estado activo y stock>0");
@@ -296,7 +309,7 @@ export default function ProductosScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View style={styles.cardWrap}>
+          <View style={[styles.cardWrap, { width: CARD_WIDTH }]}>
             <ProductCard producto={item} />
           </View>
         )}
@@ -428,7 +441,6 @@ const styles = StyleSheet.create({
   },
 
   cardWrap: {
-    flex: 1,
     minWidth: 0,
   },
 

@@ -1,3 +1,23 @@
+"""
+Módulo: models/especializacion.py
+
+Tabla: especializaciones / tecnico_especializacion / producto_especializacion / historial_citas / reembolsos
+Descripción: Catálogo de especializaciones domóticas, tablas de asociación técnico-especialización y producto-especialización, historial de cambios en citas, y reembolsos.
+
+Campos clave (especializaciones):
+  - id_especializacion: int (PK)
+  - nombre: String(100) (nombre único, ej. "Iluminación")
+  - activa: Boolean (habilitada para asignación)
+
+Campos clave (reembolsos):
+  - id_reembolso: int (PK)
+  - monto: Float (monto a reembolsar)
+  - estado: String(20) (Pendiente | Procesando | Reembolsado | Rechazado)
+
+Relaciones (tablas asociación):
+  - tecnico_especializacion → Tecnico ↔ Especializacion (N:N)
+  - producto_especializacion → Producto ↔ Especializacion (N:N)
+"""
 from sqlalchemy import (
     Column,
     DateTime,

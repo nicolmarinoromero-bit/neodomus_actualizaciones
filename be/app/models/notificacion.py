@@ -1,4 +1,22 @@
-﻿from datetime import datetime
+﻿"""
+Módulo: models/notificacion.py
+
+Tabla: notificaciones
+Descripción: Notificación de plataforma dirigida a un usuario o cliente. Es la fuente de verdad de notificaciones in-app; el estado leído se almacena aquí para consistencia entre dispositivos.
+
+Campos clave:
+  - id_notificacion: int (PK)
+  - id_usuario: int (FK → usuarios, opcional)
+  - id_cliente: int (FK → clientes, opcional)
+  - tipo: String(30) (sistema | pedido | cita, etc.)
+  - titulo: String(150) (asunto de la notificación)
+  - mensaje: String(500) (cuerpo del mensaje)
+  - leida: Boolean (si ya fue leída)
+
+Relaciones:
+  (sin relationship declarados)
+"""
+from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base

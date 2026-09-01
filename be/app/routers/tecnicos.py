@@ -1,3 +1,39 @@
+"""
+Módulo: routers/tecnicos.py
+
+¿Qué hace?
+  Panel completo del técnico: listado admin/público, gestión de
+  especializaciones, citas asignadas, evidencias fotográficas, entregas
+  de pedidos, comisiones, reagendamiento, ubicación GPS y historial.
+
+Endpoints:
+  - GET  /tecnicos/publicos           → Técnicos para clientes (público)
+  - GET  /tecnicos                    → Técnicos con datos admin
+  - GET  /tecnicos/unassigned         → Usuarios sin ficha técnica (admin)
+  - PUT  /tecnicos/{id}               → Actualiza ficha técnica (admin)
+  - DELETE /tecnicos/{id}             → Elimina ficha técnica (admin)
+  - POST /tecnicos/mis-especializaciones/{id} → Agrega especialización
+  - DELETE /tecnicos/mis-especializaciones/{id} → Quita especialización
+  - GET  /tecnicos/mis-clientes       → Clientes del técnico
+  - GET  /tecnicos/clientes/{id}/citas → Citas de un cliente para el técnico
+  - GET  /tecnicos/comisiones         → Comisiones del técnico
+  - GET  /tecnicos/mis-citas          → Citas asignadas al técnico
+  - PUT  /tecnicos/citas/{id}/estado  → Finaliza una cita
+  - GET  /tecnicos/citas/{id}/proxima-fecha → Siguiente fecha disponible
+  - GET  /tecnicos/citas/{id}/horas-disponibles → Horas libres para reagendar
+  - PUT  /tecnicos/citas/{id}/reagendar → Reagendar cita
+  - POST /tecnicos/entregas/{id}/evidencias → Sube fotos de entrega
+  - GET  /tecnicos/entregas/{id}/evidencias → Lista evidencias de entrega
+  - POST /tecnicos/citas/{id}/evidencias → Sube evidencia de cita
+  - DELETE /tecnicos/citas/{id}/evidencias/{id} → Elimina evidencia
+  - GET  /tecnicos/mis-entregas       → Entregas asignadas
+  - PUT  /tecnicos/entregas/{id}/estado → Marca estado de entrega
+  - POST /tecnicos/ubicacion          → Reporta ubicación GPS
+  - GET  /tecnicos/admin/{id}/historial → Historial completo (admin)
+
+Impacto: Sin este módulo los técnicos no podrían ver sus citas, subir
+  evidencias, gestionar entregas ni el admin podría administrar el equipo.
+"""
 from typing import List, Optional
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -1167,6 +1203,7 @@ class EntregaTecnicoResponse(BaseModel):
     estado_entrega: str | None = None
     evidencias_entrega: list[str] = []
     productos: list[dict] = []
+    ubicacion_cliente: dict | None = None
 
 
 def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoResponse:
@@ -1211,6 +1248,11 @@ def _serializar_entrega_tecnico(db: Session, pedido: Pedido) -> EntregaTecnicoRe
             }
             for d in detalles
         ],
+        ubicacion_cliente=(
+            {"latitud": pedido.latitud_cliente, "longitud": pedido.longitud_cliente}
+            if pedido.latitud_cliente is not None and pedido.longitud_cliente is not None
+            else None
+        ),
     )
 
 

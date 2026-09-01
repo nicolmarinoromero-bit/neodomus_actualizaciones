@@ -1,3 +1,21 @@
+"""
+Módulo: models/calificacion.py
+
+Tabla: calificaciones
+Descripción: Calificación que el cliente otorga a un técnico tras una cita de servicio, con puntuación numérica y comentario opcional.
+
+Campos clave:
+  - id_calificacion: int (PK)
+  - id_cliente_c: int (FK → clientes)
+  - id_tecnico_c: int (FK → tecnicos)
+  - id_cita_c: int (FK → citas)
+  - calificacion: SmallInteger (puntuación 1-5)
+  - comentario: Text (opinión escrita)
+
+Relaciones:
+  - cliente → Cliente (quien califica)
+  - tecnico → Tecnico (quien recibe la calificación)
+"""
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger, Text, func

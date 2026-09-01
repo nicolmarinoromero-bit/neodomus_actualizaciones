@@ -282,7 +282,6 @@ const TecnicoCitas = () => {
           <div className="ap-states">
             <div className="ap-states-icon"><FaCalendarDays /></div>
             <h3>{t('tec.vacioCitas')}</h3>
-            <p>{t('tec.vacioCitasHint')}</p>
           </div>
         ) : sinResultados ? (
           <div className="ap-states">
@@ -420,7 +419,7 @@ const TecnicoCitas = () => {
       )}
 
       {reagendando && (
-        <div className="citas-modal-overlay" onClick={cancelarReagendar}>
+        <div className="citas-modal-overlay">
           <div className="citas-modal" onClick={(e) => e.stopPropagation()}>
             <div className="citas-modal-header">
               <h2><FaCalendarDays /> {t('tec.reagendarTitulo')}</h2>

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import AppScreen from "@/components/app/AppScreen";
+import EmptyState from "@/components/ui/EmptyState";
 import { FontFamilies } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/services/api";
@@ -61,7 +62,7 @@ export default function FacturasScreen() {
     <AppScreen titulo="Mis facturas">
       {cargando && <Text style={S.gris}>Cargando...</Text>}
       {!cargando && pedidos.length === 0 && (
-        <Text style={S.gris}>No tienes facturas disponibles.</Text>
+        <EmptyState icono="file-invoice" texto="Sin facturas" />
       )}
 
       {pedidos.map((p) => (

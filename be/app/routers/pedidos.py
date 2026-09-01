@@ -1,3 +1,30 @@
+"""
+Módulo: routers/pedidos.py
+
+¿Qué hace?
+  Gestiona todo el flujo de pedidos: checkout con pago simulado, seguimiento
+  de entregas, facturación PDF, asignación de técnicos y compartición de
+  ubicación GPS.
+
+Endpoints:
+  - POST /pedidos/recomendacion-tecnicos → Sugiere técnicos para un carrito
+  - GET  /pedidos/metodos-pago            → Lista métodos de pago disponibles
+  - POST /pedidos                        → Checkout: crea pedido y factura
+  - POST /pedidos/{id}/ubicacion         → Cliente comparte ubicación GPS
+  - GET  /pedidos/mis-pedidos            → Pedidos del cliente autenticado
+  - GET  /pedidos/all-admin              → Todos los pedidos (admin)
+  - GET  /pedidos/admin/entregas         → Entregas para reasignar (admin)
+  - PUT  /pedidos/admin/{id}/entrega     → Asigna/reasigna técnico (admin)
+  - GET  /pedidos/admin/facturas         → Lista facturas (admin)
+  - GET  /pedidos/{id}/seguimiento       → Rastreo del pedido (cliente)
+  - GET  /pedidos/{id}                   → Detalle de un pedido
+  - GET  /pedidos/{id}/factura           → Descarga PDF de factura
+  - GET  /pedidos/admin/{id}/factura     → Descarga factura (admin)
+  - POST /pedidos/{id}/confirmar-pago    → Confirma pago pendiente
+
+Impacto: Sin este módulo no se podrían crear pedidos ni facturas, y los
+  clientes no tendrían forma de comprar productos ni rastrear entregas.
+"""
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -72,6 +99,11 @@ class CheckoutRequest(BaseModel):
     items: List[ItemCarrito]
     servicios: List[ServicioCheckout] = []
     pago: DatosPago
+
+
+class UbicacionClienteRequest(BaseModel):
+    latitud: float
+    longitud: float
 
 
 # ── Helpers de serialización ────────────────────────────────────
@@ -238,6 +270,33 @@ async def checkout(
         "redirect_url": result.get("redirect_url"),
         "entrega": result.get("entrega"),
     }
+
+
+@router.post("/{pedido_id}/ubicacion")
+def compartir_ubicacion_cliente(
+    pedido_id: int,
+    data: UbicacionClienteRequest,
+    cliente: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El cliente comparte su ubicación GPS con el técnico asignado.
+    Se almacena en el pedido para que el técnico la vea en su vista de entregas."""
+    if not (-90 <= data.latitud <= 90) or not (-180 <= data.longitud <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas fuera de rango")
+
+    pedido = (
+        db.query(Pedido)
+        .filter(Pedido.id_pedido == pedido_id, Pedido.id_cliente_pe == cliente.id_cliente)
+        .first()
+    )
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    pedido.latitud_cliente = data.latitud
+    pedido.longitud_cliente = data.longitud
+    db.commit()
+
+    return {"ok": True, "mensaje": "Ubicación compartida correctamente"}
 
 
 @router.get("/mis-pedidos")
@@ -407,6 +466,7 @@ def asignar_entrega_admin(
         crear_notificacion,
         notificar_entrega_asignada_tecnico,
         notificar_entrega_programada_cliente,
+        notificar_entrega_tecnico_cambiado_cliente,
     )
 
     cliente = (
@@ -567,6 +627,18 @@ def asignar_entrega_admin(
                 datos_cliente,
             )
 
+    # Notificar al cliente si el técnico CAMBÓ (no es primera asignación).
+    if anterior and cliente:
+        notificar_entrega_tecnico_cambiado_cliente(
+            db,
+            cliente_id=cliente.id_cliente,
+            correo=cliente.email,
+            cliente_nombre=f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+            pedido_id=pedido.id_pedido,
+            tecnico_anterior=anterior,
+            tecnico_nuevo=pedido.nombre_tecnico_entrega or "técnico",
+        )
+
     return {
         "id_pedido": pedido.id_pedido,
         "estado_entrega": pedido.estado_entrega,
@@ -712,6 +784,14 @@ def seguimiento_pedido(
         ),
         "tecnico": tecnico_data,
         "ubicacion": ubicacion_data,
+        "ubicacion_cliente": (
+            {
+                "latitud": pedido.latitud_cliente,
+                "longitud": pedido.longitud_cliente,
+            }
+            if pedido.latitud_cliente is not None and pedido.longitud_cliente is not None
+            else None
+        ),
         "entrega_actualizada_en": (
             pedido.entrega_actualizada_en.isoformat()
             if pedido.entrega_actualizada_en
