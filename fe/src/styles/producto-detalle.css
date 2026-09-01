@@ -847,3 +847,228 @@
   font-weight: 600;
 }
 .detalle-combo:disabled .detalle-combo-info small { color: #9f9f9f; }
+<<<<<<< Updated upstream
+=======
+
+/* ============================================================
+   RECOMENDADOS
+   ============================================================ */
+
+.detalle-recomendados {
+  margin-top: 50px;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.detalle-recomendados-titulo {
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 24px;
+}
+
+.detalle-recomendados-grid {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+  padding-top: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  align-items: stretch;
+}
+
+.detalle-recomendados-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.detalle-recomendados-arrow {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.detalle-recomendados-arrow:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.detalle-recomendados-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.detalle-recomendados-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detalle-recomendados-grid::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+
+/* ── Carrusel: tarjetas con altura uniforme, sin superposiciones ──
+   Cada tarjeta mantiene la estructura ordenada:
+   imagen → fav → nombre (2 líneas) → precio → disponibilidad →
+   variantes/metros → cantidad → botón.
+   Se usa flex column + gap + min-height para que el contenido crezca
+   sin montarse, sin posiciones absolutas ni alturas rígidas. */
+.detalle-recomendados-grid > * {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+  height: auto;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.detalle-recomendados-grid > * .card-producto {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detalle-recomendados-grid > * .info-producto {
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 14px;
+}
+
+/* Nombre: 2 líneas máximo, reserva 2 líneas para alinear tarjetas */
+.detalle-recomendados-grid > * .nombre-producto {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 2.6em;
+  max-height: 2.6em;
+  line-height: 1.3;
+  font-size: 15px;
+  margin: 0;
+}
+
+.detalle-recomendados-grid > * .categoria-producto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  font-size: 10.5px;
+}
+
+/* Footer siempre al fondo con distribución vertical limpia */
+.detalle-recomendados-grid > * .producto-footer {
+  margin-top: auto;
+  gap: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.detalle-recomendados-grid > * .precio-bloque {
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detalle-recomendados-grid > * .precio-producto {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.detalle-recomendados-grid > * .precio-monto {
+  font-size: 20px;
+}
+
+.detalle-recomendados-grid > * .precio-seleccion-detalle {
+  font-size: 11px;
+  line-height: 1.3;
+  margin-top: 0;
+}
+
+.detalle-recomendados-grid > * .stock-disponible {
+  font-size: 11px;
+  display: inline-flex;
+}
+
+.detalle-recomendados-grid > * .combos-mini {
+  overflow: visible;
+  max-height: none;
+  min-height: 0;
+  gap: 4px;
+  margin: 2px 0 0;
+}
+
+.detalle-recomendados-grid > * .combos-mini--placeholder {
+  display: none !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+}
+
+.detalle-recomendados-grid > * .selectores-bloque {
+  margin-top: 4px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.detalle-recomendados-grid > * .cantidad-control,
+.detalle-recomendados-grid > * .unidades-control {
+  height: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.detalle-recomendados-grid > * .metros-select {
+  height: 36px;
+  border-radius: 10px;
+  min-width: 80px;
+  max-width: 94px;
+  font-size: 12.5px;
+}
+
+.detalle-recomendados-grid > * .btn-agregar--footer {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+  .detalle-recomendados-grid > * {
+    flex: 0 0 190px;
+    min-height: 500px;
+  }
+
+  .detalle-recomendados-titulo {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .detalle-recomendados-grid > * {
+    flex: 0 0 175px;
+    min-height: 480px;
+  }
+}
+>>>>>>> Stashed changes
