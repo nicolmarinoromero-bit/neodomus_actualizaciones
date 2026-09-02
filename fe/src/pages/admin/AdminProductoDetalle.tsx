@@ -28,7 +28,6 @@ interface EstadoForm {
   id_cate_pr: string;
   id_proveedor_pr: string;
   imagen_url: string;
-  colores_producto: string;
   stock_producto: string;
   estado_producto: string;
   descuento_activo: string;
@@ -37,6 +36,7 @@ interface EstadoForm {
   caracteristicas_producto: string;
   marca?: string;
   es_nuevo_producto: boolean;
+  venta_por_metros: boolean;
   tecnicos_requeridos: string;
   dificultad_instalacion: string;
   tiempo_estimado_horas: string;
@@ -77,7 +77,6 @@ const VACIO: EstadoForm = {
   id_cate_pr: '',
   id_proveedor_pr: '',
   imagen_url: '',
-  colores_producto: '',
   stock_producto: '0',
   estado_producto: 'activo',
   descuento_activo: '',
@@ -85,6 +84,7 @@ const VACIO: EstadoForm = {
   descripcion_producto: '',
   caracteristicas_producto: '',
   es_nuevo_producto: true,
+  venta_por_metros: false,
   tecnicos_requeridos: '1',
   dificultad_instalacion: '',
   tiempo_estimado_horas: '',
@@ -113,7 +113,6 @@ const AdminProductoDetalle = () => {
     ...(proveedorInicial ? { id_proveedor_pr: proveedorInicial } : {}),
   }));
   const [caractLista, setCaractLista] = useState<string[]>([]);
-  const [colorLista, setColorLista] = useState<string[]>([]);
   const [variantesForm, setVariantesForm] = useState<VarianteForm[]>([]);
   const [editar, setEditar] = useState(esNuevo);
   const [cargando, setCargando] = useState(true);
@@ -212,7 +211,6 @@ const AdminProductoDetalle = () => {
           id_cate_pr: res.data.id_cate_pr?.toString() || '',
           id_proveedor_pr: res.data.id_proveedor_pr?.toString() || '',
           imagen_url: res.data.imagen_url || '',
-          colores_producto: res.data.colores_producto || '',
           stock_producto: res.data.stock_producto?.toString() || '0',
           estado_producto: res.data.estado_producto || 'activo',
           descuento_activo: res.data.descuento_activo != null ? String(res.data.descuento_activo) : '',
@@ -220,7 +218,8 @@ const AdminProductoDetalle = () => {
           descripcion_producto: res.data.descripcion_producto || '',
           caracteristicas_producto: res.data.caracteristicas_producto || '',
           es_nuevo_producto: !!res.data.es_nuevo,
-          tecnicos_requeridos: String(res.data.tecnicos_requeridos || 1),
+          venta_por_metros: !!res.data.venta_por_metros,
+          tecnicos_requeridos: String(res.data.tecnicos_requeridos ?? 0),
           dificultad_instalacion: res.data.dificultad_instalacion || '',
           tiempo_estimado_horas:
             res.data.tiempo_estimado_horas != null ? String(res.data.tiempo_estimado_horas) : '',
@@ -233,12 +232,6 @@ const AdminProductoDetalle = () => {
           (res.data.caracteristicas_producto || '')
             .split('\n')
             .map((c) => c.replace(/^[-*\s]+/, '').trim())
-            .filter(Boolean),
-        );
-        setColorLista(
-          (res.data.colores_producto || '')
-            .split(',')
-            .map((c) => c.trim())
             .filter(Boolean),
         );
       }
@@ -300,7 +293,45 @@ const AdminProductoDetalle = () => {
     }
   };
 
-  const colores = colorLista.map((c) => c.trim()).filter(Boolean);
+  const validarVariante = (v: VarianteForm): string | null => {
+    if (!v.nombre.trim()) return t('adm.productoDetalle.errorNombreVariante');
+    const stock = parseInt(v.stock, 10);
+    if (Number.isNaN(stock) || stock < 0) return t('adm.productoDetalle.errorStockVariante');
+    if (v.precio.trim() !== '') {
+      const precioNum = parseFloat(v.precio);
+      if (Number.isNaN(precioNum) || precioNum <= 0) {
+        return t('adm.productoDetalle.errorPrecioVariante');
+      }
+    }
+    if (form.tiene_medidas) {
+      const ancho = parseInt(v.ancho_cm, 10);
+      const alto = parseInt(v.alto_cm, 10);
+      if (Number.isNaN(ancho) || ancho <= 0 || Number.isNaN(alto) || alto <= 0) {
+        return t('adm.productoDetalle.errorMedidasVariante');
+      }
+    }
+    return null;
+  };
+
+  const payloadDeVariante = (v: VarianteForm) => {
+    const precioNum = v.precio.trim() === '' ? null : parseFloat(v.precio);
+    const anchoNum =
+      form.tiene_medidas && v.ancho_cm.trim() !== '' ? parseInt(v.ancho_cm, 10) : null;
+    const altoNum =
+      form.tiene_medidas && v.alto_cm.trim() !== '' ? parseInt(v.alto_cm, 10) : null;
+    return {
+      nombre: v.nombre.trim(),
+      hex: v.hex.trim() || null,
+      tamaño: form.tiene_medidas
+        ? `${v.ancho_cm} cm por ${v.alto_cm} cm`
+        : v.tamaño.trim() || null,
+      ancho_cm: anchoNum,
+      alto_cm: altoNum,
+      precio: precioNum,
+      imagen_url: v.imagen_url.trim() || null,
+      stock: parseInt(v.stock, 10),
+    };
+  };
 
   const validar = () => {
     if (!form.nombre_producto.trim()) return t('adm.productoDetalle.errorNombreProducto');
@@ -308,6 +339,13 @@ const AdminProductoDetalle = () => {
     if (!precio || precio <= 0) return t('adm.productoDetalle.errorPrecioVenta');
     const stock = parseInt(form.stock_producto, 10);
     if (Number.isNaN(stock) || stock < 0) return t('adm.productoDetalle.errorStock');
+    const descuento = form.descuento_activo.trim() === '' ? null : parseFloat(form.descuento_activo);
+    if (descuento != null && (Number.isNaN(descuento) || descuento < 0 || descuento > 100)) {
+      return t('adm.productoDetalle.errorDescuento');
+    }
+    if (form.promocion_hasta && (!descuento || descuento <= 0)) {
+      return t('adm.productoDetalle.errorPromoSinDescuento');
+    }
     return null;
   };
 
@@ -317,6 +355,16 @@ const AdminProductoDetalle = () => {
     if (invalido) {
       notify(invalido, 'err');
       return;
+    }
+    if (esNuevo) {
+      const pendientes = variantesForm.filter((v) => v.nombre.trim() !== '');
+      for (const v of pendientes) {
+        const invalidoVariante = validarVariante(v);
+        if (invalidoVariante) {
+          notify(invalidoVariante, 'err');
+          return;
+        }
+      }
     }
     setGuardando(true);
     try {
@@ -329,7 +377,8 @@ const AdminProductoDetalle = () => {
         id_cate_pr: form.id_cate_pr ? parseInt(form.id_cate_pr, 10) : null,
         id_proveedor_pr: form.id_proveedor_pr ? parseInt(form.id_proveedor_pr, 10) : null,
         imagen_url: form.imagen_url.trim() || null,
-        colores_producto: colorLista.map((c) => c.trim()).filter(Boolean).join(', ') || null,
+        colores_producto:
+          variantesForm.map((v) => v.nombre.trim()).filter(Boolean).join(', ') || null,
         stock_producto: parseInt(form.stock_producto, 10),
         estado_producto: form.estado_producto,
         descuento_activo: form.descuento_activo.trim() === '' ? null : parseFloat(form.descuento_activo),
@@ -338,7 +387,8 @@ const AdminProductoDetalle = () => {
         caracteristicas_producto:
           caractLista.map((c) => c.trim()).filter(Boolean).join('\n') || null,
         es_nuevo_producto: form.es_nuevo_producto,
-        tecnicos_requeridos: Math.max(1, parseInt(form.tecnicos_requeridos, 10) || 1),
+        venta_por_metros: form.venta_por_metros,
+        tecnicos_requeridos: Math.max(0, parseInt(form.tecnicos_requeridos, 10) || 0),
         dificultad_instalacion: form.dificultad_instalacion || null,
         tiempo_estimado_horas:
           form.tiempo_estimado_horas.trim() === '' ? null : parseFloat(form.tiempo_estimado_horas),
@@ -347,9 +397,18 @@ const AdminProductoDetalle = () => {
       };
       if (esNuevo) {
         const res = await api.post<{ id_producto: number }>('/productos', payload);
+        const nuevoId = res.data.id_producto;
+        const pendientes = variantesForm.filter((v) => v.nombre.trim() !== '');
+        for (const v of pendientes) {
+          try {
+            await api.post(`/productos/${nuevoId}/variantes`, payloadDeVariante(v));
+          } catch {
+            // Si una variante falla, el producto ya quedó creado; se corrige en la edición.
+          }
+        }
         notify(t('adm.productoDetalle.notifyProductoCreado'));
         window.dispatchEvent(new CustomEvent('admin-producto-updated'));
-        navigate(`/admin/productos/${res.data.id_producto}`, { replace: true });
+        navigate(`/admin/productos/${nuevoId}`, { replace: true });
         return;
       } else {
         await api.put(`/productos/${id}`, payload);
@@ -389,52 +448,20 @@ const AdminProductoDetalle = () => {
     setVariantesForm((prev) => prev.filter((_, j) => j !== i));
   };
 
-  const guardarVariante = async (v: VarianteForm) => {
-    if (!v.nombre.trim()) {
-      notify(t('adm.productoDetalle.errorNombreVariante'), 'err');
+  const guardarVariante = async (i: number, v: VarianteForm) => {
+    const invalido = validarVariante(v);
+    if (invalido) {
+      notify(invalido, 'err');
       return;
     }
-    const stock = parseInt(v.stock, 10);
-    if (Number.isNaN(stock) || stock < 0) {
-      notify(t('adm.productoDetalle.errorStockVariante'), 'err');
-      return;
-    }
+    const payload = payloadDeVariante(v);
     setGuardando(true);
     try {
-      const precioNum = v.precio.trim() === '' ? null : parseFloat(v.precio);
-      if (v.precio.trim() !== '' && (Number.isNaN(precioNum) || (precioNum ?? 0) <= 0)) {
-        notify('El precio de la variante debe ser un número mayor a 0', 'err');
-        return;
-      }
-      if (form.tiene_medidas) {
-        const ancho = parseInt(v.ancho_cm, 10);
-        const alto = parseInt(v.alto_cm, 10);
-        if (Number.isNaN(ancho) || ancho <= 0 || Number.isNaN(alto) || alto <= 0) {
-          notify('Ingresa el ancho y el alto en cm de la variante', 'err');
-          return;
-        }
-      }
-      const anchoNum =
-        form.tiene_medidas && v.ancho_cm.trim() !== '' ? parseInt(v.ancho_cm, 10) : null;
-      const altoNum =
-        form.tiene_medidas && v.alto_cm.trim() !== '' ? parseInt(v.alto_cm, 10) : null;
-      const payload = {
-        nombre: v.nombre.trim(),
-        hex: v.hex.trim() || null,
-        tamaño: form.tiene_medidas
-          ? `${v.ancho_cm} cm por ${v.alto_cm} cm`
-          : v.tamaño.trim() || null,
-        ancho_cm: anchoNum,
-        alto_cm: altoNum,
-        precio: precioNum,
-        imagen_url: v.imagen_url.trim() || null,
-        stock,
-      };
       if (v.id) {
         const res = await api.put<VarianteAdmin>(`/productos/${id}/variantes/${v.id}`, payload);
         setVariantesForm((prev) =>
-          prev.map((x) =>
-            x.id === res.data.id
+          prev.map((x, j) =>
+            j === i
               ? {
                   ...x,
                   id: res.data.id,
@@ -454,11 +481,7 @@ const AdminProductoDetalle = () => {
       } else {
         const res = await api.post<VarianteAdmin>(`/productos/${id}/variantes`, payload);
         setVariantesForm((prev) =>
-          prev.map((x) =>
-            x.id === null && x.nombre === payload.nombre
-              ? { ...x, id: res.data.id }
-              : x,
-          ),
+          prev.map((x, j) => (j === i ? { ...x, id: res.data.id } : x)),
         );
         notify(t('adm.productoDetalle.notifyVarianteCreada'));
       }
@@ -488,6 +511,12 @@ const AdminProductoDetalle = () => {
   };
 
   const formatoPrecio = (valor: number) => `$${valor.toLocaleString('es-CO')}`;
+
+  const requiereTecnicos = parseInt(form.tecnicos_requeridos, 10) > 0;
+
+  const toggleRequiereTecnicos = () => {
+    setCampo('tecnicos_requeridos', requiereTecnicos ? '0' : '1');
+  };
 
   return (
     <motion.section
@@ -702,6 +731,28 @@ const AdminProductoDetalle = () => {
                 <option value="inactivo">{t('adm.productoDetalle.estadoInactivo')}</option>
               </select>
             </div>
+
+            <div className="ap-form-group">
+              <div className="ap-nuevo-head">
+                <label className="ap-form-label" htmlFor="apf-venta-metros">
+                  {t('adm.productoDetalle.labelVentaMetros')}
+                </label>
+                <span className={`ap-nuevo-sino ${form.venta_por_metros ? 'on' : ''}`}>
+                  {form.venta_por_metros ? t('adm.productoDetalle.si') : t('adm.productoDetalle.no')}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                id="apf-venta-metros"
+                aria-checked={form.venta_por_metros}
+                className={`ap-nuevo-switch ${form.venta_por_metros ? 'on' : ''}`}
+                onClick={() => setForm((prev) => ({ ...prev, venta_por_metros: !prev.venta_por_metros }))}
+              >
+                <span className="ap-nuevo-thumb" />
+              </button>
+              <span className="ap-form-hint">{t('adm.productoDetalle.hintVentaMetros')}</span>
+            </div>
           </div>
         </section>
 
@@ -709,18 +760,41 @@ const AdminProductoDetalle = () => {
           <h3 className="apf-seccion-titulo">Instalación y lanzamiento</h3>
           <div className="ap-form-grid">
             <div className="ap-form-group">
-              <label className="ap-form-label" htmlFor="apf-tecnicos">{t('adm.productoDetalle.labelTecnicos')}</label>
-              <input
-                id="apf-tecnicos"
-                className="ap-form-input"
-                type="number"
-                min="1"
-                step="1"
-                value={form.tecnicos_requeridos}
-                onChange={(e) => setCampo('tecnicos_requeridos', e.target.value)}
-              />
-              <span className="ap-form-hint">{t('adm.productoDetalle.hintTecnicos')}</span>
+              <div className="ap-nuevo-head">
+                <label className="ap-form-label" htmlFor="apf-requiere-tecnicos">
+                  {t('adm.productoDetalle.labelRequiereTecnicos')}
+                </label>
+                <span className={`ap-nuevo-sino ${requiereTecnicos ? 'on' : ''}`}>
+                  {requiereTecnicos ? t('adm.productoDetalle.si') : t('adm.productoDetalle.no')}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                id="apf-requiere-tecnicos"
+                aria-checked={requiereTecnicos}
+                className={`ap-nuevo-switch ${requiereTecnicos ? 'on' : ''}`}
+                onClick={toggleRequiereTecnicos}
+              >
+                <span className="ap-nuevo-thumb" />
+              </button>
             </div>
+
+            {requiereTecnicos && (
+              <div className="ap-form-group">
+                <label className="ap-form-label" htmlFor="apf-tecnicos">{t('adm.productoDetalle.labelCantidadTecnicos')}</label>
+                <input
+                  id="apf-tecnicos"
+                  className="ap-form-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.tecnicos_requeridos}
+                  onChange={(e) => setCampo('tecnicos_requeridos', e.target.value)}
+                />
+                <span className="ap-form-hint">{t('adm.productoDetalle.hintTecnicos')}</span>
+              </div>
+            )}
 
             <div className="ap-form-group">
               <label className="ap-form-label" htmlFor="apf-dificultad">{t('adm.productoDetalle.labelDificultad')}</label>
@@ -905,76 +979,6 @@ const AdminProductoDetalle = () => {
               )}
             </div>
 
-            <div className="ap-form-group full">
-              <label className="ap-form-label" htmlFor="apf-colores">{t('adm.productoDetalle.labelColores')}</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {colorLista.map((c, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      maxWidth: 520,
-                    }}
-                  >
-                    <input
-                      className="ap-form-input"
-                      type="text"
-                      value={c}
-                      onChange={(e) =>
-                        setColorLista((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
-                      }
-                      placeholder={t('adm.productoDetalle.phColor', { n: i + 1 })}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setColorLista((prev) => prev.filter((_, j) => j !== i))}
-                      title={t('adm.productoDetalle.quitarColorTitle')}
-                      aria-label={t('adm.productoDetalle.quitarColorAria')}
-                      style={{
-                        width: 34,
-                        height: 34,
-                        minWidth: 34,
-                        borderRadius: 8,
-                        border: '1px solid rgba(224,92,92,0.4)',
-                        background: 'rgba(224,92,92,0.12)',
-                        color: '#e05c5c',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 15,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <FaXmark />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="ap-btn ap-btn-ghost"
-                  style={{ alignSelf: 'flex-start' }}
-                  onClick={() => setColorLista((prev) => [...prev, ''])}
-                >
-                  <FaCirclePlus /> {t('adm.productoDetalle.agregarColor')}
-                </button>
-              </div>
-              {colores.length > 0 && (
-                <div className="ap-colores" style={{ marginTop: 8 }}>
-                  {colores.map((color, i) => (
-                    <span key={i} className="ap-cchip" style={{ ['--chip-color' as never]: color } as React.CSSProperties}>
-                      {color}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <span className="ap-form-hint">
-                {t('adm.productoDetalle.hintColores')}
-              </span>
-            </div>
           </div>
         </section>
 
@@ -1062,7 +1066,7 @@ const AdminProductoDetalle = () => {
                         className="ap-btn ap-btn-ghost"
                         disabled={guardando || esNuevo}
                         title={esNuevo ? t('adm.productoDetalle.guardarVarianteTitle') : undefined}
-                        onClick={() => guardarVariante(v)}
+                        onClick={() => guardarVariante(i, v)}
                       >
                         <FaFloppyDisk /> {t('adm.productoDetalle.guardarVariante')}
                       </button>
@@ -1132,7 +1136,6 @@ const AdminProductoDetalle = () => {
                   className="ap-btn ap-btn-ghost"
                   style={{ alignSelf: 'flex-start' }}
                   onClick={agregarVariante}
-                  disabled={esNuevo}
                 >
                   <FaCirclePlus /> {t('adm.productoDetalle.agregarVariante')}
                 </button>
@@ -1307,19 +1310,6 @@ const AdminProductoDetalle = () => {
                   </div>
                 </div>
               </div>
-
-              {colores.length > 0 && (
-                <div>
-                  <span className="ap-def-label">{t('adm.productoDetalle.coloresDisponibles')}</span>
-                  <div className="ap-colores" style={{ marginTop: 8 }}>
-                    {colores.map((color, i) => (
-                      <span key={i} className="ap-cchip" style={{ ['--chip-color' as never]: color } as React.CSSProperties}>
-                        {color}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {producto.variantes && producto.variantes.length > 0 && (
                 <div>

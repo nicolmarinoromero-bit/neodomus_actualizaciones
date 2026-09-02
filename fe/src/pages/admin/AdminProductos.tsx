@@ -21,6 +21,7 @@ import type { ProductoAdmin, ProveedorAdmin } from '../../types';
 
 interface PaginaProductos {
   total: number;
+  total_pages?: number;
   data: ProductoAdmin[];
 }
 
@@ -28,6 +29,8 @@ const AdminProductos = () => {
   const { t } = useIdioma();
   const [productos, setProductos] = useState<ProductoAdmin[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [cargando, setCargando] = useState(true);
@@ -46,11 +49,11 @@ const AdminProductos = () => {
   const proveedorId = searchParams.get('proveedor');
   const nombreProveedor = productos[0]?.nombre_proveedor || t('adm.productos.proveedorSeleccionado');
 
-  const cargar = async (search = '', silencioso = false) => {
+  const cargar = async (search = '', silencioso = false, pagina: number = page) => {
     if (!silencioso) setCargando(true);
     if (!silencioso) setError(false);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '10', page: String(pagina) });
       params.set('estado', filtroEstado);
       if (search.trim()) params.set('search', search.trim());
       if (categoriaId && /^\d+$/.test(categoriaId)) params.set('categoria', categoriaId);
@@ -58,11 +61,18 @@ const AdminProductos = () => {
       const res = await api.get<PaginaProductos>(`/productos/?${params.toString()}`);
       setProductos(res.data.data || []);
       setTotal(res.data.total ?? 0);
+      setTotalPages(res.data.total_pages ?? 1);
     } catch {
       if (!silencioso) setError(true);
     } finally {
       if (!silencioso) setCargando(false);
     }
+  };
+
+  const irPagina = (n: number) => {
+    if (n < 1 || n > totalPages) return;
+    setPage(n);
+    cargar('', false, n);
   };
 
   const notify = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
@@ -93,7 +103,7 @@ const AdminProductos = () => {
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busqueda, filtroEstado, categoriaId, proveedorId]);
+  }, [busqueda, filtroEstado, categoriaId, proveedorId, page]);
 
   useEffect(() => {
     api
@@ -103,23 +113,27 @@ const AdminProductos = () => {
   }, []);
 
   useEffect(() => {
-    cargar('');
+    setPage(1);
+    cargar('', false, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriaId]);
 
   useEffect(() => {
-    cargar('');
+    setPage(1);
+    cargar('', false, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proveedorId]);
 
   useEffect(() => {
-    cargar('');
+    setPage(1);
+    cargar('', false, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroEstado]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    cargar(busqueda.trim());
+    setPage(1);
+    cargar(busqueda.trim(), false, 1);
   };
 
   const toggleEstado = async (producto: ProductoAdmin) => {
@@ -493,6 +507,38 @@ const AdminProductos = () => {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="ap-paginacion">
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={page <= 1}
+                onClick={() => irPagina(page - 1)}
+              >
+                ‹ {t('adm.productos.anterior')}
+              </button>
+              <div className="ap-page-nums">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`ap-page-btn ${n === page ? 'active' : ''}`}
+                    onClick={() => irPagina(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={page >= totalPages}
+                onClick={() => irPagina(page + 1)}
+              >
+                {t('adm.productos.siguiente')} ›
+              </button>
+            </div>
+          )}
         </div>
       )}
 

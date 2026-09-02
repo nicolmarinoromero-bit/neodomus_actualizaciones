@@ -192,7 +192,9 @@ const CarritoPage = () => {
                       )}
                       {item.tecnicos_requeridos != null && (
                         <span className="carrito-item-tecnicos">
-                          {`Requiere ${item.tecnicos_requeridos > 1 ? item.tecnicos_requeridos + ' técnicos' : '1 técnico'}`}
+                          {item.tecnicos_requeridos > 0
+                            ? `Requiere ${item.tecnicos_requeridos > 1 ? item.tecnicos_requeridos + ' técnicos' : '1 técnico'}`
+                            : 'Sin instalación'}
                         </span>
                       )}
                     </div>

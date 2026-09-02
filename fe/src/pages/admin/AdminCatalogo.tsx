@@ -23,6 +23,8 @@ const AdminCatalogo = () => {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
+  const [pagina, setPagina] = useState(1);
+  const POR_PAGINA = 10;
 
   useEffect(() => {
     const cargar = () => {
@@ -77,6 +79,13 @@ const AdminCatalogo = () => {
       )
     : productos;
 
+  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const productosPaginados = productosFiltrados.slice(
+    (paginaActual - 1) * POR_PAGINA,
+    paginaActual * POR_PAGINA,
+  );
+
   return (
     <motion.section
       className="admin-panel"
@@ -113,7 +122,10 @@ const AdminCatalogo = () => {
               type="text"
               placeholder={t('adm.catalogo.buscarPlaceholder')}
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
             />
           </form>
         )}
@@ -232,7 +244,7 @@ const AdminCatalogo = () => {
                 </tr>
               </thead>
               <tbody>
-                {productosFiltrados.map((producto) => (
+                {productosPaginados.map((producto) => (
                   <tr key={producto.id_producto}>
                     <td>
                       <div className="ap-cell-user">
@@ -290,6 +302,38 @@ const AdminCatalogo = () => {
               </tbody>
             </table>
           </div>
+          {totalPaginas > 1 && (
+            <div className="ap-paginacion">
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={paginaActual === 1}
+                onClick={() => setPagina(paginaActual - 1)}
+              >
+                ‹ {t('adm.catalogo.anterior')}
+              </button>
+              <div className="ap-page-nums">
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`ap-page-btn ${n === paginaActual ? 'active' : ''}`}
+                    onClick={() => setPagina(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="ap-page-btn"
+                disabled={paginaActual === totalPaginas}
+                onClick={() => setPagina(paginaActual + 1)}
+              >
+                {t('adm.catalogo.siguiente')} ›
+              </button>
+            </div>
+          )}
         </div>
       )}
       {toast && (

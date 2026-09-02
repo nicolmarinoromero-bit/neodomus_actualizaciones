@@ -247,7 +247,7 @@ def _serializar(p: Producto) -> ProductoResponse:
         precio_final=precio_final,
         promocion_hasta=p.promocion_hasta.isoformat() if p.promocion_hasta else None,
         es_nuevo=es_nuevo,
-        tecnicos_requeridos=max(1, p.tecnicos_requeridos or 1),
+        tecnicos_requeridos=max(0, p.tecnicos_requeridos or 0),
         dificultad_instalacion=p.dificultad_instalacion,
         tiempo_estimado_horas=p.tiempo_estimado_horas,
         tiene_medidas=bool(p.tiene_medidas),
@@ -828,7 +828,7 @@ def crear_producto(
         descuento_activo=data.descuento_activo,
         promocion_hasta=_parsear_fecha_promo(data.promocion_hasta),
         es_nuevo_producto=True if data.es_nuevo_producto is None else bool(data.es_nuevo_producto),
-        tecnicos_requeridos=max(1, data.tecnicos_requeridos or 1),
+        tecnicos_requeridos=max(0, data.tecnicos_requeridos or 0),
         dificultad_instalacion=_validar_dificultad(data.dificultad_instalacion),
         tiempo_estimado_horas=data.tiempo_estimado_horas,
         tiene_medidas=bool(data.tiene_medidas),
@@ -897,9 +897,9 @@ def editar_producto(
             else bool(producto.es_nuevo_producto)
         ),
         "tecnicos_requeridos": (
-            max(1, data.tecnicos_requeridos)
+            max(0, data.tecnicos_requeridos)
             if data.tecnicos_requeridos is not None
-            else max(1, producto.tecnicos_requeridos or 1)
+            else max(0, producto.tecnicos_requeridos or 0)
         ),
         "dificultad_instalacion": (
             _validar_dificultad(data.dificultad_instalacion)

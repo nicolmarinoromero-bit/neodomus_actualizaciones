@@ -774,7 +774,9 @@ const ProductoDetalle = () => {
               <div className="detalle-beneficio">
                 <FaUsers />
                 <span>
-                  {`Requiere ${producto.tecnicos_requeridos && producto.tecnicos_requeridos > 1 ? producto.tecnicos_requeridos + ' técnicos' : '1 técnico'} para su instalación`}
+                  {producto.tecnicos_requeridos && producto.tecnicos_requeridos > 0
+                    ? `Requiere ${producto.tecnicos_requeridos > 1 ? producto.tecnicos_requeridos + ' técnicos' : '1 técnico'} para su instalación`
+                    : 'No requiere instalación'}
                 </span>
               </div>
             </div>

@@ -1108,7 +1108,7 @@ const CheckoutPage = () => {
               {items.map((item) => {
                 const totalM = item.venta_por_metros ? (item.metros || 0) * (item.cantidad || 1) : 0;
                 const importe = item.precio_venta_producto * (item.venta_por_metros ? totalM : item.cantidad);
-                const tecnicosReq = Number(item.tecnicos_requeridos) || 1;
+                const tecnicosReq = Number(item.tecnicos_requeridos) || 0;
                 return (
                   <div className="checkout-resumen-item" key={`${item.id_producto}-${item.metros || 0}-${item.cantidad}`}>
                     <span className="checkout-resumen-nombre">
@@ -1118,7 +1118,7 @@ const CheckoutPage = () => {
                         : item.cantidad > 1
                           ? ` × ${item.cantidad}`
                           : ''}
-                      {` (${tecnicosReq} técnico${tecnicosReq > 1 ? 's' : ''})`}
+                      {tecnicosReq > 0 ? ` (${tecnicosReq} técnico${tecnicosReq > 1 ? 's' : ''})` : ' (sin instalación)'}
                     </span>
                     <span className="checkout-resumen-precio">{formatoPeso(importe)}</span>
                   </div>

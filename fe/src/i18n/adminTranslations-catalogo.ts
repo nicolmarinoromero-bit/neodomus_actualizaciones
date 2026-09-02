@@ -33,4 +33,6 @@ export const ADMIN_TRADUCCIONES_CATALOGO: Record<string, { es: string; en: strin
   'adm.catalogo.colAcciones': { es: 'Acciones', en: 'Actions' },
   'adm.catalogo.sinCategoria': { es: 'Sin categoría', en: 'No category' },
   'adm.catalogo.gestionar': { es: 'Gestionar', en: 'Manage' },
+  'adm.catalogo.anterior': { es: 'Anterior', en: 'Previous' },
+  'adm.catalogo.siguiente': { es: 'Siguiente', en: 'Next' },
 };

@@ -202,7 +202,9 @@ const ProductoCard = ({ producto }: Props) => {
             <span className="categoria-producto">{producto.nombre_categoria}</span>
           )}
           <span className="categoria-producto">
-            {`Requiere ${producto.tecnicos_requeridos && producto.tecnicos_requeridos > 1 ? producto.tecnicos_requeridos + ' técnicos' : '1 técnico'}`}
+            {producto.tecnicos_requeridos && producto.tecnicos_requeridos > 0
+              ? `Requiere ${producto.tecnicos_requeridos > 1 ? producto.tecnicos_requeridos + ' técnicos' : '1 técnico'}`
+              : 'Sin instalación'}
           </span>
           <div className={`producto-footer ${esPorMetros ? 'producto-footer--con-metros' : 'producto-footer--sin-metros'} ${producto.variantes?.length ? 'producto-footer--con-variantes' : 'producto-footer--sin-variantes'}`}>
             <div className="precio-bloque">
@@ -261,11 +263,12 @@ const ProductoCard = ({ producto }: Props) => {
                     <span
                       key={v.id}
                       className={`combo-chip ${agotada ? 'agotado' : ''}`}
-                      title={`${v.nombre}${medida ? ` · ${medida}` : ''} — ${agotada ? 'Sin stock' : `${v.stock} u.`}`}
+                      title={`${v.nombre}${medida ? ` · ${medida}` : ''} — ${agotada ? 'Sin stock' : `${v.stock} u. disponibles`}`}
                     >
                       <i className="combo-dot" style={{ background: v.hex || '#d4a54b' }} />
-                      {medida && <b>{medida}</b>}
-                      {agotada ? ' ✕' : ` · ${v.stock}`}
+                      <b>{v.nombre}</b>
+                      {medida && <span> · {medida}</span>}
+                      {agotada && <span> ✕</span>}
                     </span>
                   );
                 })}

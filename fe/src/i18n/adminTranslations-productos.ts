@@ -52,4 +52,7 @@ export const ADMIN_TRADUCCIONES_PRODUCTOS: Record<string, { es: string; en: stri
   'adm.productos.notifyCantidad': { es: 'Escribe la cantidad de al menos un producto', en: 'Enter a quantity for at least one product' },
   'adm.productos.notifyEnviada': { es: 'Solicitud enviada al proveedor', en: 'Request sent to the supplier' },
   'adm.productos.notifyError': { es: 'No se pudo enviar la solicitud', en: 'Could not send the request' },
+  'adm.productos.anterior': { es: 'Anterior', en: 'Previous' },
+  'adm.productos.siguiente': { es: 'Siguiente', en: 'Next' },
+  'adm.productos.paginaDe': { es: 'Página {actual} de {total}', en: 'Page {actual} of {total}' },
 };
