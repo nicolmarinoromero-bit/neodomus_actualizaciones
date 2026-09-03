@@ -94,6 +94,15 @@ class VarianteResponse(BaseModel):
     stock: int = 0
 
 
+class MedidaResponse(BaseModel):
+    id: int
+    metros: float
+    stock: int = 0
+    precio: Optional[float] = None
+    activa: bool = True
+    stock_estado: str = "disponible"
+
+
 class ProductoResponse(BaseModel):
     id_producto: int
     nombre_producto: str
@@ -126,6 +135,7 @@ class ProductoResponse(BaseModel):
     visible_cliente: bool = True
     especializaciones_requeridas: List[dict] = []
     variantes: List[VarianteResponse] = []
+    medidas: List[MedidaResponse] = []
 
 
 class ProductoCreate(BaseModel):
@@ -168,6 +178,12 @@ class VarianteCreate(BaseModel):
     precio: Optional[float] = None
     imagen_url: Optional[str] = None
     stock: int = 0
+
+
+class MedidaCreate(BaseModel):
+    metros: float
+    stock: int = 0
+    precio: Optional[float] = None
 
 
 class ProveedorResponse(BaseModel):
@@ -228,6 +244,23 @@ def _serializar_variante(v: ProductoVariante) -> VarianteResponse:
     )
 
 
+def _serializar_medida(m) -> MedidaResponse:
+    # stock_estado: bloqueada (≤5) vs disponible (>5) — a petición del cliente, a 5 ya no está habilitada
+    s = m.stock or 0
+    if s <= 5:
+        estado = "agotado"
+    else:
+        estado = "disponible"
+    return MedidaResponse(
+        id=m.id,
+        metros=float(m.metros),
+        stock=s,
+        precio=float(m.precio) if m.precio is not None else None,
+        activa=bool(m.activa),
+        stock_estado=estado,
+    )
+
+
 async def _empleado_opcional(
     request: Request = None,
     token: Optional[str] = Depends(oauth2_scheme),
@@ -251,6 +284,12 @@ def _serializar(p: Producto) -> ProductoResponse:
     promo_vigente = descuento and (p.promocion_hasta is None or p.promocion_hasta >= date.today())
     precio_final = round(precio_venta * (1 - descuento / 100), 2) if promo_vigente else None
     es_nuevo = bool(p.es_nuevo_producto)
+    # Medidas por longitud (si existen, tienen prioridad sobre variantes para cableado)
+    medidas = []
+    try:
+        medidas = [_serializar_medida(m) for m in (getattr(p, "medidas", []) or [])]
+    except Exception:
+        medidas = []
     return ProductoResponse(
         id_producto=p.id_producto,
         nombre_producto=normalizar_nombre_producto(p.nombre_producto),
@@ -286,6 +325,7 @@ def _serializar(p: Producto) -> ProductoResponse:
             for e in (p.especializaciones_requeridas or [])
         ],
         variantes=[_serializar_variante(v) for v in p.variantes],
+        medidas=medidas,
     )
 
 
@@ -473,7 +513,9 @@ def listar_productos(
         query = query.filter(Producto.estado_producto == "inactivo")
     if current_user is None:
         # El público solo ve productos activos, visibles y con stock suficiente (> STOCK_MINIMO)
-        # o con variantes que tengan stock suficiente.
+        # o con variantes/medidas que tengan stock. Para medidas, basta con >0 (una medida agotada no oculta el producto).
+        from app.models.producto_medida import ProductoMedida
+
         query = query.filter(
             Producto.visible_cliente == True,  # noqa: E712
             or_(
@@ -482,6 +524,12 @@ def listar_productos(
                     and_(
                         ProductoVariante.id_producto == Producto.id_producto,
                         ProductoVariante.stock > STOCK_MINIMO,
+                    )
+                ),
+                exists().where(
+                    and_(
+                        ProductoMedida.id_producto == Producto.id_producto,
+                        ProductoMedida.stock > 0,
                     )
                 ),
             )
@@ -696,8 +744,24 @@ def obtener_producto(
     if current_user is None:
         if p.estado_producto == "inactivo":
             raise HTTPException(status_code=404, detail="Producto no encontrado")
-        con_stock = (p.stock_producto or 0) > STOCK_MINIMO or any(v.stock > STOCK_MINIMO for v in p.variantes)
+        # Considerar también medidas para productos de cableado
+        try:
+            medidas = getattr(p, "medidas", []) or []
+            con_medida = any((m.stock or 0) > STOCK_MINIMO and m.activa for m in medidas)
+        except Exception:
+            con_medida = False
+        con_stock = (p.stock_producto or 0) > STOCK_MINIMO or any(v.stock > STOCK_MINIMO for v in p.variantes) or con_medida
         if not con_stock:
+            # Permitir ver producto si al menos una medida tiene stock (aunque sea bajo, para mostrar agotados)
+            # Solo ocultar si todas las medidas están en 0 y producto sin stock
+            solo_agotado = False
+            if medidas:
+                solo_agotado = all((m.stock or 0) <= 0 for m in medidas) and (p.stock_producto or 0) <= 0 and all((v.stock or 0) <= 0 for v in p.variantes)
+                if solo_agotado:
+                    raise HTTPException(status_code=404, detail="Producto no encontrado")
+                # si hay al menos una medida con stock, dejar ver aunque sea bajo
+                if any((m.stock or 0) > 0 for m in medidas):
+                    return _serializar(p)
             raise HTTPException(status_code=404, detail="Producto no encontrado")
     return _serializar(p)
 
@@ -795,6 +859,96 @@ def eliminar_variante(
     db.delete(variante)
     db.commit()
     return {"msg": "Variante eliminada correctamente"}
+
+
+@router.get("/{producto_id}/medidas", response_model=List[MedidaResponse])
+def listar_medidas(producto_id: int, db: Session = Depends(get_db)):
+    """Lista las medidas por longitud de un producto (público)."""
+    from app.models.producto_medida import ProductoMedida
+
+    p = db.query(Producto).filter(Producto.id_producto == producto_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    medidas = db.query(ProductoMedida).filter(ProductoMedida.id_producto == producto_id).order_by(ProductoMedida.metros.asc()).all()
+    return [_serializar_medida(m) for m in medidas]
+
+
+@router.post("/{producto_id}/medidas", response_model=MedidaResponse)
+def crear_medida(
+    producto_id: int,
+    data: MedidaCreate,
+    _admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Crea una medida por longitud (solo administrador)."""
+    from app.models.producto_medida import ProductoMedida
+
+    p = db.query(Producto).filter(Producto.id_producto == producto_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if data.metros <= 0:
+        raise HTTPException(status_code=400, detail="Los metros deben ser mayores a cero")
+    existe = db.query(ProductoMedida).filter(ProductoMedida.id_producto == producto_id, ProductoMedida.metros == float(data.metros)).first()
+    if existe:
+        raise HTTPException(status_code=400, detail=f"Ya existe una medida de {data.metros:g} m para este producto")
+    medida = ProductoMedida(
+        id_producto=producto_id,
+        metros=float(data.metros),
+        stock=int(data.stock or 0),
+        precio=data.precio,
+        activa=(int(data.stock or 0) > 5),
+    )
+    db.add(medida)
+    db.commit()
+    db.refresh(medida)
+    return _serializar_medida(medida)
+
+
+@router.put("/{producto_id}/medidas/{medida_id}", response_model=MedidaResponse)
+def editar_medida(
+    producto_id: int,
+    medida_id: int,
+    data: MedidaCreate,
+    _admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Actualiza stock/precio de una medida (solo administrador). Restablecer stock desbloquea."""
+    from app.models.producto_medida import ProductoMedida
+
+    medida = db.query(ProductoMedida).filter(ProductoMedida.id == medida_id, ProductoMedida.id_producto == producto_id).first()
+    if not medida:
+        raise HTTPException(status_code=404, detail="Medida no encontrada")
+    if data.metros <= 0:
+        raise HTTPException(status_code=400, detail="Los metros deben ser mayores a cero")
+    # Evitar duplicar metros
+    dup = db.query(ProductoMedida).filter(ProductoMedida.id_producto == producto_id, ProductoMedida.metros == float(data.metros), ProductoMedida.id != medida_id).first()
+    if dup:
+        raise HTTPException(status_code=400, detail=f"Ya existe una medida de {data.metros:g} m")
+    medida.metros = float(data.metros)
+    medida.stock = int(data.stock or 0)
+    medida.precio = data.precio
+    medida.activa = medida.stock > 5
+    db.commit()
+    db.refresh(medida)
+    return _serializar_medida(medida)
+
+
+@router.delete("/{producto_id}/medidas/{medida_id}", response_model=dict)
+def eliminar_medida(
+    producto_id: int,
+    medida_id: int,
+    _admin_user: User = Depends(_admin),
+    db: Session = Depends(get_db),
+):
+    """Elimina una medida (solo administrador)."""
+    from app.models.producto_medida import ProductoMedida
+
+    medida = db.query(ProductoMedida).filter(ProductoMedida.id == medida_id, ProductoMedida.id_producto == producto_id).first()
+    if not medida:
+        raise HTTPException(status_code=404, detail="Medida no encontrada")
+    db.delete(medida)
+    db.commit()
+    return {"msg": "Medida eliminada correctamente"}
 
 
 @router.post("/upload-imagen", response_model=dict)

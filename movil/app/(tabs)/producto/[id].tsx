@@ -86,6 +86,10 @@ export default function ProductoDetalleScreen() {
   }, [cargar]);
 
   useEffect(() => {
+    setFalloImagen(false);
+  }, [id, producto?.imagen_url]);
+
+  useEffect(() => {
     if (!toast) return;
     const temporizador = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(temporizador);

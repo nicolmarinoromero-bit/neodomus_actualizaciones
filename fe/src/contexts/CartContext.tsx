@@ -14,6 +14,7 @@ export interface CartItem {
   tamaño?: string;
   medida?: string;
   id_variante?: number;
+  id_medida?: number;
   venta_por_metros?: boolean;
   metros?: number;
   tecnicos_requeridos?: number;
@@ -35,12 +36,12 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string; metros?: number; venta_por_metros?: boolean }) =>
+const itemKey = (item: { id_producto: number; color?: string; medida?: string; tamaño?: string; metros?: number; venta_por_metros?: boolean; id_medida?: number }) =>
   [
     item.id_producto,
     item.color?.toLowerCase(),
     (item.medida || item.tamaño || '').toLowerCase(),
-    item.venta_por_metros && item.metros ? `${item.metros}m` : null,
+    item.id_medida ? `medida-${item.id_medida}` : (item.venta_por_metros && item.metros ? `${item.metros}m` : null),
   ]
     .filter(Boolean)
     .join('-');
@@ -63,11 +64,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const addItem = (producto: Omit<CartItem, 'cantidad'>, cantidad = 1, metros?: number): string | null => {
     let error: string | null = null;
+    const esMedida = !!(producto as any).id_medida;
     setItems(prev => {
       const key = itemKey(producto as any);
       const existing = prev.find(i => itemKey(i) === key);
       if (existing) {
         const stockMax = existing.stock_maximo ?? Infinity;
+        if (esMedida) {
+          const nuevaCantidad = (existing.cantidad || 1) + (cantidad || 1);
+          if (nuevaCantidad > stockMax) {
+            error = `No hay suficiente stock disponible para esta medida. (disponible: ${stockMax}, solicitado: ${nuevaCantidad})`;
+            return prev;
+          }
+          return prev.map(i => itemKey(i) === key ? { ...i, cantidad: nuevaCantidad } : i);
+        }
         if (producto.venta_por_metros) {
           const largo = metros || 0;
           const unidades = cantidad || 1;
@@ -82,7 +92,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             error = `Stock insuficiente: solo hay ${stockMax} m disponibles`;
             return prev;
           }
-          // Mismo largo (key incluye metros) -> incrementar unidades
           return prev.map(i =>
             itemKey(i) === key
               ? { ...i, cantidad: (i.cantidad || 1) + unidades }
@@ -101,7 +110,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         );
       }
       const stockMax = producto.stock_maximo ?? Infinity;
-      if (producto.venta_por_metros) {
+      if (esMedida) {
+        if ((cantidad || 1) > stockMax) {
+          error = `No hay suficiente stock disponible para esta medida. (disponible: ${stockMax}, solicitado: ${cantidad})`;
+          return prev;
+        }
+      } else if (producto.venta_por_metros) {
         const largo = metros || 0;
         const unidades = cantidad || 1;
         const totalSolicitado = largo * unidades;
@@ -121,8 +135,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prev, {
         ...producto,
-        cantidad: producto.venta_por_metros ? (cantidad || 1) : cantidad,
-        metros: producto.venta_por_metros ? metros || 0 : metros,
+        cantidad: producto.venta_por_metros && !esMedida ? (cantidad || 1) : cantidad,
+        metros: producto.venta_por_metros ? (metros || (producto as any).metros || 0) : metros,
       }];
     });
     return error;
@@ -135,7 +149,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         if (itemKey(i) !== key) return i;
         const nuevaCantidad = Math.max(1, cantidad);
         const stockMax = i.stock_maximo ?? Infinity;
-        if (i.venta_por_metros) {
+        const esMedida = !!(i as any).id_medida;
+        if (esMedida) {
+          if (nuevaCantidad > stockMax) {
+            error = `No hay suficiente stock disponible para esta medida. (disponible: ${stockMax})`;
+            return i;
+          }
+        } else if (i.venta_por_metros) {
           const totalMetros = (i.metros || 0) * nuevaCantidad;
           if (totalMetros > stockMax) {
             error = `Stock insuficiente: solo hay ${stockMax} m disponibles`;
@@ -158,6 +178,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems(prev =>
       prev.map(i => {
         if (itemKey(i) !== key) return i;
+        if ((i as any).id_medida) {
+          error = 'No se puede cambiar la medida directamente; elimina y agrega de nuevo';
+          return i;
+        }
         const nuevosMetros = Math.max(1, Math.round(metros));
         const stockMax = i.stock_maximo ?? Infinity;
         const totalMetros = nuevosMetros * (i.cantidad || 1);
@@ -183,24 +207,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const totalItems = useMemo(() => items.reduce((acc, i) => acc + (i.venta_por_metros ? (i.cantidad || 1) : i.cantidad), 0), [items]);
+  const totalItems = useMemo(() => items.reduce((acc, i) => acc + (i.cantidad || 1), 0), [items]);
   const totalPrice = useMemo(
     () =>
-      items.reduce(
-        (acc, i) =>
-          acc +
-          i.precio_venta_producto * (i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : i.cantidad),
-        0
-      ),
+      items.reduce((acc, i) => {
+        const esMedida = !!(i as any).id_medida;
+        if (esMedida) return acc + i.precio_venta_producto * (i.cantidad || 1);
+        return acc + i.precio_venta_producto * (i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : i.cantidad);
+      }, 0),
     [items]
   );
 
   const tieneStockInsuficiente = useMemo(
-    () => items.some(i => {
-      const stockMax = i.stock_maximo ?? Infinity;
-      const cantidadActual = i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : i.cantidad;
-      return cantidadActual > stockMax;
-    }),
+    () =>
+      items.some(i => {
+        const stockMax = i.stock_maximo ?? Infinity;
+        const esMedida = !!(i as any).id_medida;
+        const cantidadActual = esMedida ? (i.cantidad || 1) : i.venta_por_metros ? (i.metros || 0) * (i.cantidad || 1) : i.cantidad;
+        return cantidadActual > stockMax;
+      }),
     [items]
   );
 

@@ -66,3 +66,9 @@ class Producto(Base):
         cascade="all, delete-orphan",
         order_by="ProductoVariante.id",
     )
+    medidas = relationship(
+        "ProductoMedida",
+        back_populates="producto",
+        cascade="all, delete-orphan",
+        order_by="ProductoMedida.metros",
+    )

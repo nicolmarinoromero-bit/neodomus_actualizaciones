@@ -90,7 +90,9 @@ def normalizar_nombre_producto(nombre: str | None) -> str:
 
 
 def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
-    """Valida cada item del carrito y calcula subtotales."""
+    """Valida cada item del carrito y calcula subtotales. Soporta stock por medida."""
+    from app.models.producto_medida import ProductoMedida
+
     preparados = []
     if not items:
         raise HTTPException(status_code=400, detail="El carrito está vacío")
@@ -106,6 +108,52 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             raise HTTPException(status_code=404, detail=f"Producto {id_producto} no encontrado")
         if producto.estado_producto != "activo":
             raise HTTPException(status_code=400, detail=f"El producto {producto.nombre_producto} no está disponible")
+
+        # Medidas por longitud (cableado): stock independiente por medida
+        medidas = db.query(ProductoMedida).filter(ProductoMedida.id_producto == producto.id_producto).all()
+        medida_sel = None
+        if medidas:
+            # Producto con medidas requiere metros y cantidad separados
+            if metros is None:
+                raise HTTPException(status_code=400, detail=f"Debe seleccionar una medida para '{producto.nombre_producto}'")
+            try:
+                metros_val = float(metros)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Medida inválida")
+            medida_sel = next((m for m in medidas if abs(float(m.metros) - metros_val) < 0.001), None)
+            if medida_sel is None:
+                raise HTTPException(status_code=400, detail=f"La medida {metros_val:g} m no está disponible para '{producto.nombre_producto}'")
+            if (medida_sel.stock or 0) <= 5:
+                raise HTTPException(status_code=400, detail=f"La medida {medida_sel.metros:g} m de '{producto.nombre_producto}' está bloqueada (stock ≤5)")
+            if cantidad < 1:
+                raise HTTPException(status_code=400, detail="La cantidad debe ser al menos 1")
+            # Precio: si la medida tiene precio propio úsalo, si no precio por metro * metros
+            if medida_sel.precio is not None:
+                precio_unitario = float(medida_sel.precio)
+            else:
+                precio_unitario = float(producto.precio_venta_producto or 0)
+                # si el producto se vende por longitud, interpretar precio como por metro?
+                # Para cableado, subtotal = precio_por_metro * metros * cantidad
+                # Si ya tiene precio por rollo, usar directo
+                # Detectamos: si venta_por_metros, precio es por metro -> multiplicar
+                if producto.venta_por_metros:
+                    precio_unitario = float(producto.precio_venta_producto or 0) * float(medida_sel.metros)
+                # si no es por metros, precio_unitario ya es por unidad
+            subtotal = precio_unitario * cantidad
+            preparados.append({
+                "producto": producto,
+                "cantidad": cantidad,
+                "metros": float(medida_sel.metros),
+                "medida": medida_sel,
+                "color": color,
+                "tamaño": f"{medida_sel.metros:g} m",
+                "ancho_cm": None,
+                "alto_cm": None,
+                "variante": None,
+                "precio_unitario": precio_unitario,
+                "subtotal": round(subtotal, 2),
+            })
+            continue
 
         # Variante elegida (color/tamaño/medida): precio y stock propios.
         variante = None
@@ -135,7 +183,7 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             or 0
         )
 
-        # Venta por metros: la cantidad ES la longitud en metros.
+        # Venta por metros sin medidas específicas: la cantidad ES la longitud en metros.
         if producto.venta_por_metros:
             try:
                 metros = float(metros) if metros is not None else float(cantidad)
@@ -156,6 +204,7 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
             "producto": producto,
             "cantidad": cantidad_linea,
             "metros": metros,
+            "medida": None,
             "color": color,
             "tamaño": (variante.tamaño if variante else None),
             "ancho_cm": (variante.ancho_cm if variante else None),
@@ -166,19 +215,24 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
         })
 
     # ── Validación AGREGADA de stock ANTES de procesar el pago ──────
-    # Suma lo solicitado por producto/variante en todas las líneas del
-    # carrito y verifica contra el stock actual. Así un stock insuficiente
-    # falla ANTES de cobrar al cliente (descontar_stock re-valida con
-    # bloqueo pesimista al confirmar el pago).
     from collections import defaultdict
 
     requerido_prod: dict[int, float] = defaultdict(float)
     requerido_var: dict[int, float] = defaultdict(float)
+    requerido_medida: dict[int, float] = defaultdict(float)
     productos_por_id: dict[int, Producto] = {}
     variantes_por_id: dict[int, "ProductoVariante"] = {}
+    medidas_por_id: dict[int, "ProductoMedida"] = {}
     for linea in preparados:
         p = linea["producto"]
         v = linea.get("variante")
+        m = linea.get("medida")
+        if m is not None:
+            unidades = float(linea["cantidad"])
+            requerido_medida[m.id] += unidades
+            medidas_por_id[m.id] = m
+            productos_por_id[p.id_producto] = p
+            continue
         unidades = (
             float(linea["metros"])
             if (p.venta_por_metros and linea["metros"])
@@ -217,6 +271,16 @@ def _validar_y_preparar_items(db: Session, items: list[dict]) -> list[dict]:
                     f"Stock insuficiente de '{nombre}' en la variante seleccionada "
                     f"(disponible: {disponible}, solicitado: {req:g})"
                 ),
+            )
+    for mid, req in requerido_medida.items():
+        med = medidas_por_id[mid]
+        disponible = med.stock or 0
+        if req > disponible:
+            # Buscar nombre producto
+            prod_nombre = next((p.nombre_producto for p in productos_por_id.values() if p.id_producto == med.id_producto), "el producto")
+            raise HTTPException(
+                status_code=409,
+                detail=f"No hay suficiente stock disponible para esta medida. (medida: {med.metros:g} m, disponible: {disponible}, solicitado: {req:g} - {prod_nombre})",
             )
 
     return preparados
@@ -1255,15 +1319,21 @@ async def crear_pedido(
         )
         db.add(detalle)
         if estado_pago == "aprobado":
-            if producto.venta_por_metros and linea["metros"]:
-                unidades = linea["metros"]
-            else:
+            medida = linea.get("medida")
+            if medida is not None:
                 unidades = linea["cantidad"]
-            # El stock se descuenta de la VARIANTE si el item la lleva;
-            # el stock general del producto también baja por control total.
-            resultado = descontar_stock(db, producto, variante, unidades)
-            if resultado["producto_agotado"] or resultado["variante_agotada"]:
-                agotados.append(producto)
+                resultado = descontar_stock(db, producto, None, unidades, medida=medida)
+                # medida agotada no bloquea producto completo, solo esa medida
+                if resultado.get("medida_agotada"):
+                    pass
+            else:
+                if producto.venta_por_metros and linea["metros"]:
+                    unidades = linea["metros"]
+                else:
+                    unidades = linea["cantidad"]
+                resultado = descontar_stock(db, producto, variante, unidades)
+                if resultado["producto_agotado"] or resultado["variante_agotada"]:
+                    agotados.append(producto)
 
     # Detalles de servicios.
     for serv in lineas_servicio:

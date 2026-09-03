@@ -24,6 +24,15 @@ export interface VarianteProducto {
 }
 
 /** Shape real del backend: routers/productos.py → ProductoResponse. */
+export interface ProductoMedida {
+  id: number;
+  metros: number;
+  stock: number;
+  precio?: number | null;
+  activa: boolean;
+  stock_estado: 'disponible' | 'bajo' | 'agotado';
+}
+
 export interface Producto {
   id_producto: number;
   nombre_producto: string;
@@ -46,6 +55,7 @@ export interface Producto {
   tecnicos_requeridos?: number;
   dificultad_instalacion?: string | null;
   variantes?: VarianteProducto[];
+  medidas?: ProductoMedida[];
 }
 
 export interface ListaProductos {

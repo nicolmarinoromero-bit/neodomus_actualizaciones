@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '@contexts/CartContext';
 import { useFavoritos } from '@utils/favoritos';
 import { useIdioma } from '@i18n/IdiomaContext';
 import '@styles/productos-publicos.css';
+
+interface ProductoMedida {
+  id: number;
+  metros: number;
+  stock: number;
+  precio?: number | null;
+  activa: boolean;
+  stock_estado: 'disponible' | 'bajo' | 'agotado';
+}
 
 interface ProductoVariante {
   id: number;
@@ -32,6 +41,7 @@ export interface ProductoCardData {
   stock_estado?: 'disponible' | 'bajo' | 'agotado';
   tecnicos_requeridos?: number;
   variantes?: ProductoVariante[];
+  medidas?: ProductoMedida[];
 }
 
 interface Props {
@@ -54,30 +64,62 @@ const ProductoCard = ({ producto }: Props) => {
 
   const esFavorito = favoritos.has(producto.id_producto);
   const esPorMetros = Boolean(producto.venta_por_metros);
+  const tieneMedidas = !!(producto.medidas && producto.medidas.length > 0);
   const tieneDescuento = producto.precio_final != null && producto.descuento_activo && producto.descuento_activo > 0;
   const precioFinal = producto.precio_final ?? producto.precio_venta_producto;
 
+  // Sincroniza metros inicial con primera medida disponible (>5) si el producto es de cableado
+  useEffect(() => {
+    if (tieneMedidas && producto.medidas) {
+      const existe = producto.medidas.some(m => m.metros === metros);
+      if (!existe) {
+        const primeraDisponible = producto.medidas.find(m => (m.stock || 0) > 5) || producto.medidas.find(m => (m.stock || 0) > 0) || producto.medidas[0];
+        if (primeraDisponible) setMetros(primeraDisponible.metros);
+      }
+    }
+  }, [producto.id_producto, tieneMedidas]);
+
+  const medidaActiva = tieneMedidas ? (producto.medidas!.find(m => m.metros === metros) || producto.medidas![0] || null) : null;
+
   const stockDe = (p: ProductoCardData) => {
+    if (p.medidas && p.medidas.length > 0) {
+      // Para productos con medidas, stock total no aplica; se usa stock de medida seleccionada
+      return p.medidas.reduce((acc, m) => acc + (m.stock || 0), 0);
+    }
     if (p.variantes && p.variantes.length > 0) {
       return p.variantes.reduce((acc, v) => acc + (v.stock || 0), 0);
     }
     return p.stock_producto ?? Infinity;
   };
 
-  const stockTotal = stockDe(producto);
-  const stockDisponible = Number.isFinite(stockTotal) ? stockTotal : null;
-  const esStockAgotado = stockDisponible !== null && stockDisponible <= 0;
-  const esStockBajo = stockDisponible !== null && stockDisponible > 0 && stockDisponible <= 5;
-  const stockTexto = stockDisponible !== null
-    ? esPorMetros
-      ? `${stockDisponible} m disponibles`
-      : `${stockDisponible} ${stockDisponible === 1 ? 'unidad' : 'unidades'} disponibles`
-    : null;
+  // Stock para la medida seleccionada (si aplica) o global — a 5 ya bloqueada
+  const stockTotal = tieneMedidas && medidaActiva ? (medidaActiva.stock ?? 0) : stockDe(producto);
+  const stockDisponible = tieneMedidas ? stockTotal : (Number.isFinite(stockTotal) ? stockTotal : null);
+  const esStockAgotado = tieneMedidas ? (medidaActiva ? (medidaActiva.stock || 0) <= 5 : true) : (stockDisponible !== null && (stockDisponible as number) <= 0);
+  const esStockBajo = tieneMedidas ? false : (stockDisponible !== null && (stockDisponible as number) > 0 && (stockDisponible as number) <= 5);
+  const stockTexto = (() => {
+    if (tieneMedidas && medidaActiva) {
+      const s = medidaActiva.stock || 0;
+      if (s <= 5) return `Sin stock - ${medidaActiva.metros} m agotado`;
+      return `${s} ${s === 1 ? 'unidad' : 'unidades'} de ${medidaActiva.metros} m`;
+    }
+    if (stockDisponible === null) return null;
+    if (esPorMetros) return `${stockDisponible} m`;
+    return `${stockDisponible} ${stockDisponible === 1 ? 'unidad' : 'unidades'}`;
+  })();
 
-  const totalMetrosCard = metros * unidades;
+  const totalMetrosCard = tieneMedidas ? (medidaActiva ? medidaActiva.metros * unidades : 0) : (metros * unidades);
 
+  const normalizeImg = (url: string) => {
+    if (!url) return url;
+    if (typeof window !== 'undefined' && url.includes('localhost:9000')) {
+      const host = window.location.hostname;
+      if (host && host !== 'localhost' && host !== '127.0.0.1') return url.replace(/https?:\/\/localhost:9000/g, `http://${host}:9000`).replace(/https?:\/\/127\.0\.0\.1:9000/g, `http://${host}:9000`);
+    }
+    return url;
+  };
   const getImagen = (p: ProductoCardData) => {
-    if (p.imagen_url) return p.imagen_url;
+    if (p.imagen_url) return normalizeImg(p.imagen_url);
     return `/productos/${p.id_producto}.jpg`;
   };
 
@@ -88,6 +130,37 @@ const ProductoCard = ({ producto }: Props) => {
 
   const handleAddToCart = () => {
     const precio = precioFinal;
+    if (tieneMedidas && medidaActiva) {
+      const stock = medidaActiva.stock || 0;
+      if (stock <= 5) {
+        showToast('Esta medida está bloqueada (stock ≤5)');
+        return;
+      }
+      if (unidades > stock) {
+        showToast(`No hay suficiente stock disponible para esta medida. (disponible: ${stock}, solicitado: ${unidades})`);
+        return;
+      }
+      const precioMedida = medidaActiva.precio ?? (esPorMetros ? precio * medidaActiva.metros : precio);
+      const err = addItem(
+        {
+          id_producto: producto.id_producto,
+          nombre_producto: producto.nombre_producto,
+          precio_venta_producto: precioMedida,
+          imagen: getImagen(producto),
+          venta_por_metros: true,
+          stock_maximo: stock,
+          metros: medidaActiva.metros,
+          medida: `${medidaActiva.metros} m`,
+          id_medida: medidaActiva.id,
+          tecnicos_requeridos: producto.tecnicos_requeridos,
+        } as any,
+        unidades,
+        medidaActiva.metros
+      );
+      if (err) showToast(err);
+      else showToast(`${unidades} × ${medidaActiva.metros} m — ${producto.nombre_producto}`);
+      return;
+    }
     if (esPorMetros) {
       const stock = stockDe(producto);
       const total = metros * unidades;
@@ -146,8 +219,19 @@ const ProductoCard = ({ producto }: Props) => {
     });
   };
 
-  const disminuirUnidades = () => setUnidades(prev => Math.max(1, prev - 1));
+  const disminuirUnidades = () => {
+    if (tieneMedidas && medidaActiva) {
+      setUnidades(prev => Math.max(1, prev - 1));
+      return;
+    }
+    setUnidades(prev => Math.max(1, prev - 1));
+  };
   const aumentarUnidades = () => {
+    if (tieneMedidas && medidaActiva) {
+      const maxU = medidaActiva.stock || 0;
+      setUnidades(prev => (prev >= maxU ? prev : prev + 1));
+      return;
+    }
     const stock = stockDe(producto);
     const maxU = Number.isFinite(stock) ? Math.max(1, Math.floor(stock / metros) || 1) : Infinity;
     setUnidades(prev => (prev >= maxU ? prev : prev + 1));
@@ -155,6 +239,12 @@ const ProductoCard = ({ producto }: Props) => {
 
   const handleMetrosChange = (m: number) => {
     setMetros(m);
+    if (tieneMedidas) {
+      const medida = producto.medidas!.find(x => x.metros === m);
+      const stock = medida ? (medida.stock || 0) : 0;
+      if (unidades > stock) setUnidades(Math.max(1, stock || 1));
+      return;
+    }
     const stock = stockDe(producto);
     if (Number.isFinite(stock) && m * unidades > stock) {
       const maxU = Math.max(1, Math.floor(stock / m) || 1);
@@ -189,7 +279,14 @@ const ProductoCard = ({ producto }: Props) => {
                 alt={producto.nombre_producto}
                 className="img-producto"
                 loading="lazy"
-                onError={(e) => (e.currentTarget.src = '/productos/default.png')}
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  if (!img.src.includes('default.png')) {
+                    img.src = '/productos/default.png';
+                  } else {
+                    img.style.display = 'none';
+                  }
+                }}
               />
             </Link>
           </div>
@@ -249,7 +346,7 @@ const ProductoCard = ({ producto }: Props) => {
             {stockTexto && (
               <span className={`stock-disponible ${esStockAgotado ? 'stock-disponible--agotado' : ''} ${esStockBajo ? 'stock-disponible--bajo' : ''}`}>
                 <span className="stock-disponible__dot" aria-hidden="true"></span>
-                {esStockAgotado ? 'Sin stock' : `Disponibles: ${stockTexto}`}
+                {esStockAgotado ? 'Sin stock' : tieneMedidas ? `Disponible · ${stockTexto}` : `Disponible · ${stockTexto}`}
               </span>
             )}
             {(producto.variantes?.length ?? 0) > 0 ? (
@@ -279,7 +376,62 @@ const ProductoCard = ({ producto }: Props) => {
               </div>
             )}
             <div className="selectores-bloque">
-              {esPorMetros ? (
+              {tieneMedidas && medidaActiva ? (
+                <div className="metros-control-grid">
+                  <select
+                    className="metros-select"
+                    value={metros}
+                    onChange={(e) => handleMetrosChange(Number(e.target.value))}
+                    aria-label="Medida"
+                  >
+                    {producto.medidas!.map(m => (
+                      <option key={m.id} value={m.metros} disabled={(m.stock || 0) <= 5}>
+                        {m.metros} m {(m.stock || 0) <= 5 ? '- Agotado' : `(${m.stock})`}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="cantidad-row">
+                    <span className="cantidad-label">Cantidad:</span>
+                    <div className="cantidad-control">
+                      <button type="button" onClick={disminuirUnidades} aria-label="Reducir unidades">−</button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="cantidad-input"
+                        value={displayUnidades !== undefined ? displayUnidades : String(unidades)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setDisplayUnidades(val);
+                        }}
+                        onBlur={(e) => {
+                          const raw = e.target.value.trim();
+                          const num = parseInt(raw, 10);
+                          const maxU = medidaActiva ? (medidaActiva.stock || 0) : 999;
+                          if (raw === '' || isNaN(num) || num < 1) {
+                            setUnidades(1);
+                          } else {
+                            setUnidades(num > maxU ? maxU : num);
+                          }
+                          setDisplayUnidades(undefined);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        aria-label="Unidades"
+                      />
+                      <button
+                        type="button"
+                        onClick={aumentarUnidades}
+                        disabled={medidaActiva ? unidades >= (medidaActiva.stock || 0) : false}
+                        aria-label="Aumentar unidades"
+                      >+</button>
+                    </div>
+                  </div>
+                </div>
+              ) : esPorMetros ? (
                 <div className="metros-control-grid">
                   <select
                     className="metros-select"

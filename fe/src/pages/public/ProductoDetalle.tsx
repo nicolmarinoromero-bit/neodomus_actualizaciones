@@ -9,6 +9,15 @@ import '@styles/producto-detalle.css';
 import '@styles/productos-publicos.css';
 import ProductoCard from '@components/productos/ProductoCard';
 
+interface ProductoMedida {
+  id: number;
+  metros: number;
+  stock: number;
+  precio?: number | null;
+  activa: boolean;
+  stock_estado: 'disponible' | 'bajo' | 'agotado';
+}
+
 interface Producto {
   id_producto: number;
   nombre_producto: string;
@@ -27,6 +36,7 @@ interface Producto {
   tecnicos_requeridos?: number;
   descripcion_producto?: string | null;
   caracteristicas_producto?: string | null;
+  medidas?: ProductoMedida[];
   variantes?: {
     id: number;
     nombre: string;
@@ -170,6 +180,15 @@ const ProductoDetalle = () => {
     setTimeout(() => setToast(''), 2500);
   };
 
+  const normalizeImgDet = (url: string) => {
+    if (!url) return url;
+    if (typeof window !== 'undefined' && url.includes('localhost:9000')) {
+      const host = window.location.hostname;
+      if (host && host !== 'localhost' && host !== '127.0.0.1') return url.replace(/https?:\/\/localhost:9000/g, `http://${host}:9000`).replace(/https?:\/\/127\.0\.0\.1:9000/g, `http://${host}:9000`);
+    }
+    return url;
+  };
+
   const variantes = producto?.variantes || [];
   // Etiqueta de medida de cada variante ("150 cm por 100 cm" o texto libre).
   const medidaDe = (v: { etiqueta_medida?: string | null; tamaño?: string | null }) =>
@@ -187,19 +206,37 @@ const ProductoDetalle = () => {
     ) ||
     variantes.find((v) => v.nombre === color) ||
     null;
-  const stockDisponible =
-    variantes.length > 0
-      ? (varianteActiva?.stock ?? 0)
-      : (producto?.stock_producto ?? 0);
+  const medidasProducto = producto?.medidas || [];
+  const tieneMedidas = medidasProducto.length > 0;
+  const medidaActivaDetalle = tieneMedidas ? (medidasProducto.find(m => m.metros === metros) || medidasProducto[0] || null) : null;
+
+  const stockDisponible = (() => {
+    if (tieneMedidas && medidaActivaDetalle) return medidaActivaDetalle.stock || 0;
+    if (variantes.length > 0) return varianteActiva?.stock ?? 0;
+    return producto?.stock_producto ?? 0;
+  })();
   const precioBase = producto?.precio_final ?? producto?.precio_venta_producto ?? 0;
-  // Precio de la variante elegida; si no define uno propio, el del producto.
-  const precioUnitario = varianteActiva?.precio ?? precioBase;
+  // Precio de la variante/medida elegida
+  const precioUnitario = (() => {
+    if (tieneMedidas && medidaActivaDetalle) {
+      if (medidaActivaDetalle.precio != null) return medidaActivaDetalle.precio;
+      // precio por rollo = precio por metro * metros (venta_por_metros)
+      if (producto?.venta_por_metros) return precioBase * (medidaActivaDetalle.metros || 1);
+      return precioBase;
+    }
+    return varianteActiva?.precio ?? precioBase;
+  })();
   const precioFinal = precioUnitario;
   const tieneDescuento = producto?.precio_final != null && Boolean(producto?.descuento_activo && producto.descuento_activo > 0);
-  const totalMetros = (producto?.venta_por_metros ? metros * unidadesMetros : 0);
-  const maxUnidades = producto?.venta_por_metros && metros > 0 ? Math.max(1, Math.floor((stockDisponible || 0) / metros) || 1) : 99;
-  const imagen =
+  const totalMetros = tieneMedidas ? (medidaActivaDetalle ? medidaActivaDetalle.metros * unidadesMetros : 0) : (producto?.venta_por_metros ? metros * unidadesMetros : 0);
+  const maxUnidades = (() => {
+    if (tieneMedidas && medidaActivaDetalle) return Math.max(1, medidaActivaDetalle.stock || 1);
+    if (producto?.venta_por_metros && metros > 0) return Math.max(1, Math.floor((stockDisponible || 0) / metros) || 1);
+    return 99;
+  })();
+  const imagenRaw =
     varianteActiva?.imagen_url || producto?.imagen_url || `/productos/${producto?.id_producto}.jpg`;
+  const imagen = normalizeImgDet(imagenRaw);
 
   useEffect(() => {
     const fetchProducto = async () => {
@@ -287,8 +324,16 @@ const ProductoDetalle = () => {
         else setUnidadesMetros(1);
       }
       const paramCantidad = searchParams.get('cantidad');
-      if (!producto.venta_por_metros && paramCantidad) {
+      if (!producto.venta_por_metros && !tieneMedidas && paramCantidad) {
         setCantidad(Math.max(1, Number(paramCantidad) || 1));
+      }
+      // Para cableado con medidas, asegurar que metros esté en una medida válida
+      if (tieneMedidas) {
+        const medidasVals = medidasProducto.map(m => m.metros);
+        if (!medidasVals.includes(metros)) {
+          const primeraDisp = medidasProducto.find(m => (m.stock || 0) > 5) || medidasProducto[0];
+          if (primeraDisp) setMetros(primeraDisp.metros);
+        }
       }
     }
   }, [producto, searchParams]);
@@ -327,6 +372,46 @@ const ProductoDetalle = () => {
   };
 
   const handleAgregarAlCarrito = () => {
+    // Producto con medidas por longitud (cableado) tiene prioridad
+    if (tieneMedidas && medidaActivaDetalle) {
+      if ((medidaActivaDetalle.stock || 0) <= 5) {
+        showToast('Esta medida está bloqueada (stock ≤5)');
+        return;
+      }
+      if (!unidadesMetros || unidadesMetros < 1) {
+        showToast('Ingresa una cantidad de unidades válida');
+        return;
+      }
+      if (unidadesMetros > (medidaActivaDetalle.stock || 0)) {
+        showToast(`No hay suficiente stock disponible para esta medida. (disponible: ${medidaActivaDetalle.stock}, solicitado: ${unidadesMetros})`);
+        return;
+      }
+      if (editarKey) removeItem(editarKey);
+      const precioMedida = medidaActivaDetalle.precio ?? (producto.venta_por_metros ? (producto.precio_final ?? producto.precio_venta_producto ?? 0) * medidaActivaDetalle.metros : (producto.precio_final ?? producto.precio_venta_producto ?? 0));
+      const error = addItem(
+        {
+          id_producto: producto.id_producto,
+          nombre_producto: producto.nombre_producto,
+          precio_venta_producto: precioMedida,
+          imagen,
+          venta_por_metros: true,
+          color,
+          tamaño: `${medidaActivaDetalle.metros} m`,
+          medida: `${medidaActivaDetalle.metros} m`,
+          id_variante: varianteActiva?.id,
+          id_medida: medidaActivaDetalle.id,
+          tecnicos_requeridos: producto.tecnicos_requeridos || 1,
+          stock_maximo: medidaActivaDetalle.stock,
+          metros: medidaActivaDetalle.metros,
+        } as any,
+        unidadesMetros,
+        medidaActivaDetalle.metros
+      );
+      if (error) { showToast(error); return; }
+      if (editarKey) navigate('/carrito');
+      else showToast(`${unidadesMetros} × ${medidaActivaDetalle.metros} m — ${producto.nombre_producto} ${t('productos.agregadoAlCarrito')}`);
+      return;
+    }
     if (stockDisponible <= 0) {
       showToast('No hay stock disponible para esta combinación de color/tamaño');
       return;
@@ -435,7 +520,14 @@ const ProductoDetalle = () => {
             <img
               src={imagen}
               alt={producto.nombre_producto}
-              onError={(e) => (e.currentTarget.src = '/productos/default.png')}
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (!img.src.includes('default.png')) {
+                  img.src = '/productos/default.png';
+                } else {
+                  img.style.display = 'none';
+                }
+              }}
             />
           </div>
 
@@ -483,12 +575,16 @@ const ProductoDetalle = () => {
               )}
             </div>
 
-            <div className={`detalle-disponibilidad ${stockDisponible <= 0 ? 'agotado' : ''}`}>
-              {stockDisponible > 0 ? <FaCheck /> : <FaRotateLeft />}
-              {stockDisponible > 0
-                ? producto.venta_por_metros
+            <div className={`detalle-disponibilidad ${(tieneMedidas ? stockDisponible <= 5 : stockDisponible <= 0) ? 'agotado' : ''}`}>
+              {(tieneMedidas ? stockDisponible > 5 : stockDisponible > 0) ? <FaCheck /> : <FaRotateLeft />}
+              {(tieneMedidas ? stockDisponible > 5 : stockDisponible > 0)
+                ? tieneMedidas && medidaActivaDetalle
+                  ? `Disponible · ${stockDisponible} ${stockDisponible===1?'unidad':'unidades'} de ${medidaActivaDetalle.metros} m`
+                  : producto.venta_por_metros
                   ? `Disponible · ${stockDisponible} m${variantes.length ? ' en esta combinación' : ''} · ${totalMetros} m seleccionados`
                   : `Disponible · ${stockDisponible} u.${variantes.length ? ' en esta combinación' : ''}`
+                : tieneMedidas && medidaActivaDetalle
+                ? `Sin stock - ${medidaActivaDetalle.metros} m agotado`
                 : 'Sin stock en esta combinación'}
             </div>
 
@@ -609,16 +705,23 @@ const ProductoDetalle = () => {
                             onChange={(e) => {
                               const nuevo = Number(e.target.value);
                               setMetros(nuevo);
-                              if (nuevo * unidadesMetros > stockDisponible) {
+                              if (tieneMedidas) {
+                                const med = medidasProducto.find(x=>x.metros===nuevo);
+                                if (med && unidadesMetros > (med.stock||0)) setUnidadesMetros(Math.max(1, med.stock||1));
+                              } else if (nuevo * unidadesMetros > stockDisponible) {
                                 const maxU = Math.max(1, Math.floor(stockDisponible / nuevo) || 1);
                                 if (unidadesMetros > maxU) setUnidadesMetros(maxU);
                               }
                             }}
                             aria-label="Metros por unidad"
                           >
-                            {METROS_OPCIONES.map(m => (
-                              <option key={m} value={m}>{m} m</option>
-                            ))}
+                            {(tieneMedidas ? medidasProducto.map(m=>m.metros) : METROS_OPCIONES).map(m => {
+                              const medidaObj = tieneMedidas ? medidasProducto.find(x=>x.metros===m) : null;
+                              const agotada = tieneMedidas ? (medidaObj ? (medidaObj.stock||0) <=5 : false) : false;
+                              return (
+                                <option key={m} value={m} disabled={agotada}>{m} m {tieneMedidas && medidaObj ? (agotada ? '- Agotado' : `(${medidaObj.stock})`) : ''}</option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>

@@ -57,15 +57,31 @@ export default function ProductCard({ producto }: ProductCardProps) {
   const favorito = esFavorito(producto.id_producto);
   const conDescuento = tieneDescuento(producto);
   const precioFinal = precioFinalDe(producto);
+  // Resetear estado de fallo cuando cambia el producto (FlatList recicla celdas)
+  useEffect(() => {
+    setFalloImagen(false);
+  }, [producto.id_producto, producto.imagen_url]);
   const imagen = falloImagen ? null : urlImagenProducto(producto);
   const esPorMetros = !!producto.venta_por_metros;
+  const tieneMedidas = !!(producto.medidas && producto.medidas.length > 0);
+  const medidaActiva = tieneMedidas ? (producto.medidas!.find(m => m.metros === metros) || producto.medidas![0]) : null;
+  useEffect(() => {
+    if (tieneMedidas && producto.medidas) {
+      const existe = producto.medidas.some(m => m.metros === metros);
+      if (!existe) {
+        const primera = producto.medidas.find(m => (m.stock||0) >0) || producto.medidas[0];
+        if (primera) setMetros(primera.metros);
+      }
+    }
+  }, [producto.id_producto, tieneMedidas]);
 
   const stockTotal = React.useMemo(() => {
+    if (tieneMedidas && medidaActiva) return medidaActiva.stock ?? 0;
     if (producto.variantes && producto.variantes.length > 0) {
       return producto.variantes.reduce((a, v) => a + (v.stock || 0), 0);
     }
     return producto.stock_producto ?? Infinity;
-  }, [producto]);
+  }, [producto, medidaActiva, tieneMedidas]);
 
   const stockDisponible = Number.isFinite(stockTotal) ? stockTotal : null;
   const esStockAgotado = stockDisponible !== null && stockDisponible <= 0;
@@ -307,15 +323,19 @@ export default function ProductCard({ producto }: ProductCardProps) {
             </Pressable>
             {mostrarMetros && (
               <View style={styles.metrosOpciones}>
-                {METROS_OPCIONES.map((m) => (
+                {(tieneMedidas ? producto.medidas!.map(md=>md.metros) : METROS_OPCIONES).map((m) => {
+                  const medidaObj = tieneMedidas ? producto.medidas!.find(x=>x.metros===m) : null;
+                  const agotada = tieneMedidas ? (medidaObj ? (medidaObj.stock||0) <=0 : false) : false;
+                  return (
                   <Pressable
                     key={m}
-                    onPress={() => handleMetrosChange(m)}
+                    disabled={!!agotada}
+                    onPress={() => !agotada && handleMetrosChange(m)}
                     style={[styles.metroOpcion, metros === m && styles.metroOpcionActiva]}
                   >
-                    <Text style={[styles.metroOpcionTexto, metros === m && styles.metroOpcionTextoActiva]}>{m} metros</Text>
+                    <Text style={[styles.metroOpcionTexto, metros === m && styles.metroOpcionTextoActiva]}>{m} metros {tieneMedidas && medidaObj ? ((medidaObj.stock||0) <=0 ? '- Agotado' : (medidaObj.stock||0) <=5 ? `(${medidaObj.stock} bajo)` : `(${medidaObj.stock})`) : ''}</Text>
                   </Pressable>
-                ))}
+                );})}
               </View>
             )}
           </View>
