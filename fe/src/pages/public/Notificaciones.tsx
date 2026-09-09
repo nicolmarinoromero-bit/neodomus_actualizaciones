@@ -7,6 +7,7 @@ import {
   FaCircleInfo,
   FaBoxesPacking,
   FaTruck,
+  FaCheck,
 } from 'react-icons/fa6';
 import { useIdioma } from '@i18n/IdiomaContext';
 import api from '@services/api';
@@ -20,6 +21,7 @@ interface Notificacion {
   titulo: string;
   mensaje: string;
   fecha: string;
+  leida: boolean;
 }
 
 interface NotifBackend {
@@ -68,6 +70,7 @@ const Notificaciones = () => {
           titulo: n.titulo,
           mensaje: n.mensaje,
           fecha: n.fecha_creacion,
+          leida: n.leida,
         }));
       setNotificaciones(datos);
       setError(null);
@@ -83,6 +86,18 @@ const Notificaciones = () => {
     const intervalo = setInterval(() => void cargar(), 30_000);
     return () => clearInterval(intervalo);
   }, [cargar]);
+
+  const marcarLeida = async (id: number) => {
+    try {
+      await api.patch(`/notificaciones/${id}/leida`);
+      setNotificaciones((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, leida: true } : n))
+      );
+      window.dispatchEvent(new Event('notificaciones-refresh'));
+    } catch {
+      /* noop */
+    }
+  };
 
   return (
     <main className="notif-page app-glass">
@@ -104,7 +119,17 @@ const Notificaciones = () => {
           {notificaciones.map((notificacion) => {
             const meta = TIPO_META[notificacion.tipo] ?? TIPO_META.sistema;
             return (
-              <article key={notificacion.id} className={`notif-item ${meta.clase}`}>
+              <article
+                key={notificacion.id}
+                className={`notif-item ${meta.clase}`}
+                style={{
+                  opacity: notificacion.leida ? 0.6 : 1,
+                  cursor: notificacion.leida ? 'default' : 'pointer',
+                }}
+                onClick={() => {
+                  if (!notificacion.leida) marcarLeida(notificacion.id);
+                }}
+              >
                 <div className="notif-item-icon">{meta.icono}</div>
                 <div className="notif-item-body">
                   <div className="notif-item-top">
@@ -114,6 +139,11 @@ const Notificaciones = () => {
                   <h3 className="notif-titulo">{notificacion.titulo}</h3>
                   <p className="notif-mensaje">{notificacion.mensaje}</p>
                 </div>
+                {notificacion.leida && (
+                  <div style={{ color: '#3d7a3d', marginLeft: 8, flexShrink: 0 }}>
+                    <FaCheck />
+                  </div>
+                )}
               </article>
             );
           })}

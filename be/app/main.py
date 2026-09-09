@@ -61,6 +61,7 @@ from app.routers import (
     especializaciones_router,
     reembolsos_router,
     devoluciones_router,
+    novedades_router,
 )
 
 # Crear la aplicación FastAPI (con scheduler de tareas en segundo plano).
@@ -126,6 +127,7 @@ app.include_router(notificaciones_router, prefix="/api/v1")
 app.include_router(especializaciones_router, prefix="/api/v1")
 app.include_router(reembolsos_router, prefix="/api/v1")
 app.include_router(devoluciones_router, prefix="/api/v1")
+app.include_router(novedades_router, prefix="/api/v1")
 
 # ─── Archivos estáticos ────────────────────────────────────────────────
 #
