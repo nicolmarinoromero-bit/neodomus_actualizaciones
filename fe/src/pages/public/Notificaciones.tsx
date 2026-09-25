@@ -5,7 +5,6 @@ import {
   FaArrowTrendUp,
   FaCircleInfo,
   FaBoxesPacking,
-  FaTruck,
 } from 'react-icons/fa6';
 import { useIdioma } from '@i18n/IdiomaContext';
 import '@styles/notificaciones.css';
