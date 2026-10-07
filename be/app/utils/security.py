@@ -138,6 +138,10 @@ async def get_current_user(
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token inválido")
+    # El claim `type` debe ser "access": un refresh token (vida de 30 días)
+    # no puede usarse como access token (decode_token no valida el tipo).
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Token inválido")
     user_type = payload.get("user_type")
     if user_type not in ("employee", "client"):
         raise HTTPException(status_code=401, detail="Payload inválido")
