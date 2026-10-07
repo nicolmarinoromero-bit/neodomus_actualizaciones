@@ -28,8 +28,34 @@ dependencies = [
     "apscheduler>=3.11.3",
 ]
 
-[tool.uv]
-dev-dependencies = []
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "httpx>=0.27",
+]
+
+# Cobertura de pruebas: qué medir y qué excluir (documentado en el informe
+# de cobertura final). Se excluyen: migraciones (se prueban aparte en
+# test_migraciones.py), el scheduler/tareas programadas (no corren bajo el
+# cliente de pruebas ASGI), el cliente de Gmail API (depende de credenciales
+# OAuth reales), el respaldo de init_db.sql (stubeado en tests) y los tests.
+[tool.coverage.run]
+omit = [
+    "*/alembic/*",
+    "*/services/scheduler.py",
+    "*/services/tareas_programadas.py",
+    "*/utils/gmail_api.py",
+    "*/tests/*",
+    "*/utils/respaldo_usuarios.py",
+]
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 from app.database import get_db
@@ -34,6 +34,7 @@ from app.schemas.auth import (
     GoogleLoginRequest,
     RequestEmailChangeRequest,
     VerifyEmailChangeRequest,
+    _validate_password_strength,
 )
 from app.utils.security import (
     get_current_user,
@@ -42,6 +43,7 @@ from app.utils.security import (
     REFRESH_COOKIE_NAME,
     ACCESS_COOKIE_NAME,
     decode_token,
+    oauth2_scheme,
 )
 from app.middleware.rate_limit import limiter
 
@@ -51,8 +53,17 @@ class ForgotPasswordRequest(BaseModel):
     email: str
 
 class ResetPasswordCodeRequest(BaseModel):
-    token: str
+    # Misma validación que ResetPasswordRequest (esquema de servicio): sin
+    # ella, una contraseña débil/código corto lanzaba ValidationError de
+    # pydantic al reconstruir ResetPasswordRequest y terminaba en 500 en
+    # vez de 422.
+    token: str = Field(min_length=6)
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 class ResendVerificationRequest(BaseModel):
     email: str
@@ -130,7 +141,11 @@ def logout(response: Response):
 
 
 @router.get("/session")
-def session_actual(request: Request, db: Session = Depends(get_db)):
+def session_actual(
+    request: Request,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+):
     """Tipo y rol de la cuenta de la sesión actual.
     Prioriza el header Authorization (cada pestaña envía su propio token
     desde localStorage). Si no hay header, cae a la cookie HttpOnly
@@ -141,9 +156,11 @@ def session_actual(request: Request, db: Session = Depends(get_db)):
     de emitirse el token, el frontend lo sabe antes de llamar a endpoints
     que exigen permisos y evita errores 403 con una vista equivocada."""
     from app.utils.security import _token_desde_request
-    token = _token_desde_request(request, None)
+    # Prioriza el header Authorization (oauth2_scheme) y cae a la cookie.
+    token = _token_desde_request(request, token)
     payload = decode_token(token) if token else None
-    if not payload:
+    # Sólo un access token sostiene sesión: un refresh token no (claim `type`).
+    if not payload or payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Sin sesión válida")
     user_type = payload.get("user_type")
     uid = payload.get("uid")

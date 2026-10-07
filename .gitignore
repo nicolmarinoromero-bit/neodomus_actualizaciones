@@ -51,6 +51,12 @@ __pycache__/
 *.py[cod]
 .venv/
 
+# Pruebas / cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
 
 # Respaldos locales de datos
 backup_neodomus.sql

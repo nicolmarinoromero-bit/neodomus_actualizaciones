@@ -749,7 +749,12 @@ def horas_disponibles_cita(
                     hdr_token = auth.split(None, 1)[1].strip()
         if hdr_token:
             payload = decode_token(hdr_token)
-            if payload and payload.get("user_type") == "client":
+            # Sólo access tokens de cliente identifican la exención 3h.
+            if (
+                payload
+                and payload.get("type") == "access"
+                and payload.get("user_type") == "client"
+            ):
                 uid = payload.get("uid")
                 if uid is not None:
                     try:
