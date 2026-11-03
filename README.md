@@ -532,7 +532,7 @@ docker compose exec api uv run python scripts/subir_productos_minio.py  # bucket
 # Recomendaciones: scroll horizontal, gap 16px, tarjetas 260px (190px móvil), sin superposición, fallback default.png
 ```
 
----
+
 
 ## Autores y soporte
 
