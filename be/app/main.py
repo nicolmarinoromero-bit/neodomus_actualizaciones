@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -96,6 +97,63 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+# Manejador centralizado de errores de validación (422).
+# Por defecto FastAPI devuelve en cada error la clave `input` con el VALOR
+# recibido: si un atacante manda un mensaje de 50 000 caracteres, una
+# contraseña o un token, el propio error se los devuelve en la respuesta
+# (fuga de datos OWASP A02). Aquí se construye una respuesta limpia y en
+# español con la MISMA estructura que consume el frontend (`detail` como
+# lista con `loc`/`msg`), sin `input`, sin `url` internas, sin stack trace y
+# sin rutas físicas (C:\...) que nunca salen al cliente.
+_MENSAJES_422_ES = {
+    "missing": "Campo obligatorio",
+    "string_too_short": "Texto demasiado corto",
+    "string_too_long": "Texto demasiado largo",
+    "extra_forbidden": "Campo no permitido",
+    # IDs en la ruta (ej. GET /clients/{id_cliente}/pedidos):
+    "int_parsing": "Debe ser un número entero",
+    "greater_than": "El valor debe ser mayor que cero",
+    "greater_than_equal": "El valor debe ser mayor o igual que cero",
+    # Tarifas / montos (ej. PUT /tarifas/{tipo_servicio}):
+    "less_than_equal": "El valor excede el máximo permitido",
+    "float_parsing": "Debe ser un número válido",
+}
+
+
+def _mensaje_422_para(err: dict) -> str:
+    """Convierte un error de Pydantic al mensaje español limpio que exponemos."""
+    tipo = err.get("type", "")
+    if tipo in _MENSAJES_422_ES:
+        return _MENSAJES_422_ES[tipo]
+    mensaje = err.get("msg", "") or "Dato inválido"
+    # Los field_validator del schema ya devuelven mensajes en español:
+    # Pydantic solo les añade el prefijo "Value error, ".
+    mensaje = mensaje.replace("Value error, ", "").replace("Assertion failed, ", "")
+    if "valid email" in mensaje:
+        return "Formato de correo no válido"
+    return mensaje
+
+
+@app.exception_handler(RequestValidationError)
+async def validacion_de_entradas_handler(request: Request, exc: RequestValidationError):
+    import logging
+
+    logging.info("Entradas inválidas en %s %s", request.method, request.url.path)
+    errores_limpios = [
+        {
+            "loc": list(err.get("loc", [])),
+            "msg": _mensaje_422_para(err),
+            "type": err.get("type", ""),
+            # Sin `input` (no se devuelve el valor recibido) y sin `url`.
+        }
+        for err in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=422,
+        content={"detail": errores_limpios},
+    )
+
 
 # Manejador de excepciones genéricas
 @app.exception_handler(Exception)

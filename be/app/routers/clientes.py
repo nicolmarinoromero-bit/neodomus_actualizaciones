@@ -1,5 +1,5 @@
 # Rutas de clientes. Las dependencias declaradas en cada endpoint determinan sus permisos de acceso.
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Path
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from typing import List
@@ -177,17 +177,26 @@ async def inhabilitar_cliente(
 
 @router.get("/{id_cliente}/pedidos")
 def pedidos_cliente(
-    id_cliente: int,
+    id_cliente: int = Path(..., gt=0, description="ID del cliente (entero positivo)"),
     current_admin: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):
     """Historial completo de pedidos de un cliente específico (solo admin).
-    Incluye detalles, pagos y facturas."""
+    Incluye detalles, pagos y facturas.
+
+    OWASP A05 (validación estricta de entradas):
+    - ``Path(..., gt=0)`` rechaza en la puerta de entrada los ceros y los
+      negativos (que antes entraban a la BD silenciosamente o terminaban en
+      un 404 engañoso) y las letras se convierten en un 422 limpio y en
+      español del manejador centralizado de ``app/main.py``.
+    - SQLAlchemy 2.0: ``Session.get(Model, pk)`` sustituye al método
+      obsoleto ``db.query(Model).get(pk)`` (LegacyAPIWarning).
+    """
     from app.models.factura import Factura
     from app.models.pago import Pago
     from app.routers.pedidos import _serializar_pedido, _serializar_pago
 
-    cliente = db.query(Cliente).get(id_cliente)
+    cliente = db.get(Cliente, id_cliente)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 

@@ -2,12 +2,13 @@
 from datetime import datetime
 import re
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database import get_db
+from app.utils.texto import limpiar_texto
 from app.models.contacto import Contacto
 from app.models.cliente import Cliente
 from app.models.notificacion import Notificacion
@@ -64,13 +65,67 @@ def _to_dict(c: Contacto) -> dict:
     }
 
 
+# Respuesta cerrada del alta de una consulta (OWASP A02: contrato explícito).
+# Sustituye al antiguo ``response_model=dict``: la respuesta queda limitada a
+# los DOS campos que la UI necesita (mensaje y ticket). Si mañana la tabla
+# ``contactos`` crece con columnas internas (responded_by, notas...), ninguna
+# puede filtrarse por accidente: FastAPI descarta todo lo no declarado aquí.
+class ConsultaCreadaResponse(BaseModel):
+    msg: str
+    id: int
+
+
 # Agrupa los campos de ConsultaCreate: nombre, email, asunto, mensaje, categoria.
 class ConsultaCreate(BaseModel):
+    """Entrada pública del formulario de contacto.
+
+    OWASP A05 (validación estricta de entradas):
+    - ``extra="forbid"``: rechaza cualquier campo no declarado; así un
+      cliente no puede introducir columnas internas por accidente.
+    - ``max_length`` en TODO texto libre: la columna ``mensaje`` es TEXT sin
+      límite en MySQL, así que el límite del schema es la única defensa
+      contra el DoS por textos gigantescos.
+    - los ``field_validator`` sanean caracteres de control y bytes inusuales
+      (NUL, ANSI ESC, DEL...) con la utilidad compartida ``limpiar_texto``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str = Field(..., min_length=2, max_length=120)
     email: EmailStr
     asunto: str = Field(..., min_length=3, max_length=180)
-    mensaje: str = Field(..., min_length=5)
+    mensaje: str = Field(..., min_length=5, max_length=2000)
     categoria: Optional[str] = None
+
+    @field_validator("nombre")
+    def sanear_nombre(cls, v: str) -> str:
+        limpio = limpiar_texto(v, max_largo=120)
+        if len(limpio) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres útiles")
+        return limpio
+
+    @field_validator("asunto")
+    def sanear_asunto(cls, v: str) -> str:
+        limpio = limpiar_texto(v, max_largo=180)
+        if len(limpio) < 3:
+            raise ValueError("El asunto debe tener al menos 3 caracteres útiles")
+        return limpio
+
+    @field_validator("mensaje")
+    def sanear_mensaje(cls, v: str) -> str:
+        # mantener_saltos=True conserva y normaliza los saltos de línea de
+        # un mensaje de soporte largo sin dejar caracteres de control.
+        limpio = limpiar_texto(v, max_largo=2000, mantener_saltos=True)
+        if len(limpio) < 5:
+            raise ValueError("El mensaje debe tener al menos 5 caracteres útiles")
+        return limpio
+
+    @field_validator("categoria")
+    def sanear_categoria(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        # El límite 40 coincide con la columna contactos.categoria String(40).
+        return limpiar_texto(v, max_largo=40).lower() or None
 
 
 # Agrupa los campos de ConsultaUpdate: estado, respuesta, categoria.
@@ -80,7 +135,7 @@ class ConsultaUpdate(BaseModel):
     categoria: Optional[str] = None
 
 
-@router.post("/contacto", response_model=dict)
+@router.post("/contacto", response_model=ConsultaCreadaResponse)
 def crear_consulta(data: ConsultaCreate, db: Session = Depends(get_db)):
     """Crea una consulta/solicitud de soporte (público: visitantes y usuarios)."""
     consulta = _persistir_consulta(data, db)
@@ -123,7 +178,7 @@ def _persistir_consulta(
     return consulta
 
 
-@router.post("/contacto/autenticado", response_model=dict)
+@router.post("/contacto/autenticado", response_model=ConsultaCreadaResponse)
 def crear_consulta_autenticada(
     data: ConsultaCreate,
     current_user=Depends(get_current_user),

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path as PathParam, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import String, func, or_, select
@@ -783,22 +783,36 @@ def mis_cupones_cliente(
 # Consulta Tecnico.
 @router.get("/{novedad_id}")
 def obtener_novedad(
-    novedad_id: int,
     request: Request,
-    current_user = Depends(get_current_user),
+    novedad_id: int = PathParam(..., gt=0, description="ID de la novedad (entero positivo)"),
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Detalle de una novedad para admin, técnico o cliente (Según rol).
+
+    OWASP A05 (validación estricta de entradas):
+    - ``PathParam(..., gt=0)`` rechaza en la puerta el 0 y los negativos, y
+      las letras se convierten en 422 limpio y en español del manejador
+      central de ``app/main.py`` (antes un ID libre entraba a la BD y solo
+      mostraba "no encontrado").
+    OWASP A02 (destructuring por rol):
+    - el rol resuelve qué campos internos puede ver cada quien; el servicio
+      de serialización no expone al cliente/técnico datos que no consume
+      su vista (ver ``cliente_info`` más abajo).
+    """
     novedad = novedades_service.obtener_novedad(db, novedad_id)
     if not novedad:
         raise HTTPException(404, "Novedad no encontrada")
 
     if isinstance(current_user, Cliente):
+        rol = "cliente"
         if novedad.id_cliente != current_user.id_cliente or not novedad.cliente_visible:
             raise HTTPException(404, "Novedad no encontrada")
     else:
         role = db.execute(
             select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
         ).scalar_one_or_none()
+        rol = "tecnico" if role == "tecnico" else "admin"
         if role == "tecnico":
             tecnico = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
             if not tecnico or novedad.id_tecnico_n != tecnico.id_tecnico:
@@ -806,7 +820,7 @@ def obtener_novedad(
         elif role not in ("admin", "administrador"):
             raise HTTPException(403, "Sin permisos")
 
-    return _serializar_novedad_detalle(novedad, db, language_from_request(request))
+    return _serializar_novedad_detalle(novedad, db, language_from_request(request), rol=rol)
 
 
 # Agrupa los campos de CambiarEstadoRequest: nuevo_estado, accion_detalle.
@@ -1176,7 +1190,7 @@ def _serializar_novedades(novedades, db, idioma: Language = "es"):
     return add_database_value_labels(result, _CAMPOS_NOVEDAD_TRADUCIBLES, idioma)
 
 
-def _serializar_novedad_detalle(novedad, db, idioma: Language = "es"):
+def _serializar_novedad_detalle(novedad, db, idioma: Language = "es", rol: str = "admin"):
     items = _serializar_novedades([novedad], db, idioma)
     item = items[0] if items else {}
 
@@ -1195,17 +1209,28 @@ def _serializar_novedad_detalle(novedad, db, idioma: Language = "es"):
         })
     item["historial"] = historial
 
-    # Info completa del cliente
+    # Info del cliente (OWASP A02 — destructuring por rol):
+    # el PII completo (email, teléfono, documento, dirección) SOLO se expone
+    # al administrador, que lo necesita para gestionar la incidencia. Técnico
+    # y cliente solo consumen id+nombre en las vistas web y móviles; todo lo
+    # demás queda fuera de la respuesta (si mañana una vista necesita otro
+    # campo, se añade aquí de forma explícita).
     if novedad.cliente:
         c = novedad.cliente
-        item["cliente_info"] = {
-            "id_cliente": c.id_cliente,
-            "nombre": f"{c.first_name} {c.last_name}".strip(),
-            "email": c.email,
-            "telefono": c.telefono_cliente,
-            "documento": c.documento_cliente,
-            "direccion": c.address,
-        }
+        if rol == "admin":
+            item["cliente_info"] = {
+                "id_cliente": c.id_cliente,
+                "nombre": f"{c.first_name} {c.last_name}".strip(),
+                "email": c.email,
+                "telefono": c.telefono_cliente,
+                "documento": c.documento_cliente,
+                "direccion": c.address,
+            }
+        else:
+            item["cliente_info"] = {
+                "id_cliente": c.id_cliente,
+                "nombre": f"{c.first_name} {c.last_name}".strip(),
+            }
 
     # Mensaje y solución para el cliente
     item["mensaje_cliente"] = novedad.mensaje_cliente
