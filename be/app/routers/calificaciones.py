@@ -11,7 +11,7 @@ from typing import Optional
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Path as PathParam
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -24,15 +24,14 @@ from app.models.pedido import Pedido
 from app.models.tecnico import Tecnico
 from app.models.user import User
 from app.utils.security import get_current_client, get_current_employee
-
 router = APIRouter(prefix="/calificaciones", tags=["Calificaciones"])
 
 
 # Agrupa los campos de CalificacionCreate: id_cita, calificacion, comentario.
 class CalificacionCreate(BaseModel):
-    id_cita: int
+    id_cita: int = Field(gt=0)
     calificacion: int = Field(ge=1, le=5)
-    comentario: Optional[str] = None
+    comentario: Optional[str] = Field(default=None, max_length=500)
 
 
 @router.post("")
@@ -111,7 +110,7 @@ def crear_calificacion(
 
 @router.get("/tecnico/{id_tecnico}")
 def calificaciones_tecnico(
-    id_tecnico: int,
+    id_tecnico: int = PathParam(gt=0),
     db: Session = Depends(get_db),
 ):
     """Promedio y detalle de las calificaciones de un técnico (público)."""

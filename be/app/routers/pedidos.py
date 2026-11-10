@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -219,8 +219,8 @@ def _serializar_pedido(pedido, con_detalles=False, db: Session | None = None):
 
 # Agrupa los campos de RecomendacionRequest: items, fecha, hora.
 class RecomendacionRequest(BaseModel):
-    items: List[ItemCarrito]
-    fecha: Optional[str] = None
+    items: List[ItemCarrito] = Field(min_length=1, max_length=50)
+    fecha: Optional[date] = None
     hora: Optional[str] = None
 
 

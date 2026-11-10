@@ -20,7 +20,7 @@ from typing import List, Optional
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, File, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, Query, UploadFile, Path as PathParam
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
@@ -328,7 +328,7 @@ class SolicitudDevolucionCreate(BaseModel):
 
 @router.get("/elegibilidad/{id_pedido}")
 def elegibilidad_devolucion(
-    id_pedido: int,
+    id_pedido: int = PathParam(gt=0),
     client: Cliente = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):

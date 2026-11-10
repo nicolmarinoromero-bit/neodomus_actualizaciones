@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
@@ -792,6 +792,7 @@ def citas_cliente_tecnico(
 def comisiones_tecnico(
     current_user: User = Depends(get_current_employee),
     db: Session = Depends(get_db),
+    limit: int = Query(default=50, ge=1, le=100),
 ):
     """Comisiones ganadas por el técnico autenticado.
 
@@ -807,6 +808,7 @@ def comisiones_tecnico(
             Cita.id_comision_c.isnot(None),
         )
         .order_by(Cita.fecha.desc(), Cita.hora.desc())
+        .limit(limit)
         .all()
     )
     resultado: list[ComisionTecnicoResponse] = []
