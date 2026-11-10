@@ -319,11 +319,11 @@ class ItemDevolucionIn(BaseModel):
 
 # Agrupa los campos de SolicitudDevolucionCreate: id_pedido, items, motivo_tipo, motivo_otro, comentario.
 class SolicitudDevolucionCreate(BaseModel):
-    id_pedido: int
-    items: List[ItemDevolucionIn]
-    motivo_tipo: str  # clave del catálogo MOTIVOS_DEVOLUCION
-    motivo_otro: Optional[str] = None  # obligatorio si motivo_tipo == 'otro'
-    comentario: Optional[str] = None
+    id_pedido: int = Field(gt=0)
+    items: List[ItemDevolucionIn] = Field(min_length=1, max_length=50)
+    motivo_tipo: str = Field(min_length=1, max_length=40)  # clave del catálogo MOTIVOS_DEVOLUCION
+    motivo_otro: Optional[str] = Field(default=None, max_length=500)  # obligatorio si motivo_tipo == 'otro'
+    comentario: Optional[str] = Field(default=None, max_length=2000)
 
 
 @router.get("/elegibilidad/{id_pedido}")

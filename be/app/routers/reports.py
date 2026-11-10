@@ -398,7 +398,7 @@ def reporte_ventas(
     periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
-    id_tecnico: Optional[int] = None,
+    id_tecnico: Optional[int] = Query(default=None, ge=1),
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),
 ):

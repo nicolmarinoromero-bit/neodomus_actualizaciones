@@ -610,7 +610,19 @@ def crear_cita(
     ahora = _ahora_bogota()
     if data.fecha < ahora.date():
         raise HTTPException(status_code=400, detail="La fecha de la cita no puede ser anterior a hoy")
-    hora_cita = datetime.strptime(data.hora, "%H:%M").time() if ":" in data.hora else time(int(data.hora), 0)
+    try:
+        if ":" in data.hora:
+            hora_cita = datetime.strptime(data.hora, "%H:%M").time()
+        else:
+            hora_entera = int(data.hora)
+            if not 0 <= hora_entera <= 23:
+                raise ValueError("Hora fuera de rango")
+            hora_cita = time(hora_entera, 0)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Hora inválida. Usa el formato HH:MM.",
+        ) from exc
     fecha_hora_cita = datetime.combine(data.fecha, hora_cita)
     minimo = ahora + timedelta(hours=3)
     if fecha_hora_cita < minimo:

@@ -6,7 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -162,8 +162,8 @@ class TecnicoUpdate(BaseModel):
 
 # Agrupa los campos de EstadoCitaUpdate: estado, estado_id.
 class EstadoCitaUpdate(BaseModel):
-    estado: str | None = None
-    estado_id: int | None = None
+    estado: str | None = Field(default=None, min_length=1, max_length=30)
+    estado_id: int | None = Field(default=None, ge=1)
 
 
 # Agrupa los campos de TecnicoCitaResponse: id_cita, fecha, hora, estado, tipo_servicio y los demás declarados abajo.
@@ -1500,8 +1500,8 @@ def actualizar_estado_entrega_tecnico(
 
 # Agrupa los campos de UbicacionUpdate: latitud, longitud.
 class UbicacionUpdate(BaseModel):
-    latitud: float
-    longitud: float
+    latitud: float = Field(ge=-90, le=90)
+    longitud: float = Field(ge=-180, le=180)
 
 
 @router.post("/ubicacion")
@@ -1512,9 +1512,6 @@ def reportar_ubicacion(
 ):
     """El técnico reporta su ubicación GPS actual (el cliente la ve mientras
     su entrega está En camino vía GET /pedidos/{id}/seguimiento)."""
-    if not (-90 <= data.latitud <= 90) or not (-180 <= data.longitud <= 180):
-        raise HTTPException(status_code=400, detail="Coordenadas fuera de rango")
-
     ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
     if not ficha:
         raise HTTPException(status_code=404, detail="Ficha técnica no encontrada")
