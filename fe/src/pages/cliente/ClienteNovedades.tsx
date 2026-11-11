@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaShieldHalved,
   FaEye,
-  FaXmark,
   FaCheck,
   FaMagnifyingGlass,
   FaUser,
@@ -25,39 +24,10 @@ import '@styles/dashboard-admin.css';
 import api from '@services/api';
 import { activarConTeclado } from '@utils/keyboard';
 import AuthImage from '@components/common/AuthImage';
+import { ModalDetalleHead } from '@components/admin/ModalDetalleHead';
+import type { NovedadBase } from '../../types';
 
-interface EvidenciaNovedad {
-  id_evidencia_n: number;
-  url: string;
-  descripcion: string | null;
-  fecha_subida: string | null;
-}
-
-interface Novedad {
-  id_novedad: number;
-  tipo_novedad: string;
-  tipo_novedad_label?: string;
-  descripcion_novedad: string;
-  prioridad: string;
-  prioridad_label?: string;
-  estado_novedad: string;
-  estado_novedad_label?: string;
-  fecha_reporte: string | null;
-  lugar_ocurrencia: string | null;
-  evidencia_url: string | null;
-  id_pedido: number | null;
-  id_cita: number | null;
-  id_cliente: number | null;
-  id_devolucion: number | null;
-  id_tecnico: number | null;
-  tecnico_nombre: string | null;
-  cliente_nombre: string | null;
-  accion_admin: string | null;
-  mensaje_cliente: string | null;
-  solucion_cliente: string | null;
-  cliente_visible: boolean;
-  fecha_resolucion: string | null;
-  evidencias: EvidenciaNovedad[];
+interface Novedad extends NovedadBase {
   cupon?: CuponCliente | null;
 }
 
@@ -381,22 +351,13 @@ const ClienteNovedades = () => {
               style={{ maxWidth: 640 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="ap-modal-head" style={{ padding: 0 }}>
-                <div>
-                  <h3 style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
-                    <span style={{ color: '#d4a54b' }}>Novedad #{detalle.id_novedad}</span>
-                    <span className={`ap-badge ${CLASE_ESTADO[detalle.estado_novedad] || 'neutral'}`}>
-                      {detalle.estado_novedad_label || detalle.estado_novedad}
-                    </span>
-                  </h3>
-                  <p style={{ margin: '4px 0 0', color: '#8f8f8f', fontSize: '0.82rem' }}>
-                    {formatFecha(detalle.fecha_reporte)}
-                  </p>
-                </div>
-                <button type="button" className="ap-modal-x" onClick={() => setDetalle(null)}>
-                  <FaXmark />
-                </button>
-              </div>
+              <ModalDetalleHead
+                titulo={`Novedad #${detalle.id_novedad}`}
+                estado={detalle.estado_novedad_label || detalle.estado_novedad}
+                claseEstado={CLASE_ESTADO[detalle.estado_novedad] || 'neutral'}
+                fechaTexto={formatFecha(detalle.fecha_reporte)}
+                onCerrar={() => setDetalle(null)}
+              />
 
               <div className="ap-modal-body" style={{ padding: '18px 0 0' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 18 }}>

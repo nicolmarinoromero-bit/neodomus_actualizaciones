@@ -229,3 +229,41 @@ export interface ConsultaAdmin {
   created_at?: string | null;
   responded_at?: string | null;
 }
+
+/* ── Novedades (base compartida por los paneles admin, técnico y cliente) ─── */
+
+export interface EvidenciaNovedad {
+  id_evidencia_n: number;
+  url: string;
+  descripcion: string | null;
+  fecha_subida: string | null;
+}
+
+// Campos comunes de una novedad tal como los devuelve el backend.
+// Cada panel extiende esta base con su variante de cupón.
+export interface NovedadBase {
+  id_novedad: number;
+  tipo_novedad: string;
+  tipo_novedad_label?: string;
+  descripcion_novedad: string;
+  prioridad: string;
+  prioridad_label?: string;
+  estado_novedad: string;
+  estado_novedad_label?: string;
+  fecha_reporte: string | null;
+  lugar_ocurrencia: string | null;
+  evidencia_url: string | null;
+  id_pedido: number | null;
+  id_cita: number | null;
+  id_cliente: number | null;
+  id_devolucion: number | null;
+  id_tecnico: number | null;
+  tecnico_nombre: string | null;
+  cliente_nombre: string | null;
+  accion_admin: string | null;
+  mensaje_cliente: string | null;
+  solucion_cliente: string | null;
+  cliente_visible: boolean;
+  fecha_resolucion: string | null;
+  evidencias: EvidenciaNovedad[];
+}

@@ -7,12 +7,10 @@ import api from '@services/api';
 import {
   FaUserShield,
   FaUserPen,
-  FaCamera,
   FaLock,
   FaGlobe,
   FaCheck,
   FaXmark,
-  FaTrashCan,
 } from 'react-icons/fa6';
 import '@styles/perfil-cliente.css';
 import '@styles/admin-panel.css';
@@ -23,6 +21,7 @@ import SectionHeader from '@components/profile/SectionHeader';
 import PasswordTab from '@components/profile/PasswordTab';
 import LanguageTab from '@components/profile/LanguageTab';
 import PerfilCuenta from '@components/profile/PerfilCuenta';
+import { AvatarZone } from '@components/profile/AvatarZone';
 
 type TabAdmin = 'cuenta' | 'contrasena' | 'idioma';
 
@@ -144,46 +143,19 @@ const AdminPerfil = () => {
         subtitle={t('adm.perfil.subInformacionPersonal')}
       />
 
-      <div className="pf-avatar-zone">
-        <div className="pf-avatar-big">
-          {avatar ? (
-            <img src={avatar} alt={t('adm.perfil.fotoPerfil')} />
-          ) : (
-            <span className="pf-avatar-iniciales" aria-hidden="true">{getIniciales(nombreCompleto)}</span>
-          )}
-          <button
-            type="button"
-            className="pf-avatar-camera"
-            aria-label={t('adm.perfil.cambiarFoto')}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera />
-          </button>
-        </div>
-        <div className="pf-avatar-text">
-          <strong>{t('adm.perfil.fotoPerfil')}</strong>
-          <span>{t('adm.perfil.fotoPerfilHint')}</span>
-          <button
-            type="button"
-            className="pf-btn pf-btn-ghost"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera /> {t('adm.perfil.cambiarFoto')}
-          </button>
-          {avatar && (
-            <button type="button" className="pf-btn pf-btn-danger" onClick={handleEliminarFoto}>
-              <FaTrashCan /> {t('adm.perfil.eliminarFoto')}
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleAvatarChange}
-            style={{ display: 'none' }}
-          />
-        </div>
-      </div>
+      <AvatarZone
+        avatar={avatar}
+        nombreCompleto={nombreCompleto}
+        fileInputRef={fileInputRef}
+        onFileChange={handleAvatarChange}
+        onEliminar={handleEliminarFoto}
+        altFoto={t('adm.perfil.fotoPerfil')}
+        ariaCambiar={t('adm.perfil.cambiarFoto')}
+        titulo={t('adm.perfil.fotoPerfil')}
+        hint={t('adm.perfil.fotoPerfilHint')}
+        cambiar={t('adm.perfil.cambiarFoto')}
+        eliminar={t('adm.perfil.eliminarFoto')}
+      />
 
       {cargando ? (
         <div className="ap-states">

@@ -209,6 +209,20 @@ def _construir_encabezado(factura, estilos) -> list:
     ]
 
 
+def _estilo_tabla_base() -> TableStyle:
+    """Estilo común de las tablas de datos del PDF (bordes, fondo de encabezado y paddings)."""
+    return TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0d5b0")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#f0e6cc")),
+        ("BACKGROUND", (0, 0), (-1, 0), FONDO_TABLA),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ])
+
+
 def _tabla_cliente(cliente, estilos) -> Table:
     documento = cliente.documento_cliente or "No registrado"
     telefono = cliente.telefono_cliente or "No registrado"
@@ -224,16 +238,7 @@ def _tabla_cliente(cliente, estilos) -> Table:
          _celda(direccion, estilos["valor"])],
     ]
     tabla = Table(datos, colWidths=[60 * mm, 45 * mm, 75 * mm])
-    tabla.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0d5b0")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#f0e6cc")),
-        ("BACKGROUND", (0, 0), (-1, 0), FONDO_TABLA),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
+    tabla.setStyle(_estilo_tabla_base())
     return tabla
 
 
@@ -246,16 +251,7 @@ def _tabla_pago(factura, estilos) -> Table:
          _celda(factura.numero_transaccion or "N/A", estilos["valor"])],
     ]
     tabla = Table(datos, colWidths=[70 * mm, 55 * mm, 55 * mm])
-    tabla.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0d5b0")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#f0e6cc")),
-        ("BACKGROUND", (0, 0), (-1, 0), FONDO_TABLA),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
+    tabla.setStyle(_estilo_tabla_base())
     return tabla
 
 

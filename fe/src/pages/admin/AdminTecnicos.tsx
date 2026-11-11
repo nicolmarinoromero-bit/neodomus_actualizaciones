@@ -33,6 +33,8 @@ import { AvatarFoto } from '@components/common/AvatarFoto';
 import { usePaginacion } from '../../hooks/usePaginacion';
 import { notificarCambiosTecnicos } from '@utils/tecnicosSync';
 import type { Especializacion, TecnicoAdmin } from '../../types';
+import { HistorialFiltros } from '../../components/admin/HistorialFiltros';
+import { filtrarConBusquedaYFechas } from '@utils/filtrado';
 
 interface FormTecnico {
   first_name: string;
@@ -173,28 +175,13 @@ const AdminTecnicos = () => {
     setHistorialData(null);
   };
 
-  const filtrarPorBusquedaYFecha = <T extends Record<string, any>>(items: T[], camposBusqueda: string[]): T[] => {
-    let resultado = items;
-    if (busquedaHistorial) {
-      const q = busquedaHistorial.toLowerCase();
-      resultado = resultado.filter((item) =>
-        camposBusqueda.some((campo) => String(item[campo] || '').toLowerCase().includes(q))
-      );
-    }
-    if (fechaDesde) {
-      resultado = resultado.filter((item) => {
-        const fecha = item.fecha || item.fecha_entrega || item.created_at;
-        return fecha && fecha >= fechaDesde;
-      });
-    }
-    if (fechaHasta) {
-      resultado = resultado.filter((item) => {
-        const fecha = item.fecha || item.fecha_entrega || item.created_at;
-        return fecha && fecha <= fechaHasta;
-      });
-    }
-    return resultado;
-  };
+  // Filtro genérico de búsqueda y rango de fechas compartido (utils/filtrado).
+  const filtrarPorBusquedaYFecha = <T extends Record<string, any>>(items: T[], camposBusqueda: string[]): T[] =>
+    filtrarConBusquedaYFechas(items, camposBusqueda, {
+      busqueda: busquedaHistorial,
+      desde: fechaDesde,
+      hasta: fechaHasta,
+    });
 
   const abrirEditar = (t: TecnicoAdmin) => {
     setEditando(t);
@@ -809,32 +796,15 @@ const AdminTecnicos = () => {
             </div>
 
             {/* Filtros */}
-            <div className="ap-historial-filtros">
-              <form className="ap-search" onSubmit={(e) => e.preventDefault()} style={{ flex: 1, minWidth: 180 }}>
-                <FaMagnifyingGlass />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  value={busquedaHistorial}
-                  onChange={(e) => setBusquedaHistorial(e.target.value)}
-                />
-              </form>
-              <input
-                type="date"
-                className="ap-form-input"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-                style={{ width: 150, fontSize: 12 }}
-              />
-              <span style={{ color: '#9a8e7e' }}>—</span>
-              <input
-                type="date"
-                className="ap-form-input"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-                style={{ width: 150, fontSize: 12 }}
-              />
-            </div>
+            <HistorialFiltros
+              busqueda={busquedaHistorial}
+              onBusqueda={setBusquedaHistorial}
+              desde={fechaDesde}
+              onDesde={setFechaDesde}
+              hasta={fechaHasta}
+              onHasta={setFechaHasta}
+              separador="-"
+            />
 
             {/* Tabs */}
             <div className="ap-tabs ap-tabs--modal">

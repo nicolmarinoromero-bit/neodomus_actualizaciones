@@ -1,12 +1,13 @@
 // Formulario de datos personales utilizado dentro del perfil del cliente.
 import { useState, useEffect, useRef } from 'react';
-import { FaUserPen, FaCamera, FaTrashCan } from 'react-icons/fa6';
+import { FaUserPen } from 'react-icons/fa6';
 import api from '@services/api';
 import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
-import { getAvatar, getIniciales, PF_AVATAR_KEY, removeAvatar } from '@utils/profileStorage';
+import { getAvatar, PF_AVATAR_KEY, removeAvatar } from '@utils/profileStorage';
 import SectionHeader from './SectionHeader';
 import PerfilCuenta from './PerfilCuenta';
+import { AvatarZone } from './AvatarZone';
 
 export type NotifyFn = (message: string, type?: 'success' | 'error' | 'info') => void;
 
@@ -133,46 +134,19 @@ const PersonalTab = ({ notify, onProfileChanged }: PersonalTabProps) => {
         subtitle={t('perfil.perfilTabSub')}
       />
 
-      <div className="pf-avatar-zone">
-        <div className="pf-avatar-big">
-          {avatar ? (
-            <img src={avatar} alt={t('perfil.fotoPerfil')} />
-          ) : (
-            <span className="pf-avatar-iniciales" aria-hidden="true">{getIniciales(user?.nombre || '')}</span>
-          )}
-          <button
-            type="button"
-            className="pf-avatar-camera"
-            aria-label={t('perfil.cambiarFotoAria')}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera />
-          </button>
-        </div>
-        <div className="pf-avatar-text">
-          <strong>{t('perfil.fotoPerfil')}</strong>
-          <span>{t('perfil.fotoPerfilHint')}</span>
-          <button
-            type="button"
-            className="pf-btn pf-btn-ghost"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera /> {t('perfil.cambiarFoto')}
-          </button>
-          {avatar && (
-            <button type="button" className="pf-btn pf-btn-danger" onClick={handleEliminarFoto}>
-              <FaTrashCan /> {t('perfil.eliminarFoto')}
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleAvatarChange}
-            style={{ display: 'none' }}
-          />
-        </div>
-      </div>
+      <AvatarZone
+        avatar={avatar}
+        nombreCompleto={user?.nombre || ''}
+        fileInputRef={fileInputRef}
+        onFileChange={handleAvatarChange}
+        onEliminar={handleEliminarFoto}
+        altFoto={t('perfil.fotoPerfil')}
+        ariaCambiar={t('perfil.cambiarFotoAria')}
+        titulo={t('perfil.fotoPerfil')}
+        hint={t('perfil.fotoPerfilHint')}
+        cambiar={t('perfil.cambiarFoto')}
+        eliminar={t('perfil.eliminarFoto')}
+      />
 
       <PerfilCuenta
         campos={[

@@ -9,8 +9,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   FaUserPen, FaLock, FaBox, FaStar, FaScrewdriverWrench,
   FaFileInvoice, FaGlobe, FaBell, FaXmark, FaCheck,
-  FaCamera, FaUser, FaHeart, FaUserSlash, FaHourglassHalf,
-  FaTrashCan, FaMoneyBillWave, FaCalendarCheck,
+  FaUser, FaHeart, FaUserSlash, FaHourglassHalf,
+  FaMoneyBillWave, FaCalendarCheck,
 } from 'react-icons/fa6';
 import type { ReactNode } from 'react';
 import '@styles/perfil-cliente.css';
@@ -18,6 +18,7 @@ import { tabGet, tabSet } from '@utils/tabStorage';
 
 import SectionHeader from '@components/profile/SectionHeader';
 import PerfilCuenta from '@components/profile/PerfilCuenta';
+import { AvatarZone } from '@components/profile/AvatarZone';
 
 import ReembolsosCliente from '@components/profile/ReembolsosCliente';
 import OrdersTab from '@components/profile/OrdersTab';
@@ -360,46 +361,19 @@ const Perfil = () => {
         subtitle={t('perfil.perfilTabSub')}
       />
 
-      <div className="pf-avatar-zone">
-        <div className="pf-avatar-big">
-          {avatar ? (
-            <img src={avatar} alt={t('perfil.fotoPerfil')} />
-          ) : (
-            <span className="pf-avatar-iniciales" aria-hidden="true">{getIniciales(nombreCompleto)}</span>
-          )}
-          <button
-            type="button"
-            className="pf-avatar-camera"
-            aria-label={t('perfil.cambiarFotoAria')}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera />
-          </button>
-        </div>
-        <div className="pf-avatar-text">
-          <strong>{t('perfil.fotoPerfil')}</strong>
-          <span>{t('perfil.fotoPerfilHint')}</span>
-          <button
-            type="button"
-            className="pf-btn pf-btn-ghost"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FaCamera /> {t('perfil.cambiarFoto')}
-          </button>
-          {avatar && (
-            <button type="button" className="pf-btn pf-btn-danger" onClick={handleEliminarFoto}>
-              <FaTrashCan /> {t('perfil.eliminarFoto')}
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleAvatarChange}
-            style={{ display: 'none' }}
-          />
-        </div>
-      </div>
+      <AvatarZone
+        avatar={avatar}
+        nombreCompleto={nombreCompleto}
+        fileInputRef={fileInputRef}
+        onFileChange={handleAvatarChange}
+        onEliminar={handleEliminarFoto}
+        altFoto={t('perfil.fotoPerfil')}
+        ariaCambiar={t('perfil.cambiarFotoAria')}
+        titulo={t('perfil.fotoPerfil')}
+        hint={t('perfil.fotoPerfilHint')}
+        cambiar={t('perfil.cambiarFoto')}
+        eliminar={t('perfil.eliminarFoto')}
+      />
 
       <PerfilCuenta
         campos={[
