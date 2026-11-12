@@ -18,15 +18,6 @@
 
 Plataforma web y móvil para consultar productos de domótica, gestionar compras y coordinar servicios técnicos, citas e instalaciones. El repositorio reúne el backend, la aplicación web, la app móvil y la documentación del proyecto.
 
-## Licencias de terceros
-
-NeoDomus genera automáticamente el contrato OpenAPI desde las rutas y esquemas de la API con FastAPI. Estas son las herramientas relacionadas y sus licencias:
-
-- **FastAPI** — licencia [MIT](https://github.com/fastapi/fastapi/blob/master/LICENSE). Genera el contrato OpenAPI y habilita las páginas de documentación.
-- **Swagger UI** — licencia [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0), con avisos adicionales en [NOTICE](https://github.com/swagger-api/swagger-ui/blob/master/NOTICE). Permite consultar y probar los endpoints en `/docs`.
-- **ReDoc** — licencia [MIT](https://github.com/Redocly/redoc/blob/main/LICENSE). Muestra la referencia de la API en `/redoc`.
-
-El contrato generado también se puede consultar en `/openapi.json`. Swagger Editor y Swagger Codegen no se usan en NeoDomus, por eso no se incluyen en esta lista de licencias.
 
 ## 1. Descripción general
 
