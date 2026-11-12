@@ -58,7 +58,7 @@ El envío de correos electrónicos se hará mediante **SMTP** (Gmail, SendGrid u
 El entorno de Python se gestiona con **uv (Astral)** (`be/pyproject.toml:31` `[tool.uv]`, `uv.lock`, `be/Dockerfile:3` `ghcr.io/astral-sh/uv`) con `pip + virtualenv` como alternativa compatible. Queda prohibido `conda`/`pipenv` si no permiten versionado exacto. `poetry` fue reemplazado por `uv` y se mantiene como referencia histórica.
 
 ### RH-002 — Gestor de paquetes Node.js
-Las dependencias del frontend deben gestionarse preferentemente con **pnpm** (`fe/pnpm-lock.yaml`, `fe/Dockerfile:3` `pnpm@10`). Se tolera `npm`/`yarn` solo para compatibilidad Expo (`movil/package-lock.json` existe por `expo`), pero **pnpm es el gestor oficial** para `fe`. No mezclar gestores en el mismo módulo.
+Las dependencias del frontend deben gestionarse preferentemente con **pnpm** (`fe/pnpm-lock.yaml`, `fe/Dockerfile:3` y `deploy/Dockerfile.frontend:2` pinnan `pnpm@11.4.0`). Se tolera `npm`/`yarn` solo para compatibilidad Expo (`movil/package-lock.json` existe por `expo`), pero **pnpm es el gestor oficial** para `fe`. No mezclar gestores en el mismo módulo.
 
 ### RH-003 — Versiones exactas
 Las dependencias críticas deben tener **versiones exactas** (sin `^`, `~`, `*`). En la práctica actual `fe/package.json:12,17,18` usa `^` para `axios`, `react-router-dom`, `@react-oauth/google` y `be/pyproject.toml:22,25-28` usa `>=` para `Pillow`, `requests`, `minio`, `tzdata`, `apscheduler`. Se recomienda fijar exactas en producción (`pnpm`/`uv.lock` ya garantiza reproducibilidad).

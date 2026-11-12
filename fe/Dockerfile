@@ -1,6 +1,6 @@
 FROM node:22-alpine
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 
 ENV CI=true
 

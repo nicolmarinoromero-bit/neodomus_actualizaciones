@@ -119,10 +119,11 @@ jobs:
       - name: Install backend deps (requirements + extras de la suite)
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -r be/requirements.txt
+          python -m pip install --only-binary :all: --upgrade pip
+          pip install --only-binary :all: -r be/requirements.txt
           # requeridas por la suite completa (test_t1_2_minio, foto perfil, facturas PDF...)
-          pip install 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio' 'apscheduler' 'tzdata'
+          # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
+          pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'
 
       # MinIO de pruebas: los service containers de GitHub Actions no admiten
       # campo 'command' y la imagen arrancada sin 'server /data' imprime su
@@ -276,9 +277,10 @@ jobs:
       - name: Install BE deps (orquestadores E2E)
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -r be/requirements.txt
-          pip install 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio' 'apscheduler' 'tzdata'
+          python -m pip install --only-binary :all: --upgrade pip
+          pip install --only-binary :all: -r be/requirements.txt
+          # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
+          pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'
 
       # Misma solución que el job backend: paso controlado con 'server /data'
       # explícito (los service containers no admiten campo 'command').
@@ -347,10 +349,12 @@ jobs:
               print('BUCKET', b, 'OK')
           EOF
 
+      # Usa el binario local de @playwright/test (lockfile), nunca una descarga
+      # on-demand de npx (Sonar: npx puede ejecutar lifecycle scripts).
       - name: Install Chromium + deps del sistema
         shell: bash
         working-directory: fe
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       # Los 6 flujos con orquestador, SEGUIDOS (sin detenerse al primer fallo)
       # para reportar TODOS los resultados exit/códigos. E2E job corre una sola
