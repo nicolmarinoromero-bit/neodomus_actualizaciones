@@ -1,0 +1,1219 @@
+﻿python.exe : test_engine_apunta_a_base_de_pruebas 
+(test_aislamiento.AislamientoConexionesTestCase.test_engine_apunta_a_base_de_pruebas) ... ok
+En línea: 1 Carácter: 245
++ ... ULER = "1"; & .\.venv\Scripts\python.exe -m unittest discover -s app\ ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_engine_apu...pruebas) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_get_db_usa_sesion_de_pruebas (test_aislamiento.AislamientoConexionesTestCase.test_get_db_usa_sesion_de_pruebas) 
+... ok
+test_respaldo_usuarios_session_apunta_a_base_de_pruebas 
+(test_aislamiento.AislamientoConexionesTestCase.test_respaldo_usuarios_session_apunta_a_base_de_pruebas) ... ok
+test_scheduler_session_apunta_a_base_de_pruebas 
+(test_aislamiento.AislamientoConexionesTestCase.test_scheduler_session_apunta_a_base_de_pruebas) ... ok
+test_sessionlocal_bind_usa_base_de_pruebas 
+(test_aislamiento.AislamientoConexionesTestCase.test_sessionlocal_bind_usa_base_de_pruebas) ... ok
+test_scheduler_neutralizado (test_aislamiento.AislamientoSchedulerTestCase.test_scheduler_neutralizado) ... ok
+test_transporte_archivos_no_alcanzado 
+(test_aislamiento.AislamientoTransportesTestCase.test_transporte_archivos_no_alcanzado) ... ok
+test_transporte_correo_neutralizado 
+(test_aislamiento.AislamientoTransportesTestCase.test_transporte_correo_neutralizado) ... ok
+test_e1_compra_metros_y_devolucion_corte_completo 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e1_compra_metros_y_devolucion_corte_completo) 
+... C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\jose\jwt.py:311: DeprecationWarning: 
+datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to 
+represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  now = timegm(datetime.utcnow().utctimetuple())
+ok
+test_e1b_devolucion_parcial_y_superior_rechazadas 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e1b_devolucion_parcial_y_superior_rechazadas) 
+... ok
+test_e1c_pedido_ajeno_inexistente_y_duplicado 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e1c_pedido_ajeno_inexistente_y_duplicado) ... ok
+test_e2_reposicion_exacta_con_variante 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e2_reposicion_exacta_con_variante) ... ok
+test_e3_reembolso_con_precio_historico_y_confirmacion (test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.
+test_e3_reembolso_con_precio_historico_y_confirmacion) ... ok
+test_e4a_dos_administradores_aprueban_simultaneamente (test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.
+test_e4a_dos_administradores_aprueban_simultaneamente) ... ok
+test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera (test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaT
+estCase.test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera) ... ok
+test_e4c_stock_insuficiente_y_variante_inexistente 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e4c_stock_insuficiente_y_variante_inexistente) 
+... ok
+test_e4d_integridad_historica_tras_flujo_completo 
+(test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase.test_e4d_integridad_historica_tras_flujo_completo)
+El pedido, su detalle, su pago y la factura quedan intactos tras ... ok
+test_registro_esquema_antiguo_rechazado (test_auth.RegistroClienteTestCase.test_registro_esquema_antiguo_rechazado) 
+... ok
+test_registro_password_debil_rechazado (test_auth.RegistroClienteTestCase.test_registro_password_debil_rechazado) ... 
+ok
+test_registro_valido_crea_pendiente_y_envia_correo 
+(test_auth.RegistroClienteTestCase.test_registro_valido_crea_pendiente_y_envia_correo) ... ok
+test_login_cliente_valido_emite_tokens_y_perfil_completo 
+(test_auth_service_complemento.LoginGrupoATestCase.test_login_cliente_valido_emite_tokens_y_perfil_completo)
+Login explÝcito ``user_type='client'`` con perfil completo: ... [AUDIT] {"timestamp": 
+"2026-11-12T18:36:45.787198+00:00", "event": "LOGIN_SUCCESS", "email": "gr**********************@test.neodomus.com", 
+"user_type": "client", "ip": null}
+ok
+test_login_correo_inexistente_401_sin_tokens 
+(test_auth_service_complemento.LoginGrupoATestCase.test_login_correo_inexistente_401_sin_tokens)
+Correo que no existe ni como cliente ni como empleado: 401 con ... [AUDIT] {"timestamp": 
+"2026-11-12T18:36:45.927031+00:00", "event": "LOGIN_FAILED", "email": 
+"gr**************************@test.neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+[AUDIT] {"timestamp": "2026-11-12T18:36:45.933750+00:00", "event": "LOGIN_FAILED", "email": 
+"gr**************************@test.neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "employee"}
+ok
+test_login_empleado_inactivo_403 (test_auth_service_complemento.LoginGrupoATestCase.test_login_empleado_inactivo_403) 
+... [AUDIT] {"timestamp": "2026-11-12T18:36:47.631515+00:00", "event": "LOGIN_FAILED", "email": 
+"gr***********************@test.neodomus.com", "reason": "account_inactive", "ip": null, "user_type": "employee"}
+ok
+test_login_empleado_password_incorrecta_401_sin_tokens 
+(test_auth_service_complemento.LoginGrupoATestCase.test_login_empleado_password_incorrecta_401_sin_tokens)
+Verificaci¾n de seguridad: credenciales incorrectas de empleado ... [AUDIT] {"timestamp": 
+"2026-11-12T18:36:49.619175+00:00", "event": "LOGIN_FAILED", "email": "gr***********************@test.neodomus.com", 
+"reason": "invalid_credentials", "ip": null, "user_type": "employee"}
+ok
+test_login_empleado_sin_rol_403 (test_auth_service_complemento.LoginGrupoATestCase.test_login_empleado_sin_rol_403)
+Un empleado sin rol asignado (id_rol_u nulo) no entra a la ... [AUDIT] {"timestamp": 
+"2026-11-12T18:36:51.509281+00:00", "event": "LOGIN_FAILED", "email": "gr***********************@test.neodomus.com", 
+"reason": "invalid_role", "ip": null, "user_type": "employee"}
+ok
+test_login_empleado_valido_emite_tokens_con_rol_y_claims 
+(test_auth_service_complemento.LoginGrupoATestCase.test_login_empleado_valido_emite_tokens_con_rol_y_claims)
+Login explÝcito ``user_type='employee'`` para el administrador ... [AUDIT] {"timestamp": 
+"2026-11-12T18:36:54.169250+00:00", "event": "LOGIN_SUCCESS", "email": "gr***********************@test.neodomus.com", 
+"user_type": "employee", "ip": null}
+ok
+test_bearer_sin_cookie_restaura_cliente 
+(test_auth_session.SessionActualTestCase.test_bearer_sin_cookie_restaura_cliente) ... ok
+test_cookie_access_sigue_funcionando (test_auth_session.SessionActualTestCase.test_cookie_access_sigue_funcionando) 
+... ok
+test_cuenta_desactivada_no_restaura_sesion 
+(test_auth_session.SessionActualTestCase.test_cuenta_desactivada_no_restaura_sesion) ... ok
+test_header_invalido_no_cae_a_cookie_valida 
+(test_auth_session.SessionActualTestCase.test_header_invalido_no_cae_a_cookie_valida) ... ok
+test_header_prevalece_sobre_cookie_de_otra_cuenta 
+(test_auth_session.SessionActualTestCase.test_header_prevalece_sobre_cookie_de_otra_cuenta) ... ok
+test_refresh_no_restaura_sesion_por_cookie_ni_header 
+(test_auth_session.SessionActualTestCase.test_refresh_no_restaura_sesion_por_cookie_ni_header) ... ok
+test_rol_empleado_se_lee_de_bd (test_auth_session.SessionActualTestCase.test_rol_empleado_se_lee_de_bd) ... ok
+test_sin_credenciales_rechazado (test_auth_session.SessionActualTestCase.test_sin_credenciales_rechazado) ... ok
+test_mismo_avance_simultaneo_una_sola_transicion 
+(test_bloque_11.ConcurrenciaTestCase.test_mismo_avance_simultaneo_una_sola_transicion) ... ok
+test_recogida_simultanea_con_desactivacion 
+(test_bloque_11.ConcurrenciaTestCase.test_recogida_simultanea_con_desactivacion) ... ok
+test_recogida_simultanea_con_reasignacion 
+(test_bloque_11.ConcurrenciaTestCase.test_recogida_simultanea_con_reasignacion) ... ok
+test_desactivacion_endpoint_rechazada_sin_cambios_parciales 
+(test_bloque_11.DesactivacionTestCase.test_desactivacion_endpoint_rechazada_sin_cambios_parciales) ... ok
+test_desactivacion_normal_sin_custodia (test_bloque_11.DesactivacionTestCase.test_desactivacion_normal_sin_custodia) 
+... ok
+test_desactivacion_rechazada_por_custodia_con_fecha_pasada 
+(test_bloque_11.DesactivacionTestCase.test_desactivacion_rechazada_por_custodia_con_fecha_pasada) ... ok
+test_antiguo_responsable_no_avanza_tras_reasignacion 
+(test_bloque_11.PermisoActualizacionTestCase.test_antiguo_responsable_no_avanza_tras_reasignacion) ... ok
+test_otro_tecnico_no_puede_actualizar 
+(test_bloque_11.PermisoActualizacionTestCase.test_otro_tecnico_no_puede_actualizar) ... ok
+test_precarga_desactualizada_detecta_recogido 
+(test_bloque_11.ReasignacionPrecargaTestCase.test_precarga_desactualizada_detecta_recogido) ... ok
+test_precarga_reasignada_a_otro_tecnico_se_conserva 
+(test_bloque_11.ReasignacionPrecargaTestCase.test_precarga_reasignada_a_otro_tecnico_se_conserva) ... ok
+test_precarga_reasignada_sin_candidatos_tampoco_desasigna 
+(test_bloque_11.ReasignacionPrecargaTestCase.test_precarga_reasignada_sin_candidatos_tampoco_desasigna) ... ok
+test_estado_desconocido_rechazado_en_asignacion_admin 
+(test_bloque_11.ReasignacionRechazadaTestCase.test_estado_desconocido_rechazado_en_asignacion_admin) ... ok
+test_reasignacion_admin_rechazada_en_custodia_y_terminal 
+(test_bloque_11.ReasignacionRechazadaTestCase.test_reasignacion_admin_rechazada_en_custodia_y_terminal) ... ok
+test_reasignacion_automatica_rechazada_en_custodia 
+(test_bloque_11.ReasignacionRechazadaTestCase.test_reasignacion_automatica_rechazada_en_custodia) ... ok
+test_custodia_terminal_y_desconocidos_rechazados 
+(test_bloque_11.ReglaAsignacionReasignableTestCase.test_custodia_terminal_y_desconocidos_rechazados) ... ok
+test_solo_estados_permitidos (test_bloque_11.ReglaAsignacionReasignableTestCase.test_solo_estados_permitidos) ... ok
+test_cuenta_inactiva_excluida (test_bloque_2.AptitudEquipoTestCase.test_cuenta_inactiva_excluida) ... ok
+test_equipo_completo_exigido (test_bloque_2.AptitudEquipoTestCase.test_equipo_completo_exigido) ... ok
+test_tecnico_libre_sin_especializacion_no_basta 
+(test_bloque_2.AptitudEquipoTestCase.test_tecnico_libre_sin_especializacion_no_basta) ... ok
+test_cancelacion_libera_capacidad (test_bloque_2.CapacidadTecnicoTestCase.test_cancelacion_libera_capacidad) ... ok
+test_cita_sin_equipo_no_bloquea_tecnicos 
+(test_bloque_2.CapacidadTecnicoTestCase.test_cita_sin_equipo_no_bloquea_tecnicos) ... ok
+test_cita_y_entrega_incompatibles (test_bloque_2.CapacidadTecnicoTestCase.test_cita_y_entrega_incompatibles) ... ok
+test_intervalos_contiguos_permitidos (test_bloque_2.CapacidadTecnicoTestCase.test_intervalos_contiguos_permitidos) ... 
+ok
+test_mismo_tecnico_citas_solapadas (test_bloque_2.CapacidadTecnicoTestCase.test_mismo_tecnico_citas_solapadas) ... ok
+test_reprogramacion_excluye_propia_cita 
+(test_bloque_2.CapacidadTecnicoTestCase.test_reprogramacion_excluye_propia_cita) ... ok
+test_segundo_y_tercer_tecnico_tambien_ocupan 
+(test_bloque_2.CapacidadTecnicoTestCase.test_segundo_y_tercer_tecnico_tambien_ocupan) ... ok
+test_dos_reservas_comptien_por_unico_tecnico 
+(test_bloque_2.ConcurrenciaCapacidadTestCase.test_dos_reservas_comptien_por_unico_tecnico) ... ok
+test_dos_reservas_con_dos_tecnicos_se_confirman 
+(test_bloque_2.ConcurrenciaCapacidadTestCase.test_dos_reservas_con_dos_tecnicos_se_confirman) ... ok
+test_crear_cita_con_tecnico_libre_ok (test_bloque_2.ConfirmacionCitaTestCase.test_crear_cita_con_tecnico_libre_ok) ... 
+ok
+test_crear_cita_con_tecnico_ocupado_se_rechaza 
+(test_bloque_2.ConfirmacionCitaTestCase.test_crear_cita_con_tecnico_ocupado_se_rechaza) ... ok
+test_tecnico_sin_especializacion_rechazado 
+(test_bloque_2.ConfirmacionCitaTestCase.test_tecnico_sin_especializacion_rechazado) ... ok
+test_duracion_corta_todos_los_inicios (test_bloque_2.HorasLaboralesTestCase.test_duracion_corta_todos_los_inicios) ... 
+ok
+test_duracion_larga_descarta_ultimo_inicio 
+(test_bloque_2.HorasLaboralesTestCase.test_duracion_larga_descarta_ultimo_inicio) ... ok
+test_duracion_maxima_descarta_17 (test_bloque_2.HorasLaboralesTestCase.test_duracion_maxima_descarta_17) ... ok
+test_dos_confirmaciones_reales_por_unico_tecnico 
+(test_bloque_21.ConcurrenciaFlujoTestCase.test_dos_confirmaciones_reales_por_unico_tecnico) ... ok
+test_reserva_frente_a_desactivacion (test_bloque_21.ConcurrenciaFlujoTestCase.test_reserva_frente_a_desactivacion) ... 
+ok
+test_consulta_multipersona_capacidad_insuficiente 
+(test_bloque_21.ConsultaMultipersonaFlujoTestCase.test_consulta_multipersona_capacidad_insuficiente) ... ok
+test_consulta_multipersona_con_dos_tecnicos 
+(test_bloque_21.ConsultaMultipersonaFlujoTestCase.test_consulta_multipersona_con_dos_tecnicos) ... ok
+test_crear_cita_equipo_duplicado (test_bloque_21.CreacionFlujoTestCase.test_crear_cita_equipo_duplicado) ... ok
+test_crear_cita_segundo_ocupado (test_bloque_21.CreacionFlujoTestCase.test_crear_cita_segundo_ocupado) ... ok
+test_crear_cita_sin_tecnico_asigna (test_bloque_21.CreacionFlujoTestCase.test_crear_cita_sin_tecnico_asigna) ... ok
+test_servicio_largo_fin_jornada (test_bloque_21.DuracionRealFlujoTestCase.test_servicio_largo_fin_jornada) ... ok
+test_reagendar_cliente_con_segundo_ocupado 
+(test_bloque_21.ReagendamientoFlujoTestCase.test_reagendar_cliente_con_segundo_ocupado) ... ok
+test_reagendar_tecnico_secundario_con_principal_ocupado 
+(test_bloque_21.ReagendamientoFlujoTestCase.test_reagendar_tecnico_secundario_con_principal_ocupado) ... ok
+test_reprogramacion_fallida_conserva_estado 
+(test_bloque_21.ReagendamientoFlujoTestCase.test_reprogramacion_fallida_conserva_estado) ... ok
+test_reasignacion_automatica_ocupa_capacidad 
+(test_bloque_21.ReasignacionAutomaticaFlujoTestCase.test_reasignacion_automatica_ocupa_capacidad) ... ok
+test_autoasignacion_con_lectura_previa_no_duplica 
+(test_bloque_21_cierre.AutoasignacionTestCase.test_autoasignacion_con_lectura_previa_no_duplica) ... ok
+test_cuenta_precargada_activa_luego_inactiva 
+(test_bloque_21_cierre.CuentaInactivaTestCase.test_cuenta_precargada_activa_luego_inactiva) ... ok
+test_reserva_frente_a_desactivacion_real 
+(test_bloque_21_cierre.CuentaInactivaTestCase.test_reserva_frente_a_desactivacion_real) ... ok
+test_creacion_frente_a_asignacion_entrega 
+(test_bloque_21_cierre.OrdenDeBloqueoTestCase.test_creacion_frente_a_asignacion_entrega) ... ok
+test_creacion_frente_a_edicion_sin_deadlock 
+(test_bloque_21_cierre.OrdenDeBloqueoTestCase.test_creacion_frente_a_edicion_sin_deadlock) ... ok
+test_reasignacion_automatica_frente_a_reserva_mismo_candidato (test_bloque_21_cierre.ReasignacionAutomaticaConcurrenteT
+estCase.test_reasignacion_automatica_frente_a_reserva_mismo_candidato) ... ok
+test_agotar_reintentos_no_cancela_ni_reembolsa 
+(test_bloque_21_cierre.ReasignacionAutomaticaRobustezTestCase.test_agotar_reintentos_no_cancela_ni_reembolsa) ... ok
+test_fallo_en_notificacion_post_commit_no_reasigna_de_nuevo (test_bloque_21_cierre.ReasignacionAutomaticaRobustezTestCa
+se.test_fallo_en_notificacion_post_commit_no_reasigna_de_nuevo) ... ok
+test_reasignacion_no_sobrescribe_cambio_concurrente 
+(test_bloque_21_cierre.ReasignacionAutomaticaRobustezTestCase.test_reasignacion_no_sobrescribe_cambio_concurrente) ... 
+ok
+test_reasignacion_reintenta_deadlock_y_solo_una_vez 
+(test_bloque_21_cierre.ReasignacionAutomaticaRobustezTestCase.test_reasignacion_reintenta_deadlock_y_solo_una_vez) ... 
+ok
+test_reprogramacion_avanza_cuando_secundario_ocupado 
+(test_bloque_21_cierre.ReasignacionAutomaticaRobustezTestCase.test_reprogramacion_avanza_cuando_secundario_ocupado) 
+... ok
+test_reprogramacion_avanza_si_propuesta_reservada_concurrentemente (test_bloque_21_cierre.ReasignacionAutomaticaRobuste
+zTestCase.test_reprogramacion_avanza_si_propuesta_reservada_concurrentemente) ... ok
+test_reasignacion_automatica_con_respaldo_de_candidato 
+(test_bloque_21_cierre.ReasignacionAutomaticaTestCase.test_reasignacion_automatica_con_respaldo_de_candidato) ... ok
+test_reasignacion_no_sobrescribe_cita_cancelada 
+(test_bloque_21_cierre.ReasignacionAutomaticaTestCase.test_reasignacion_no_sobrescribe_cita_cancelada) ... ok
+test_checkout_anonimo_rechazado_sin_efectos 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_checkout_anonimo_rechazado_sin_efectos) ... ok
+test_checkout_directo_marca_completado_y_reintento_idempotente 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_checkout_directo_marca_completado_y_reintento_idempotente) 
+... ok
+test_checkout_directo_rollback_antes_de_commit 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_checkout_directo_rollback_antes_de_commit) ... ok
+test_importes_desde_servidor_y_no_persistencia 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_importes_desde_servidor_y_no_persistencia) ... ok
+test_metros_pendientes_confirmados_y_repetidos_por_http 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_metros_pendientes_confirmados_y_repetidos_por_http) ... ok
+test_precio_de_variante_prevalece_sobre_importes_del_navegador 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_precio_de_variante_prevalece_sobre_importes_del_navegador) 
+... ok
+test_precision_excesiva_rechazada_sin_pedido_ni_descuento 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_precision_excesiva_rechazada_sin_pedido_ni_descuento) ... ok
+test_reintento_autorizacion (test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintento_autorizacion) ... ok
+test_reintento_aviso_fallido_no_repite_finalizacion 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintento_aviso_fallido_no_repite_finalizacion) ... ok
+test_reintento_estados_no_permitidos 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintento_estados_no_permitidos) ... ok
+test_reintento_fallo_antes_commit_revierte 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintento_fallo_antes_commit_revierte) ... ok
+test_reintento_historicos_ambiguos_null_en_conflicto 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintento_historicos_ambiguos_null_en_conflicto) ... ok
+test_reintentos_concurrentes_no_duplican 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_reintentos_concurrentes_no_duplican) ... ok
+test_tarjeta_datos_invalidos_no_crean_pedido 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_tarjeta_datos_invalidos_no_crean_pedido) ... ok
+test_tarjeta_rechazada_y_reintento_aprobado_no_duplica 
+(test_checkout_metros_http.CheckoutMetrosHTTPTestCase.test_tarjeta_rechazada_y_reintento_aprobado_no_duplica) ... ok
+test_cancelacion_admin_concurrente_no_duplica 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_concurrente_no_duplica) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:28.931783+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cancelacion_admin_conserva_cita_reembolso_e_historial 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_conserva_cita_reembolso_e_historial) 
+... [AUDIT] {"timestamp": "2026-11-12T18:37:30.719033+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cancelacion_admin_falla_intermedia_no_deja_cambios 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_falla_intermedia_no_deja_cambios) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:37:32.406359+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ERROR:root:Unhandled exception
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_utils.py", line 77, in 
+collapse_excgroups
+  |     yield
+  |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 186, in 
+__call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 815, in 
+__aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\errors.py", line 165, in 
+__call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 185, in 
+__call__
+    |     with collapse_excgroups():
+    |          ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 158, 
+in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_utils.py", line 83, in 
+collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 187, in 
+__call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\app\middleware\security_headers.py", line 14, in _add_security_headers
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 163, in 
+call_next
+    |     raise app_exc
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 149, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in 
+__call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 62, in 
+__call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 62, in 
+wrapped_app
+    |     raise exc
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 51, in 
+wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 715, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 735, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 62, in 
+wrapped_app
+    |     raise exc
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 51, in 
+wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\fastapi\routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\fastapi\routing.py", line 214, in 
+run_endpoint_function
+    |     return await run_in_threadpool(dependant.call, **values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\concurrency.py", line 39, in 
+run_in_threadpool
+    |     return await anyio.to_thread.run_sync(func, *args)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    |     return await get_async_backend().run_sync_in_worker_thread(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in 
+run_sync_in_worker_thread
+    |     return await future
+    |            ^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    |     result = context.run(func, *args)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\app\routers\citas.py", line 1155, in gestionar_cita_admin
+    |     reembolso_resumen = preparar_cancelacion_con_reembolso(
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\neodomus_main\be\app\services\asignacion_service.py", line 272, in 
+preparar_cancelacion_con_reembolso
+    |     registrar_historial(
+    |   File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 
+1139, in __call__
+    |     return self._mock_call(*args, **kwargs)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 
+1143, in _mock_call
+    |     return self._execute_mock_call(*args, **kwargs)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 
+1198, in _execute_mock_call
+    |     raise effect
+    | RuntimeError: fallo inducido
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 185, in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 158, in 
+__exit__
+    self.gen.throw(value)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_utils.py", line 83, in collapse_excgroups
+    raise exc
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 187, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\app\middleware\security_headers.py", line 14, in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 163, in call_next
+    raise app_exc
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 62, in 
+__call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 62, in 
+wrapped_app
+    raise exc
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 51, in 
+wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 62, in 
+wrapped_app
+    raise exc
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\_exception_handler.py", line 51, in 
+wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\fastapi\routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\fastapi\routing.py", line 214, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\starlette\concurrency.py", line 39, in 
+run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2641, in 
+run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1033, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\app\routers\citas.py", line 1155, in gestionar_cita_admin
+    reembolso_resumen = preparar_cancelacion_con_reembolso(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\neodomus_main\be\app\services\asignacion_service.py", line 272, in 
+preparar_cancelacion_con_reembolso
+    registrar_historial(
+  File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 1139, in 
+__call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 1143, in 
+_mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\valet\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py", line 1198, in 
+_execute_mock_call
+    raise effect
+RuntimeError: fallo inducido
+ok
+test_cancelacion_admin_fallo_de_aviso_no_revierte 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_fallo_de_aviso_no_revierte) ... 
+C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\anyio\streams\memory.py:190: ResourceWarning: Unclosed 
+<MemoryObjectReceiveStream at 2939476ac60>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[AUDIT] {"timestamp": "2026-11-12T18:37:34.333864+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:34.333864+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cancelacion_admin_notifica_una_sola_vez 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_notifica_una_sola_vez) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:36.161324+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:36.161324+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cancelacion_admin_repetida_no_duplica 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_repetida_no_duplica) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:37.987256+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:37.987256+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cancelacion_admin_requiere_rol_admin 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_cancelacion_admin_requiere_rol_admin) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:39.794797+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1********************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:39.794797+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1********************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_reembolso_historico_sin_cita_conserva_identificacion 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_reembolso_historico_sin_cita_conserva_identificacion) 
+... [AUDIT] {"timestamp": "2026-11-12T18:37:40.951878+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:40.951878+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_resumen_incluye_citas_pendientes 
+(test_citas_reembolsos_admin.CitasReembolsosAdminTestCase.test_resumen_incluye_citas_pendientes) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:41.804659+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:41.804659+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_admin_ve_y_edita_agotado 
+(test_disponibilidad_productos.DisponibilidadProductosTestCase.test_admin_ve_y_edita_agotado) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:43.226080+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:43.226080+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+C:\Users\valet\neodomus_main\be\.venv\Lib\site-packages\pydantic\main.py:1051: PydanticDeprecatedSince20: The `dict` 
+method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 
+Migration Guide at https://errors.pydantic.dev/2.7/migration/
+  warnings.warn('The `dict` method is deprecated; use `model_dump` instead.', category=PydanticDeprecatedSince20)
+ok
+test_agotado_oculto_no_se_publica_ni_por_api_directa 
+(test_disponibilidad_productos.DisponibilidadProductosTestCase.test_agotado_oculto_no_se_publica_ni_por_api_directa) 
+... [AUDIT] {"timestamp": "2026-11-12T18:37:44.265475+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:44.265475+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_carrito_antiguo_no_compra_oculto_ni_variantes_agotadas (test_disponibilidad_productos.DisponibilidadProductosTestC
+ase.test_carrito_antiguo_no_compra_oculto_ni_variantes_agotadas) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:37:45.332890+00:00", "event": "LOGIN_SUCCESS", "email": "t1***************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:45.332890+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_metros_con_stock_minimo_visible_sin_redondear 
+(test_disponibilidad_productos.DisponibilidadProductosTestCase.test_metros_con_stock_minimo_visible_sin_redondear) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:37:46.520871+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:46.520871+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_reposicion_conserva_ocultacion_manual 
+(test_disponibilidad_productos.DisponibilidadProductosTestCase.test_reposicion_conserva_ocultacion_manual) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:48.656321+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:48.656321+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_ultima_unidad_se_vende_y_desaparece 
+(test_disponibilidad_productos.DisponibilidadProductosTestCase.test_ultima_unidad_se_vende_y_desaparece) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:49.565287+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:49.565287+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_variantes_no_se_suman_ni_ignoran_stock_del_producto (test_disponibilidad_productos.DisponibilidadProductosTestCase
+.test_variantes_no_se_suman_ni_ignoran_stock_del_producto) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:37:50.540766+00:00", "event": "LOGIN_SUCCESS", "email": "t1***************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:50.540766+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_custodia_y_terminal_no_son_reasignables 
+(test_entregas_comportamiento.AsignacionReasignableTestCase.test_custodia_y_terminal_no_son_reasignables) ... ok
+test_estados_administrativos_son_reasignables 
+(test_entregas_comportamiento.AsignacionReasignableTestCase.test_estados_administrativos_son_reasignables) ... ok
+test_asignacion_ordinaria_no_reinicia_entrega_en_curso 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_asignacion_ordinaria_no_reinicia_entrega_en_curso) ... 
+ok
+test_consultar_entregas_no_modifica_estado 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_consultar_entregas_no_modifica_estado) ... ok
+test_entrega_con_evidencia_y_es_terminal 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_entrega_con_evidencia_y_es_terminal) ... ok
+test_no_entrega_sin_evidencia (test_entregas_comportamiento.IntegracionEntregasTestCase.test_no_entrega_sin_evidencia) 
+... ok
+test_no_retrocede_de_en_camino_a_recogido 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_no_retrocede_de_en_camino_a_recogido) ... ok
+test_no_salta_directo_asignada_a_entregado 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_no_salta_directo_asignada_a_entregado) ... ok
+test_repetir_estado_actual_no_duplica_transicion 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_repetir_estado_actual_no_duplica_transicion) ... ok
+test_secuencia_completa_del_tecnico 
+(test_entregas_comportamiento.IntegracionEntregasTestCase.test_secuencia_completa_del_tecnico) ... ok
+test_entregado_es_terminal (test_entregas_comportamiento.TransicionTecnicoTestCase.test_entregado_es_terminal) ... ok
+test_estado_desconocido_rechazado 
+(test_entregas_comportamiento.TransicionTecnicoTestCase.test_estado_desconocido_rechazado) ... ok
+test_estado_vacio_se_trata_como_asignada 
+(test_entregas_comportamiento.TransicionTecnicoTestCase.test_estado_vacio_se_trata_como_asignada) ... ok
+test_no_retrocede (test_entregas_comportamiento.TransicionTecnicoTestCase.test_no_retrocede) ... ok
+test_no_salta_etapas (test_entregas_comportamiento.TransicionTecnicoTestCase.test_no_salta_etapas) ... ok
+test_objetivo_administrativo_rechazado_para_tecnico 
+(test_entregas_comportamiento.TransicionTecnicoTestCase.test_objetivo_administrativo_rechazado_para_tecnico) ... ok
+test_orden_canonico (test_entregas_comportamiento.TransicionTecnicoTestCase.test_orden_canonico) ... ok
+test_repetir_estado_actual_es_valido 
+(test_entregas_comportamiento.TransicionTecnicoTestCase.test_repetir_estado_actual_es_valido) ... ok
+test_secuencia_normal_avanza_un_paso 
+(test_entregas_comportamiento.TransicionTecnicoTestCase.test_secuencia_normal_avanza_un_paso) ... ok
+test_otro_cliente_no_accede_a_la_factura 
+(test_factura_descarga_http.FacturaDescargaHTTPTestCase.test_otro_cliente_no_accede_a_la_factura) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:37:53.664591+00:00", "event": "LOGIN_SUCCESS", "email": 
+"fa***********************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:53.664591+00:00", "event": "LOGIN_SUCCESS", "email": 
+"fa***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_peticion_anonima_rechazada 
+(test_factura_descarga_http.FacturaDescargaHTTPTestCase.test_peticion_anonima_rechazada) ... ok
+test_propietario_descarga_pdf_valido_desde_el_perfil 
+(test_factura_descarga_http.FacturaDescargaHTTPTestCase.test_propietario_descarga_pdf_valido_desde_el_perfil) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:37:58.080032+00:00", "event": "LOGIN_SUCCESS", "email": 
+"fa************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:37:58.080032+00:00", "event": "LOGIN_SUCCESS", "email": 
+"fa************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cita_sin_logo_sigue_generando_factura 
+(test_factura_pdf_logo.FacturaPDFLogoTestCase.test_cita_sin_logo_sigue_generando_factura) ... ok
+test_correo_recibe_pdf_real_como_adjunto 
+(test_factura_pdf_logo.FacturaPDFLogoTestCase.test_correo_recibe_pdf_real_como_adjunto) ... ok
+test_logo_incluido_en_backend_y_factura_generable 
+(test_factura_pdf_logo.FacturaPDFLogoTestCase.test_logo_incluido_en_backend_y_factura_generable) ... ok
+test_pedido_sin_logo_sigue_generando_factura 
+(test_factura_pdf_logo.FacturaPDFLogoTestCase.test_pedido_sin_logo_sigue_generando_factura) ... ok
+test_smtp_simulado_adjunta_el_pdf_real 
+(test_factura_pdf_logo.FacturaPDFLogoTestCase.test_smtp_simulado_adjunta_el_pdf_real)
+Recorre el envÝo completo, sustituyendo ·nicamente smtplib.SMTP. ... ok
+test_anonimo_no_sube_y_otro_tecnico_no_afecta 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_anonimo_no_sube_y_otro_tecnico_no_afecta) ... skipped 'MinIO 
+no alcanzable; permisos de foto no comprobados'
+test_fallo_al_subir_no_borra_foto_vigente 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_fallo_al_subir_no_borra_foto_vigente) ... skipped 'MinIO no 
+alcanzable; fallo de subida no comprobado'
+test_fallo_de_commit_limpia_solo_objeto_nuevo 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_fallo_de_commit_limpia_solo_objeto_nuevo) ... skipped 'MinIO 
+no alcanzable; fallo de commit no comprobado'
+test_limpieza_posterior_fallida_conserva_foto_nueva 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_limpieza_posterior_fallida_conserva_foto_nueva) ... skipped 
+'MinIO no alcanzable; limpieza posterior no comprobada'
+test_listado_admin_incluye_foto_url 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_listado_admin_incluye_foto_url) ... skipped 'MinIO no 
+alcanzable; listado admin de foto no comprobado'
+test_rechaza_html_y_svg_disfrazados 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_rechaza_html_y_svg_disfrazados) ... skipped 'MinIO no 
+alcanzable; validaci¾n de contenido no comprobada'
+test_reemplazo_genera_url_nueva_y_borra_anterior 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_reemplazo_genera_url_nueva_y_borra_anterior) ... skipped 
+'MinIO no alcanzable; reemplazo de foto no comprobado'
+test_subida_valida_guarda_y_sirve_objeto 
+(test_foto_perfil_tecnico.FotoPerfilTecnicoTestCase.test_subida_valida_guarda_y_sirve_objeto) ... skipped 'MinIO no 
+alcanzable; almacenamiento de foto no comprobado'
+test_elegibilidad_muestra_metros_del_corte 
+(test_pen09_pen10_devoluciones_metros.ElegibilidadMetrosTestCase.test_elegibilidad_muestra_metros_del_corte)
+La elegibilidad reporta la longitud comprada, no unidades enteras. ... ok
+test_elegibilidad_no_revela_pedidos_ajenos 
+(test_pen09_pen10_devoluciones_metros.ElegibilidadMetrosTestCase.test_elegibilidad_no_revela_pedidos_ajenos) ... ok
+test_elegibilidad_pedido_inexistente 
+(test_pen09_pen10_devoluciones_metros.ElegibilidadMetrosTestCase.test_elegibilidad_pedido_inexistente) ... ok
+test_admin_rechaza_con_motivo_registrado 
+(test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTestCase.test_admin_rechaza_con_motivo_registrado) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:38:01.239372+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:01.239372+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:38:02.005557+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1****************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:02.005557+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1****************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_admin_revisa_aprueba_y_queda_registrado 
+(test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTestCase.test_admin_revisa_aprueba_y_queda_registrado) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:38:02.908936+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:02.908936+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:38:03.759320+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:03.759320+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cliente_devolucion_parcial_rechazada_http 
+(test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTestCase.test_cliente_devolucion_parcial_rechazada_http)
+El backend rechaza la manipulaci¾n manual de la solicitud HTTP. ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:04.745804+00:00", "event": "LOGIN_SUCCESS", "email": "t1**************************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:04.745804+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_puede_aprobar_su_devolucion 
+(test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTestCase.test_cliente_no_puede_aprobar_su_devolucion) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:38:05.587494+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:05.587494+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_solicita_devolucion_del_corte_completo_http (test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTes
+tCase.test_cliente_solicita_devolucion_del_corte_completo_http) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:06.610569+00:00", "event": "LOGIN_SUCCESS", "email": "t1**************************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:06.610569+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_pedido_ajeno_rechazado_http 
+(test_pen09_pen10_devoluciones_metros.PermisosYRevisionHTTPTestCase.test_pedido_ajeno_rechazado_http) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:08.064099+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:08.064099+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_aprobacion_concurrente_genera_un_solo_reembolso 
+(test_pen09_pen10_devoluciones_metros.ReembolsoHistoricoTestCase.test_aprobacion_concurrente_genera_un_solo_reembolso)
+Dos administradores simultßneos \u2192 una sola decisi¾n y un reembolso. ... ok
+test_reembolso_usa_importe_historico_del_corte 
+(test_pen09_pen10_devoluciones_metros.ReembolsoHistoricoTestCase.test_reembolso_usa_importe_historico_del_corte) ... ok
+test_reintentar_aprobacion_no_duplica_reembolso 
+(test_pen09_pen10_devoluciones_metros.ReembolsoHistoricoTestCase.test_reintentar_aprobacion_no_duplica_reembolso) ... 
+ok
+test_resolucion_cambio_no_genera_reembolso 
+(test_pen09_pen10_devoluciones_metros.ReembolsoHistoricoTestCase.test_resolucion_cambio_no_genera_reembolso)
+Una sola operaci¾n por devoluci¾n: Cambio \u21d2 sin reembolso. ... ok
+test_reembolso_confirmado_cierra_el_pipeline 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reembolso_confirmado_cierra_el_pipeline)
+Recibida + reembolso Reembolsado \u2192 estado 'Reembolso procesado'. ... ok
+test_reintento_recogida_no_duplica_inventario 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reintento_recogida_no_duplica_inventario)
+Doble clic / repetici¾n HTTP: el stock solo se reintegra una vez. ... ok
+test_reposicion_concurrente_una_sola_ejecuta 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reposicion_concurrente_una_sola_ejecuta)
+Dos tÚcnicos simultßneos: solo una recogida reintegra stock. ... ok
+test_reposicion_registra_metros_exactos 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reposicion_registra_metros_exactos)
+Corte de 2,5 m devuelto \u2192 inventario +2,5 m (no 2 ni 3). ... ok
+test_reposicion_reintegra_variante_con_metros 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reposicion_reintegra_variante_con_metros)
+El descuento del checkout tambiÚn toc¾ la variante: se repone igual. ... ok
+test_reposicion_sin_aprobacion_rechazada 
+(test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase.test_reposicion_sin_aprobacion_rechazada)
+Sin decisi¾n administrativa NO hay reposici¾n. ... ok
+test_forma_legada_cantidad_1_significa_corte_completo (test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestC
+ase.test_forma_legada_cantidad_1_significa_corte_completo)
+El endpoint legado (cantidad=1 sin metros) devuelve el corte entero. ... ok
+test_rechaza_devolucion_parcial_no_autorizada 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_rechaza_devolucion_parcial_no_autorizada)
+1,5 m cuando se compraron 2,5 m \u2192 rechazada (sin excepciones). ... ok
+test_rechaza_metros_con_mas_decimales 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_rechaza_metros_con_mas_decimales) ... ok
+test_rechaza_metros_en_producto_de_unidades 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_rechaza_metros_en_producto_de_unidades) ... 
+ok
+test_rechaza_metros_superiores_a_la_compra 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_rechaza_metros_superiores_a_la_compra) ... ok
+test_rechazo_administrativo_libera_el_corte 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_rechazo_administrativo_libera_el_corte) ... 
+ok
+test_segunda_solicitud_del_mismo_corte_rechazada 
+(test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestCase.test_segunda_solicitud_del_mismo_corte_rechazada)
+No pueden coexistir dos devoluciones del mismo corte. ... ok
+test_solicitud_corte_completo_registra_metros_exactos (test_pen09_pen10_devoluciones_metros.SolicitudCorteCompletoTestC
+ase.test_solicitud_corte_completo_registra_metros_exactos)
+Devoluci¾n de un corte de 2,5 m \u2192 se registra por 2,5 m (no 2 ni 3). ... ok
+test_precio_propio_de_variante_tiene_prioridad 
+(test_precio_service.PrecioUnitarioTestCase.test_precio_propio_de_variante_tiene_prioridad) ... ok
+test_promocion_vencida_no_se_aplica (test_precio_service.PrecioUnitarioTestCase.test_promocion_vencida_no_se_aplica) 
+... ok
+test_promocion_vigente_se_aplica_al_producto 
+(test_precio_service.PrecioUnitarioTestCase.test_promocion_vigente_se_aplica_al_producto) ... ok
+test_sin_promocion_usa_precio_base (test_precio_service.PrecioUnitarioTestCase.test_sin_promocion_usa_precio_base) ... 
+ok
+test_variante_sin_precio_hereda_promocion_del_producto 
+(test_precio_service.PrecioUnitarioTestCase.test_variante_sin_precio_hereda_promocion_del_producto) ... ok
+test_C_cancelacion_no_sobrescribe_cambio_de_hora 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_C_cancelacion_no_sobrescribe_cambio_de_hora) ... ok
+test_C_requisitos_producto_cambiados_no_usan_instantanea_antigua (test_reasignacion_transacciones.LimiteTransaccionalTe
+stCase.test_C_requisitos_producto_cambiados_no_usan_instantanea_antigua) ... ok
+test_E1_timeout_antes_commit_reintenta_sin_duplicar 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_E1_timeout_antes_commit_reintenta_sin_duplicar) ... 
+ok
+test_E2_lectura_post_commit_no_reintenta 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_E2_lectura_post_commit_no_reintenta) ... ok
+test_E3_timeout_agotado_revierte_sin_avisos 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_E3_timeout_agotado_revierte_sin_avisos) ... ok
+test_cancelacion_real_guarda_historial_y_reembolso_atomicamente (test_reasignacion_transacciones.LimiteTransaccionalTes
+tCase.test_cancelacion_real_guarda_historial_y_reembolso_atomicamente) ... ok
+test_error_no_reintentable_se_propaga 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_error_no_reintentable_se_propaga) ... ok
+test_limite_busqueda_no_cancela_aunque_haya_mas_horarios 
+(test_reasignacion_transacciones.LimiteTransaccionalTestCase.test_limite_busqueda_no_cancela_aunque_haya_mas_horarios) 
+... ok
+test_detalle_no_duplica_venta_por_joins 
+(test_reportes_ventas.ReporteVentasTestCase.test_detalle_no_duplica_venta_por_joins) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:29.598284+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:29.598284+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_importes_decimales_se_conservan (test_reportes_ventas.ReporteVentasTestCase.test_importes_decimales_se_conservan) 
+... [AUDIT] {"timestamp": "2026-11-12T18:38:30.700065+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:30.700065+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_pagado_con_entrega_avanzada_sigue_contando 
+(test_reportes_ventas.ReporteVentasTestCase.test_pagado_con_entrega_avanzada_sigue_contando) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:31.789985+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:31.789985+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_pdf_valido_con_totales (test_reportes_ventas.ReporteVentasTestCase.test_pdf_valido_con_totales) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:32.880470+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:32.880470+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_pdf_y_api_muestran_el_mismo_importe_fraccionario 
+(test_reportes_ventas.ReporteVentasTestCase.test_pdf_y_api_muestran_el_mismo_importe_fraccionario) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:33.968931+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:33.968931+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_permisos_anonimo_y_tecnico_rechazados 
+(test_reportes_ventas.ReporteVentasTestCase.test_permisos_anonimo_y_tecnico_rechazados) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:35.037808+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:35.037808+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:38:35.690639+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:35.690639+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_reporte_vacio_sin_pedidos_pagados 
+(test_reportes_ventas.ReporteVentasTestCase.test_reporte_vacio_sin_pedidos_pagados) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:36.752360+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:36.752360+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_resumen_coincide_con_detalle_y_periodos_validos 
+(test_reportes_ventas.ReporteVentasTestCase.test_resumen_coincide_con_detalle_y_periodos_validos) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:40.297278+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:40.297278+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_solo_pedidos_pagados_cuentan_como_ventas 
+(test_reportes_ventas.ReporteVentasTestCase.test_solo_pedidos_pagados_cuentan_como_ventas) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:41.989127+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:41.989127+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_suma_centavos_exacta (test_reportes_ventas.ReporteVentasTestCase.test_suma_centavos_exacta) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:43.331375+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:43.331375+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_validacion_fechas (test_reportes_ventas.ReporteVentasTestCase.test_validacion_fechas) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:44.653644+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:44.653644+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_admin_descarga_evidencia (test_t1_1_archivos.EvidenciasPrivadasTestCase.test_admin_descarga_evidencia) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:38:46.663172+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:46.663172+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_anonimo_no_descarga_evidencia (test_t1_1_archivos.EvidenciasPrivadasTestCase.test_anonimo_no_descarga_evidencia) 
+... ok
+test_montaje_legado_evidencias_ya_no_sirve 
+(test_t1_1_archivos.EvidenciasPrivadasTestCase.test_montaje_legado_evidencias_ya_no_sirve) ... ok
+test_otro_tecnico_no_descarga_evidencia 
+(test_t1_1_archivos.EvidenciasPrivadasTestCase.test_otro_tecnico_no_descarga_evidencia) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:52.669797+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:52.669797+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_tecnico_asignado_descarga_evidencia 
+(test_t1_1_archivos.EvidenciasPrivadasTestCase.test_tecnico_asignado_descarga_evidencia) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:54.765047+00:00", "event": "LOGIN_SUCCESS", "email": "t1************************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:54.765047+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_cliente_no_marca_notificacion_ajena 
+(test_t1_1_archivos.NotificacionesPropiedadTestCase.test_cliente_no_marca_notificacion_ajena) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:55.965737+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:55.965737+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_ve_notificacion_ajena 
+(test_t1_1_archivos.NotificacionesPropiedadTestCase.test_cliente_no_ve_notificacion_ajena) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:38:57.069807+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:57.069807+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_leer_todas_solo_afecta_al_propietario 
+(test_t1_1_archivos.NotificacionesPropiedadTestCase.test_leer_todas_solo_afecta_al_propietario) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:58.368040+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:58.368040+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_marcar_leida_persiste_y_descuenta_una_sola_vez 
+(test_t1_1_archivos.NotificacionesPropiedadTestCase.test_marcar_leida_persiste_y_descuenta_una_sola_vez) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:38:59.303648+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*****************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:38:59.303648+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*****************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_codigo_de_otro_proposito_no_sirve 
+(test_t1_1_cuentas.RecuperacionPasswordTestCase.test_codigo_de_otro_proposito_no_sirve) ... ok
+test_recuperacion_cambio_password_efectivo 
+(test_t1_1_cuentas.RecuperacionPasswordTestCase.test_recuperacion_cambio_password_efectivo) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:00.466988+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1", "email": 
+"t1*************************@neodomus.com", "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:00.466988+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1", "email": "t1*************************@neodomus.com", "user_type": "client"}
+[AUDIT] {"timestamp": "2026-11-12T18:39:01.251440+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:01.251440+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:39:01.618035+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*************************@neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:01.618035+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*************************@neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+ok
+test_recuperacion_codigo_expirado_400 
+(test_t1_1_cuentas.RecuperacionPasswordTestCase.test_recuperacion_codigo_expirado_400) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:02.055193+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1", "email": 
+"t1**************************@neodomus.com", "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:02.055193+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1", "email": "t1**************************@neodomus.com", "user_type": "client"}
+ok
+test_recuperacion_codigo_reutilizado_400 
+(test_t1_1_cuentas.RecuperacionPasswordTestCase.test_recuperacion_codigo_reutilizado_400) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:02.594025+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1", "email": 
+"t1**************************@neodomus.com", "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:02.594025+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1", "email": "t1**************************@neodomus.com", "user_type": "client"}
+ok
+test_recuperacion_email_inexistente_no_revela 
+(test_t1_1_cuentas.RecuperacionPasswordTestCase.test_recuperacion_email_inexistente_no_revela) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:39:03.429685+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1", "email": 
+"t1**************************@neodomus.com", "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:03.429685+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1", "email": "t1**************************@neodomus.com", "user_type": "client"}
+[AUDIT] {"timestamp": "2026-11-12T18:39:03.446159+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:03.446159+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1"}
+ok
+test_access_y_refresh_legitimos_siguen_funcionando 
+(test_t1_1_cuentas.TiposTokenYHashTestCase.test_access_y_refresh_legitimos_siguen_funcionando) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:39:04.152910+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1****************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:04.152910+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1****************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_hash_invalido_rechaza_login (test_t1_1_cuentas.TiposTokenYHashTestCase.test_hash_invalido_rechaza_login) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:39:04.613428+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*****************************@neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:04.613428+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*****************************@neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+ok
+test_sesion_existente_no_se_revoca_al_cambiar_password 
+(test_t1_1_cuentas.TiposTokenYHashTestCase.test_sesion_existente_no_se_revoca_al_cambiar_password) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:39:05.346601+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:05.346601+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:39:05.418604+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": "127.0.0.1", 
+"email": "t1*************************@neodomus.com", "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:05.418604+00:00", "event": "PASSWORD_RESET_REQUESTED", "ip": 
+"127.0.0.1", "email": "t1*************************@neodomus.com", "user_type": "client"}
+ok
+test_token_sin_type_rechazado (test_t1_1_cuentas.TiposTokenYHashTestCase.test_token_sin_type_rechazado) ... ok
+test_token_tipo_desconocido_rechazado 
+(test_t1_1_cuentas.TiposTokenYHashTestCase.test_token_tipo_desconocido_rechazado) ... ok
+test_reenvio_invalida_codigo_anterior 
+(test_t1_1_cuentas.VerificacionCorreoTestCase.test_reenvio_invalida_codigo_anterior) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:07.079843+00:00", "event": "EMAIL_VERIFIED", "email": "t1**********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:07.079843+00:00", "event": "EMAIL_VERIFIED", "email": 
+"t1**********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_verificacion_codigo_consumido_400 
+(test_t1_1_cuentas.VerificacionCorreoTestCase.test_verificacion_codigo_consumido_400) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:07.566553+00:00", "event": "EMAIL_VERIFIED", "email": "t1**********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:07.566553+00:00", "event": "EMAIL_VERIFIED", "email": 
+"t1**********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_verificacion_codigo_expirado_400 
+(test_t1_1_cuentas.VerificacionCorreoTestCase.test_verificacion_codigo_expirado_400) ... ok
+test_verificacion_codigo_invalido_400 
+(test_t1_1_cuentas.VerificacionCorreoTestCase.test_verificacion_codigo_invalido_400) ... ok
+test_verificacion_valida_crea_cliente 
+(test_t1_1_cuentas.VerificacionCorreoTestCase.test_verificacion_valida_crea_cliente) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:08.904801+00:00", "event": "EMAIL_VERIFIED", "email": "t1**********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:08.904801+00:00", "event": "EMAIL_VERIFIED", "email": 
+"t1**********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_catalogo_publico_accesible (test_t1_2_minio.PrivacidadMinioTestCase.test_catalogo_publico_accesible) ... skipped 
+'MinIO no alcanzable; catßlogo no comprobado'
+test_evidencia_privada_sin_lectura_anonima 
+(test_t1_2_minio.PrivacidadMinioTestCase.test_evidencia_privada_sin_lectura_anonima) ... skipped 'MinIO no alcanzable; 
+privacidad de infraestructura no comprobada'
+test_novedades_y_recogidas_privadas (test_t1_2_minio.PrivacidadMinioTestCase.test_novedades_y_recogidas_privadas) ... 
+skipped 'MinIO no alcanzable; flujos no comprobados'
+test_origen_explicito_privado_vs_heredado 
+(test_t1_2_minio.PrivacidadMinioTestCase.test_origen_explicito_privado_vs_heredado) ... skipped 'MinIO no alcanzable; 
+origen no comprobado'
+test_anonimo_y_no_existente (test_t1_3_permisos.EvidenciaEntregaClienteTestCase.test_anonimo_y_no_existente) ... 
+skipped 'MinIO no alcanzable'
+test_cliente_propietario_descarga_su_evidencia 
+(test_t1_3_permisos.EvidenciaEntregaClienteTestCase.test_cliente_propietario_descarga_su_evidencia) ... skipped 'MinIO 
+no alcanzable'
+test_otro_cliente_no_descarga_evidencia_ajena 
+(test_t1_3_permisos.EvidenciaEntregaClienteTestCase.test_otro_cliente_no_descarga_evidencia_ajena) ... skipped 'MinIO 
+no alcanzable'
+test_tipo_evidencia_no_admitido (test_t1_3_permisos.EvidenciaEntregaClienteTestCase.test_tipo_evidencia_no_admitido) 
+... [AUDIT] {"timestamp": "2026-11-12T18:39:09.681384+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:09.681384+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_devoluciones_mias_no_filtra_ajenas 
+(test_t1_3_permisos.PermisosPendientesTestCase.test_devoluciones_mias_no_filtra_ajenas) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:10.851877+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:10.851877+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_endpoints_admin_rechazan_cliente_y_tecnico 
+(test_t1_3_permisos.PermisosPendientesTestCase.test_endpoints_admin_rechazan_cliente_y_tecnico) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:39:12.569568+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:12.569568+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:39:12.895158+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:12.895158+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "employee", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:39:13.249251+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:13.249251+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_access_token_no_sirve_como_refresh 
+(test_t1_identidad.AutenticacionTestCase.test_access_token_no_sirve_como_refresh) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:14.680555+00:00", "event": "LOGIN_SUCCESS", "email": "t1**************************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:14.680555+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_desactivado_login_403 (test_t1_identidad.AutenticacionTestCase.test_cliente_desactivado_login_403) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:39:15.473164+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*************************@neodomus.com", "reason": "account_inactive", "ip": null, "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:15.473164+00:00", "event": "LOGIN_FAILED", "email": 
+"t1*************************@neodomus.com", "reason": "account_inactive", "ip": null, "user_type": "client"}
+ok
+test_cliente_desactivado_sesion_previa_401 
+(test_t1_identidad.AutenticacionTestCase.test_cliente_desactivado_sesion_previa_401) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:16.179740+00:00", "event": "LOGIN_SUCCESS", "email": "t1**************************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:16.179740+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1**************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_login_correcto_emite_ambos_tokens 
+(test_t1_identidad.AutenticacionTestCase.test_login_correcto_emite_ambos_tokens) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:17.017684+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:17.017684+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_login_password_incorrecto_rechazado 
+(test_t1_identidad.AutenticacionTestCase.test_login_password_incorrecto_rechazado) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:17.827651+00:00", "event": "LOGIN_FAILED", "email": "t1***********************@neodomus.com", 
+"reason": "invalid_credentials", "ip": null, "user_type": "client"}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:17.827651+00:00", "event": "LOGIN_FAILED", "email": 
+"t1***********************@neodomus.com", "reason": "invalid_credentials", "ip": null, "user_type": "client"}
+ok
+test_login_tecnico_y_admin (test_t1_identidad.AutenticacionTestCase.test_login_tecnico_y_admin) ... [AUDIT] 
+{"timestamp": "2026-11-12T18:39:19.120275+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:19.120275+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "employee", "ip": null}
+[AUDIT] {"timestamp": "2026-11-12T18:39:19.497695+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:19.497695+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_refresh_token_no_sirve_como_access 
+(test_t1_identidad.AutenticacionTestCase.test_refresh_token_no_sirve_como_access) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:20.347509+00:00", "event": "LOGIN_SUCCESS", "email": "t1*************************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:20.347509+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1*************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_register_email_verificado_duplicado_400 
+(test_t1_identidad.AutenticacionTestCase.test_register_email_verificado_duplicado_400) ... ok
+test_register_no_escala_rol (test_t1_identidad.AutenticacionTestCase.test_register_no_escala_rol) ... ok
+test_register_password_debil_422 (test_t1_identidad.AutenticacionTestCase.test_register_password_debil_422) ... ok
+test_token_ausente_401 (test_t1_identidad.AutenticacionTestCase.test_token_ausente_401) ... ok
+test_token_expirado_401 (test_t1_identidad.AutenticacionTestCase.test_token_expirado_401) ... ok
+test_token_malformado_401 (test_t1_identidad.AutenticacionTestCase.test_token_malformado_401) ... ok
+test_cliente_no_accede_listado_admin 
+(test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_accede_listado_admin) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:22.444938+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:22.444938+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_cancela_cita_ajena 
+(test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_cancela_cita_ajena) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:23.663431+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:23.663431+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_descarga_factura_ajena 
+(test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_descarga_factura_ajena) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:24.875886+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:24.875886+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_lee_pedido_ajeno (test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_lee_pedido_ajeno) 
+... [AUDIT] {"timestamp": "2026-11-12T18:39:26.196503+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:26.196503+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_puede_reactivarse (test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_puede_reactivarse) 
+... [AUDIT] {"timestamp": "2026-11-12T18:39:27.305807+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:27.305807+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***************************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_cliente_no_ve_cita_ajena_en_listado 
+(test_t1_identidad.AutorizacionPropiedadTestCase.test_cliente_no_ve_cita_ajena_en_listado) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:28.906643+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "client", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:28.906643+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "client", "ip": null}
+ok
+test_tecnico_no_accede_admin (test_t1_identidad.AutorizacionPropiedadTestCase.test_tecnico_no_accede_admin) ... 
+[AUDIT] {"timestamp": "2026-11-12T18:39:29.776876+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:29.776876+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_tecnico_no_edita_usuarios_ni_roles 
+(test_t1_identidad.AutorizacionPropiedadTestCase.test_tecnico_no_edita_usuarios_ni_roles) ... [AUDIT] {"timestamp": 
+"2026-11-12T18:39:30.989110+00:00", "event": "LOGIN_SUCCESS", "email": "t1***********************@neodomus.com", 
+"user_type": "employee", "ip": null}
+WARNING:security.audit:{"timestamp": "2026-11-12T18:39:30.989110+00:00", "event": "LOGIN_SUCCESS", "email": 
+"t1***********************@neodomus.com", "user_type": "employee", "ip": null}
+ok
+test_metros_exactos_descuentan_fraccion 
+(test_t2_pago_pendiente.CantidadesVariantesTestCase.test_metros_exactos_descuentan_fraccion) ... ok
+test_variante_descuenta_stock_propio 
+(test_t2_pago_pendiente.CantidadesVariantesTestCase.test_variante_descuenta_stock_propio) ... ok
+test_checkout_metros_fraccionarios_persistidos 
+(test_t2_pago_pendiente.CheckoutMetrosTestCase.test_checkout_metros_fraccionarios_persistidos) ... ok
+test_concurrente_mismo_pedido_una_sola_vez 
+(test_t2_pago_pendiente.ConcurrenciaTestCase.test_concurrente_mismo_pedido_una_sola_vez) ... ok
+test_dos_pedidos_ultimas_existencias 
+(test_t2_pago_pendiente.ConcurrenciaTestCase.test_dos_pedidos_ultimas_existencias) ... ok
+test_confirmacion_normal (test_t2_pago_pendiente.ConfirmacionNormalTestCase.test_confirmacion_normal) ... ok
+test_metros_entran_en_devolucion_como_entero 
+(test_t2_pago_pendiente.DevolucionMetrosTestCase.test_metros_entran_en_devolucion_como_entero) ... ok
+test_pago_aprobado_con_factura_sin_marcador_devuelve_409 
+(test_t2_pago_pendiente.EstadoHeredadoTestCase.test_pago_aprobado_con_factura_sin_marcador_devuelve_409) ... ok
+test_pago_aprobado_sin_factura_devuelve_409 
+(test_t2_pago_pendiente.EstadoHeredadoTestCase.test_pago_aprobado_sin_factura_devuelve_409) ... ok
+test_repeticion_despues_de_avance_de_estado 
+(test_t2_pago_pendiente.EstadoHeredadoTestCase.test_repeticion_despues_de_avance_de_estado) ... ok
+test_fallo_antes_commit_rollback_y_reintento 
+(test_t2_pago_pendiente.FalloAntesCommitTestCase.test_fallo_antes_commit_rollback_y_reintento) ... ok
+test_fallo_aviso_post_commit_no_repite 
+(test_t2_pago_pendiente.FalloAvisoTestCase.test_fallo_aviso_post_commit_no_repite) ... ok
+test_fallo_en_articulo_posterior_no_deja_parciales 
+(test_t2_pago_pendiente.FalloParcialTestCase.test_fallo_en_articulo_posterior_no_deja_parciales) ... ok
+test_fallo_smtp_no_revierte_compra_ni_duplica_factura_o_pago 
+(test_t2_pago_pendiente.FalloTransporteCorreoTestCase.test_fallo_smtp_no_revierte_compra_ni_duplica_factura_o_pago) 
+... ok
+test_confirmacion_repetida_no_duplica 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_confirmacion_repetida_no_duplica) ... ok
+test_disponibilidad_exacta_deja_cero 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_disponibilidad_exacta_deja_cero) ... ok
+test_disponibilidad_insuficiente_rechaza_sin_parciales 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_disponibilidad_insuficiente_rechaza_sin_parciales) ... ok
+test_dos_lineas_fracciones_diferentes_suma_exacta 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_dos_lineas_fracciones_diferentes_suma_exacta) ... ok
+test_dos_lineas_medio_metro_suman_un_metro 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_dos_lineas_medio_metro_suman_un_metro) ... ok
+test_precision_no_admitida_rechazada 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_precision_no_admitida_rechazada) ... ok
+test_variantes_distintas_cada_una_su_existencia 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_variantes_distintas_cada_una_su_existencia) ... ok
+test_venta_cero_cinco_metros_exacta 
+(test_t2_pago_pendiente.MetrosFraccionariosTestCase.test_venta_cero_cinco_metros_exacta) ... ok
+test_articulos_repetidos_agrupan_misma_existencia 
+(test_t2_pago_pendiente.OrdenBloqueoConcurrenteTestCase.test_articulos_repetidos_agrupan_misma_existencia) ... ok
+test_dos_pedidos_orden_inverso_mismos_productos 
+(test_t2_pago_pendiente.OrdenBloqueoConcurrenteTestCase.test_dos_pedidos_orden_inverso_mismos_productos) ... ok
+test_confirmacion_repetida_no_duplica 
+(test_t2_pago_pendiente.RepeticionTestCase.test_confirmacion_repetida_no_duplica) ... ok
+
+----------------------------------------------------------------------
+Ran 291 tests in 194.827s
+
+OK (skipped=15)
+Error procesando reembolso #281: pasarela no disponible
+Error notificando cambio de estado de la cita 897: SMTP caido
+[email] SMTP con adjunto enviado a pdf@example.test
+EXIT=0

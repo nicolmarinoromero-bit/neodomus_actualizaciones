@@ -1,8 +1,13 @@
 FROM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --no-frozen-lockfile
+# pnpm-workspace.yaml es parte de la instalación: contiene 'allowBuilds'
+# (aprobación de scripts de build, p. ej. esbuild). Sin copiarlo, pnpm 11
+# aborta en CI con ERR_PNPM_IGNORED_BUILDS.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# --frozen-lockfile (S8544): instala estrictamente lo resuelto en
+# pnpm-lock.yaml; nunca re-resuelve versiones nuevas en el build.
+RUN pnpm install --frozen-lockfile
 COPY . .
 ENV VITE_API_URL=/api/v1
 RUN pnpm run build

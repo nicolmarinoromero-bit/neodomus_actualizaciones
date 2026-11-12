@@ -119,7 +119,7 @@ jobs:
       - name: Install backend deps (requirements + extras de la suite)
         shell: bash
         run: |
-          python -m pip install --only-binary :all: --upgrade pip
+          python -m pip install --only-binary :all: --upgrade 'pip==26.3'
           pip install --only-binary :all: -r be/requirements.txt
           # requeridas por la suite completa (test_t1_2_minio, foto perfil, facturas PDF...)
           # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
@@ -277,7 +277,7 @@ jobs:
       - name: Install BE deps (orquestadores E2E)
         shell: bash
         run: |
-          python -m pip install --only-binary :all: --upgrade pip
+          python -m pip install --only-binary :all: --upgrade 'pip==26.3'
           pip install --only-binary :all: -r be/requirements.txt
           # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
           pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'

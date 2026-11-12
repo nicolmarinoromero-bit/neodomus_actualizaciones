@@ -458,7 +458,7 @@ def _vincular_especializaciones_automatico(db: Session, producto: Producto) -> N
         )
 
 
-router = APIRouter(prefix="/productos", tags=["productos"])
+router = APIRouter(prefix="/productos", tags=["Productos"])
 
 
 # Consulta Producto.

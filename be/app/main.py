@@ -49,9 +49,37 @@ from app.routers import (
 # Crear la aplicación FastAPI (con scheduler de tareas en segundo plano)
 app = FastAPI(
     title="Neodomus API",
-    description="API para sistema de gestión de domótica",
+    description=(
+        "API del sistema de gestión de domótica NeoDomus: autenticación, "
+        "catálogo de productos, pedidos y checkout con pagos (simulador "
+        "académico), citas e instalaciones técnicas, entregas, "
+        "devoluciones, reembolsos, calificaciones, notificaciones, "
+        "novedades/reclamos y reportes. Documentación interactiva: "
+        "Swagger UI en `/docs`, ReDoc en `/redoc` y contrato completo en "
+        "`/openapi.json`."
+    ),
     version="1.0.0",
     lifespan=lifespan,
+    # Metadatos de etiquetas para agrupar los módulos en /docs y /redoc.
+    openapi_tags=[
+        {"name": "Authentication", "description": "Registro, verificación de correo, inicio/cierre de sesión, tokens, recuperación de contraseña y OAuth con Google."},
+        {"name": "Clients", "description": "Perfil e información personal del cliente autenticado."},
+        {"name": "Users", "description": "Perfil de empleados (administrador/técnico), foto y cambio de contraseña."},
+        {"name": "Técnicos", "description": "Directorio de técnicos, disponibilidad y evidencias de entregas e instalaciones."},
+        {"name": "Productos", "description": "Catálogo público y administración de productos, variantes e imágenes."},
+        {"name": "Pedidos", "description": "Checkout, pedidos, pagos, facturas, entregas y seguimiento."},
+        {"name": "Citas", "description": "Citas de servicio técnico e instalación: agenda, reasignación y estados."},
+        {"name": "Solicitudes de cuenta", "description": "Solicitudes de habilitación/registro de cuentas que revisa el administrador."},
+        {"name": "Reembolsos", "description": "Reembolsos vinculados a citas, pedidos y devoluciones."},
+        {"name": "Devoluciones", "description": "Solicitudes de devolución de productos y su flujo de recogida."},
+        {"name": "Calificaciones", "description": "Calificaciones del servicio prestado por los técnicos."},
+        {"name": "Notificaciones", "description": "Bandeja de notificaciones del usuario autenticado."},
+        {"name": "Especializaciones", "description": "Especializaciones técnicas usadas para asignar citas y entregas."},
+        {"name": "Tarifas de servicio", "description": "Tarifas de los servicios técnicos."},
+        {"name": "Reportes", "description": "Reportes administrativos (ventas, resumen) en JSON y PDF."},
+        {"name": "Contacto", "description": "Consultas públicas del formulario de contacto."},
+        {"name": "Novedades", "description": "Reclamos/novedades del cliente con evidencias y respuesta del equipo, y cupones de descuento asociados."},
+    ],
 )
 
 # Configurar middlewares

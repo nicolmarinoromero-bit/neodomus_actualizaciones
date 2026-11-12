@@ -17,6 +17,9 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 - [Esquema de base de datos](referencia-tecnica/database-schema.md)
 - [Diccionario de datos](referencia-tecnica/diccionario-de-datos.md)
 - [Design system](referencia-tecnica/design-system.md)
+- [Funciones críticas documentadas](documentacion-funciones-criticas.md)
+
+> API interactiva: con el backend corriendo en `http://localhost:8000`, la documentación de los 186 endpoints queda disponible en `/docs` (Swagger UI), `/redoc` y `/openapi.json`.
 
 ## Requisitos
 
@@ -33,6 +36,7 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 
 ## Gestión del proyecto
 
+- [Matriz de trazabilidad de requisitos (RTM)](MATRIZ_TRAZABILIDAD_REQUISITOS.md)
 - [Auditoría documental](gestion/auditoria-documental.md)
 - [Corrección de imágenes de sesión](gestion/Correccion_imagenes_sesion.md)
 - [Corrección de sesión actual](gestion/Correccion_session_actual.md)

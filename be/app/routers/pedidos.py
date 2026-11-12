@@ -269,8 +269,31 @@ async def checkout(
     cliente: Cliente = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    """Procesa el checkout: crea pedido, procesa pago con el simulador
-    y genera factura."""
+    """Procesa el checkout del cliente autenticado.
+
+    Delega en ``pedidos_service.crear_pedido``: valida productos y
+    servicios, aplica el cupón, procesa el pago con el simulador y, si se
+    aprueba, genera factura y agenda la instalación/entrega. Toda la
+    lógica y persistencia viven en el servicio; este endpoint solo
+    serializa el resultado.
+
+    Args:
+        data: Cuerpo del checkout: ``items``, ``servicios``, ``pago``
+            (método y datos) y ``codigo_cupon`` opcional.
+        cliente: Cliente autenticado (inyectado por el token de acceso).
+        db: Sesión de base de datos.
+
+    Returns:
+        dict: ``pedido`` serializado con detalles, ``pago``, ``factura``
+        (None si el pago quedó pendiente), ``carrito_mantener``,
+        ``pdf_url`` para descargar la factura, ``ordenes_instalacion``,
+        ``redirect_url`` (PSE) y ``entrega``.
+
+    Raises:
+        HTTPException: 401 sin sesión de cliente válida; 400 por datos
+            inválidos, cupón no válido o método de pago no soportado;
+            409 por stock insuficiente.
+    """
     result = await pedidos_service.crear_pedido(
         db,
         cliente,

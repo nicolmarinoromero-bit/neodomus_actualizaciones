@@ -1247,7 +1247,13 @@ INSERT IGNORE INTO clientes (id_cliente, first_name, last_name, id_tipo_document
 (1479, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794406614847230@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 14:16:54'),
 (1731, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794406775694100@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 14:19:35'),
 (1747, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794423287831927@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 18:54:47'),
-(1920, 'NUEVO', 'CLIENTE', NULL, NULL, NULL, 't11.ver.1794423383505150@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 18:56:23');
+(1970, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794436104125698@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 22:28:24'),
+(2193, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794436262061291@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-11 22:31:02'),
+(2419, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794450365775533@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-12 02:26:05'),
+(2640, 'Cliente', 'Checkout E2E', 1, 452984038, 3052984038, 'e2e.cart.150a1be601d64497b9a1bbe98a9288ab@example.com', 'Calle E2E 123', '$2y$salt$redactedhash', 1, NULL, '2026-11-12 02:32:56'),
+(2694, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794507003896931@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-12 18:10:03'),
+(2918, 'Otro', 'Audit', NULL, NULL, NULL, 'audit.otro.1794508589149046@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-12 18:36:29'),
+(3253, 'NUEVO', 'CLIENTE', NULL, NULL, NULL, 't11.ver.1794509128191760@neodomus.com', NULL, '$2y$salt$redactedhash', 1, NULL, '2026-11-12 18:45:28');
 
 INSERT IGNORE INTO usuarios (id_usuario, first_name, last_name, id_tipo_documento_u, documento_usuario, telefono_usuario, email, password_hash, id_rol_u, is_active, created_at) VALUES
 (1, 'Usuario Demo 01', 'Sintetico', 1, 1023456790, 3001234567, 'demo001@example.com', '$2y$salt$redactedhash', 2, 1, '2026-11-11 06:33:53'),
@@ -1269,7 +1275,8 @@ INSERT IGNORE INTO usuarios (id_usuario, first_name, last_name, id_tipo_document
 (17, 'NICOL ALEJANDRA', 'MARIÑO ROMERO', NULL, NULL, NULL, 'nicolmarinoromero@gmail.com', '$2y$salt$redactedhash', 1, 1, '2026-11-11 06:34:24'),
 (18, 'LAURA MARCELA', 'PÉREZ DUARTE', NULL, NULL, NULL, 'nicolmarino09@gmail.com', '$2y$salt$redactedhash', 2, 1, '2026-11-11 06:34:24'),
 (19, 'JULIÁN FELIPE', 'CARVAJAL CABALLERO', NULL, NULL, NULL, 'julian.carvajal@gmail.com', '$2y$salt$redactedhash', 2, 1, '2026-11-11 06:34:24'),
-(20, 'MARÍA FERNANDA', 'RINCÓN SALAZAR', NULL, NULL, NULL, 'maria.rincon@gmail.com', '$2y$salt$redactedhash', 2, 1, '2026-11-11 06:34:25');
+(20, 'MARÍA FERNANDA', 'RINCÓN SALAZAR', NULL, NULL, NULL, 'maria.rincon@gmail.com', '$2y$salt$redactedhash', 2, 1, '2026-11-11 06:34:25'),
+(2311, 'Admin', 'Checkout E2E', 1, 452984039, 3152984038, 'e2e.cart.admin.150a1be601d64497b9a1bbe98a9288ab@example.com', '$2y$salt$redactedhash', 1, 1, '2026-11-12 02:32:56');
 
 INSERT IGNORE INTO tecnicos (id_tecnico, id_usuario_t, certificacion_t) VALUES
 (1, 1, 'Certificación en Redes y Cableado Estructurado'),

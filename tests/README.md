@@ -432,7 +432,7 @@ puertos (design de Bloques 1-2), la forma reproducible es:
 1. **Venv aislado fuera del repo** (no altera el Python del sistema):
    ```powershell
    python -m venv $env:TEMP\venv_e2e
-   & "$env:TEMP\venv_e2e\Scripts\python.exe" -m pip install -r be\requirements.txt httpx==0.28.1 pymupdf==1.28.2 minio apscheduler tzdata
+   & "$env:TEMP\venv_e2e\Scripts\python.exe" -m pip install -r be\requirements.txt httpx==0.28.1 pymupdf==1.28.2 minio==7.2.20 apscheduler==3.11.3 tzdata==2026.3
    ```
 2. **Chromium** (una vez por máquina): `cd fe; npx playwright install chromium`
    (descarga de navegador, %LOCALAPPDATA%\ms-playwright).

@@ -24,7 +24,7 @@ from app.services.notificaciones import notificar_reembolso_cliente, notificar_r
 from app.services.reembolso_service import crear_reembolso, procesar_reembolso
 from app.utils.security import get_current_client, get_current_employee
 
-router = APIRouter(prefix="/reembolsos", tags=["reembolsos"])
+router = APIRouter(prefix="/reembolsos", tags=["Reembolsos"])
 
 # Estados de pago que habilitan un reembolso
 PAGOS_CITA_VALIDOS = ("aprobado", "pagado")

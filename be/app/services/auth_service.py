@@ -127,6 +127,35 @@ def _create_tokens(
 
 # Consulta PendingRegistration; confirma los cambios con la sesión de base de datos.
 async def register_client(db: Session, client_data: ClientCreate, background_tasks=None) -> dict:
+    """Registra a un cliente nuevo y envía el código de verificación por correo.
+
+    Los datos y la contraseña cifrada NO se guardan aún en ``clientes``: se
+    guardan en ``pending_registrations`` junto con un código de 6 dígitos
+    vigente durante ``VERIFICATION_TOKEN_EXPIRE_HOURS``. La cuenta solo se
+    crea al verificar el correo con ``verify_client_email``. Si existía un
+    registro pendiente previo para el mismo correo, se reemplaza.
+
+    Args:
+        db: Sesión de base de datos; la función hace commit.
+        client_data: Datos del formulario de registro validados por el schema
+            ``ClientCreate``.
+        background_tasks: ``BackgroundTasks`` de FastAPI para enviar el
+            correo de forma asíncrona y responder de inmediato. Si es None,
+            el envío se hace de forma síncrona y un fallo revierte el
+            registro pendiente.
+
+    Returns:
+        dict: ``{"msg": "Registro pendiente..."}`` con el mensaje que se
+        muestra al usuario.
+
+    Raises:
+        HTTPException: 400 si el email ya está registrado como cliente.
+
+    Comportamiento a conocer: la unicidad del correo se comprueba solo
+    contra la tabla de clientes; un correo usado por un empleado puede
+    registrarse aquí como cliente (el login sin ``user_type`` dará
+    prioridad a la cuenta de empleado).
+    """
     if _get_client_by_email(db, client_data.email):
         raise HTTPException(status_code=400, detail="El email ya está registrado")
     pending = db.query(PendingRegistration).filter(PendingRegistration.email == client_data.email).first()
@@ -165,6 +194,22 @@ async def register_client(db: Session, client_data: ClientCreate, background_tas
 
 # Consulta PendingRegistration; confirma los cambios con la sesión de base de datos.
 def verify_client_email(db: Session, code: str) -> None:
+    """Crea la cuenta del cliente a partir del registro pendiente verificado.
+
+    Localiza el registro pendiente por su código de 6 dígitos, valida su
+    vigencia, crea el cliente activo con los datos guardados, elimina el
+    registro pendiente, deja traza en la auditoría (``log_email_verified``)
+    y dispara el respaldo de usuarios.
+
+    Args:
+        db: Sesión de base de datos; la función hace commit.
+        code: Código de verificación recibido por correo.
+
+    Raises:
+        HTTPException: 400 si el código no existe o ya expiró. El registro
+            pendiente NO se elimina en ese caso; el usuario puede pedir
+            uno nuevo con ``resend_verification_code``.
+    """
     pending = db.query(PendingRegistration).filter(PendingRegistration.code == code).first()
     if not pending or pending.expires_at < ahora_utc_naiva():
         raise HTTPException(400, "Código inválido o expirado")
@@ -271,6 +316,35 @@ def _solicitar_habilitacion_empleado(db: Session, user: User, password: str) -> 
 
 # Consulta PendingRegistration.
 def login(db: Session, login_data: UserLogin) -> TokenResponse:
+    """Autentica a un cliente o empleado y emite el par de tokens JWT.
+
+    El correo se busca en ambas tablas (usuarios y clientes). Con
+    ``user_type`` explícito solo se intenta esa rama; sin ``user_type`` se
+    intenta primero como empleado y, si falla con 401, como cliente: así
+    un administrador con el mismo correo en ambas tablas entra a su panel.
+
+    Validaciones en orden para empleados: contraseña, cuenta activa y rol
+    válido (``normalizar_rol_empleado``). Para clientes: correo verificado
+    (si existe registro pendiente se rechaza con mensaje específico),
+    contraseña y cuenta activa. Cada intento fallido se registra en la
+    auditoría con su motivo.
+
+    Args:
+        db: Sesión de base de datos (solo lectura; no confirma cambios).
+        login_data: Credenciales con ``email``, ``password`` y
+            ``user_type`` (``"employee"`` | ``"client"`` | ``None``).
+
+    Returns:
+        TokenResponse: tokens de acceso y refresco, tipo de usuario, rol
+        canónico, ``password_reset_required`` (empleados) y
+        ``perfil_incompleto`` (clientes a los que les faltan documento,
+        teléfono o dirección).
+
+    Raises:
+        HTTPException: 401 credenciales inválidas; 403 cuenta inhabilitada,
+            rol inválido o correo sin verificar; 400 correo sin verificar
+            cuyo código de registro ya expiró.
+    """
     email = login_data.email
     password = login_data.password
     user_type = login_data.user_type
@@ -352,6 +426,27 @@ def login(db: Session, login_data: UserLogin) -> TokenResponse:
 
 # Consulta User, Cliente.
 def refresh_access_token(db: Session, refresh_token: str) -> TokenResponse:
+    """Renueva el par de tokens a partir de un refresh token válido.
+
+    Comprueba que el JWT sea de tipo ``refresh``, que la identidad
+    (``uid``, con respaldo por correo) siga existiendo y que la cuenta
+    esté activa. El rol del nuevo token se conserva del payload sin
+    revalidar contra la base: un cambio de rol surte efecto al iniciar
+    sesión de nuevo.
+
+    Args:
+        db: Sesión de base de datos (solo lectura; no confirma cambios).
+        refresh_token: JWT de refresco emitido por el login.
+
+    Returns:
+        TokenResponse: nuevo par access/refresh con la misma identidad,
+        rol y marcas de estado del usuario.
+
+    Raises:
+        HTTPException: 401 si el token es inválido o no es de refresco,
+            si está malformado, si la identidad ya no existe o si la
+            cuenta está inhabilitada.
+    """
     payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(401, "Refresh token inválido")

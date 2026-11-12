@@ -1337,7 +1337,43 @@ async def crear_pedido(
     datos_pago: dict,
     codigo_cupon: str | None = None,
 ) -> dict:
-    """Crea un pedido con sus detalles y procesa el pago simulado."""
+    """Crea un pedido completo a partir del checkout del cliente.
+
+    Flujo: valida y prepara las líneas de productos y de servicios, estima
+    la duración de la instalación según los productos, calcula el total,
+    aplica el cupón de descuento si viene, procesa el pago con el simulador
+    académico y, si el pago se aprueba, finaliza de forma ATÓMICA en un
+    único commit: descuento de stock con bloqueo (``descontar_stock``),
+    factura, orden(es) de instalación y entrega, marcando
+    ``confirmacion_completa``. Los avisos (correo de factura, notificaciones
+    y alerta de stock bajo/agotado) se difieren a una fase post-commit para
+    que un fallo en ellos no deshaga ni repita la transacción principal.
+
+    Args:
+        db: Sesión de base de datos; la función hace commit.
+        cliente: Cliente autenticado dueño del pedido.
+        items: Productos del carrito. Los vendidos por metros admiten
+            cantidades decimales (p. ej. 2.5) y se descuentan del stock con
+            aritmética decimal exacta.
+        servicios: Servicios adicionales (instalación, etc.); opcional.
+        metodo_pago: Método del simulador: ``tarjeta_debito``,
+            ``tarjeta_credito``, ``pse``, ``paypal`` o ``punto_pago``.
+        datos_pago: Datos del método elegido (número, expiración, CVV,
+            banco, etc.) según ``pagos_service``.
+        codigo_cupon: Cupón opcional; se valida compra mínima, usos y
+            vigencia antes de aplicar el descuento.
+
+    Returns:
+        dict: claves ``pedido``, ``pago``, ``factura`` (None si el pago
+        quedó pendiente), ``carrito_mantener`` (True solo si el pago fue
+        rechazado, para que el cliente no pierda el carrito),
+        ``ordenes_instalacion``, ``entrega`` y ``redirect_url`` (PSE).
+
+    Raises:
+        HTTPException: 400 por items/servicios/fechas/cupón inválidos;
+            409 por stock insuficiente. Un fallo de validación antes del
+            commit no deja registros parciales (la sesión se revierte).
+    """
     lineas_producto = _validar_y_preparar_items(db, items)
     # Duración estimada (1-2.5 h) de la instalación según los productos del
     # carrito: se usa para validar que las franjas elegidas alcancen.
