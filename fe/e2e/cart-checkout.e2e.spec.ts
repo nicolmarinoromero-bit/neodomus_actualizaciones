@@ -35,9 +35,16 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   await expect(page.locator('.detalle-toast')).toBeVisible();
 
   await page.goto(`/producto/${metresId}?unidades=3`);
-  const metros = page.getByRole('combobox', { name: 'Metros por unidad' });
+  // MetrosSelect compartido: botón accesible con popup listbox (no <select> nativo).
+  const metros = page.getByRole('button', {
+    name: 'Metros por unidad'
+  });
   await expect(metros).toBeEnabled();
-  await metros.selectOption('0.5');
+  await metros.click();
+
+  await page.getByRole('option', {
+    name: '0.5 m'
+  }).click();
   await expect(page.locator('.detalle-metros-bloque')).toContainText(/1[.,]5 m en total/);
   await page.locator('button.detalle-agregar-btn').click();
 
@@ -93,7 +100,11 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
 
   await page.locator('button.checkout-metodo').filter({ hasText: 'PSE' }).click();
   await expect(cardNumber).toHaveCount(0);
-  await expect(page.locator('select').filter({ hasText: 'Selecciona tu banco' })).toBeVisible();
+  // SelectorBanco compartido: botón con popup listbox (no <select> nativo);
+  // el placeholder visible es "Selecciona tu banco".
+  const bancoTrigger = page.locator('button.checkout-banco-trigger');
+  await expect(bancoTrigger).toBeVisible();
+  await expect(bancoTrigger).toContainText('Selecciona tu banco');
   await page.locator('button.checkout-metodo').filter({ hasText: 'Tarjeta' }).first().click();
   await expect(cardNumber).toHaveValue('');
   await expect(pay).toBeEnabled();
