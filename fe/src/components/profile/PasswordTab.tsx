@@ -4,7 +4,7 @@ import { FaKey, FaCheck, FaXmark, FaEye, FaEyeSlash } from 'react-icons/fa6';
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 
 interface PasswordTabProps {
   notify: NotifyFn;

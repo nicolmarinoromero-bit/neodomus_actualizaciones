@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { getNotificaciones, saveItem, PF_NOTIF_KEY, NotificacionPrefs } from '@utils/profileStorage';
 import { useIdioma } from '@i18n/IdiomaContext';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 
 interface Opcion {
   key: keyof NotificacionPrefs;

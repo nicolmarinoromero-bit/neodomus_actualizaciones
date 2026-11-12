@@ -3,7 +3,7 @@ import { useIdioma } from '@i18n/IdiomaContext';
 import { IDIOMAS_DISPONIBLES, type Idioma } from '@i18n/translations';
 import { FaGlobe, FaCheck } from 'react-icons/fa6';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 
 const LanguageTab = ({ notify }: { notify: NotifyFn }) => {
   const { idioma, setIdioma, t } = useIdioma();

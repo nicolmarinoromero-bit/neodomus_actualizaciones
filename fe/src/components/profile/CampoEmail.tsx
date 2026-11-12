@@ -11,7 +11,7 @@ import {
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { bloquearTeclasPortapapeles, bloquearEventoPortapapeles } from '@utils/copyPaste';
-import type { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 
 interface CampoEmailProps {
   label: string;

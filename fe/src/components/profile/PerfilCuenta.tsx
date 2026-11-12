@@ -5,7 +5,7 @@ import { useIdioma } from '@i18n/IdiomaContext';
 import ConfirmDialog from '@components/common/ConfirmDialog';
 import CampoEmail from './CampoEmail';
 import { bloquearTeclasPortapapeles, bloquearEventoPortapapeles } from '@utils/copyPaste';
-import type { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 
 export interface CampoPerfilDef {
   clave: string;

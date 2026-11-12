@@ -1,6 +1,6 @@
 
 # Análisis estático de calidad con SonarQube Cloud (SonarCloud).
-# Disparadores: push a 'development' y Pull Requests hacia 'main'.
+# Disparadores: push a 'main'/'development' y Pull Requests hacia 'main'.
 # La configuración del proyecto vive en sonar-project.properties
 # (projectKey, organization, sources, exclusions).
 # Cobertura de pruebas: NO integrada en esta etapa (solo análisis estático).
@@ -10,6 +10,7 @@ name: SonarCloud Analysis
 on:
   push:
     branches:
+      - main
       - development
   pull_request:
     branches:

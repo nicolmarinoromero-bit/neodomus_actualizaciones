@@ -4,7 +4,7 @@ import { FaPlus, FaTrashCan, FaPencil, FaCreditCard, FaRegCreditCard, FaCheck } 
 import { getPagos, saveItem, PF_PAGOS_KEY, MetodoPago, TipoPago } from '@utils/profileStorage';
 import { useIdioma } from '@i18n/IdiomaContext';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 import ModalPortal from '@components/common/ModalPortal';
 import { activarConTeclado } from '@utils/keyboard';
 

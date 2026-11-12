@@ -17,7 +17,7 @@ import api, { descargarFactura } from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { formatMetros } from '@utils/metros';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 import ModalPortal from '@components/common/ModalPortal';
 import { pedidoCompletado } from '@utils/pedidos';
 import { activarConTeclado } from '@utils/keyboard';

@@ -6,7 +6,7 @@ import { FaBoxOpen, FaCamera, FaRegStar, FaStar, FaUserTie } from 'react-icons/f
 import api from '@services/api';
 import { useIdioma } from '@i18n/IdiomaContext';
 import SectionHeader from './SectionHeader';
-import { NotifyFn } from './PersonalTab';
+import type { NotifyFn } from './types';
 import { pedidoCompletado } from '@utils/pedidos';
 
 interface ResenaTecnico {

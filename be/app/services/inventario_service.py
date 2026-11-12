@@ -60,6 +60,34 @@ def _verificar_stock_bajo(db: Session, producto: Producto) -> None:
         print(f"Error notificando stock bajo para producto #{producto.id_producto}: {e}")
 
 
+def _bloquear_producto_y_variante(
+    db: Session,
+    producto: Producto,
+    variante: ProductoVariante | None,
+) -> tuple[Producto, ProductoVariante | None]:
+    """Bloquea con SELECT ... FOR UPDATE el producto y, si aplica, su variante."""
+    prod = (
+        db.query(Producto)
+        .with_for_update()
+        .populate_existing()
+        .filter(Producto.id_producto == producto.id_producto)
+        .first()
+    )
+    if not prod:
+        raise HTTPException(status_code=404, detail=f"Producto #{producto.id_producto} no existe")
+
+    var = None
+    if variante is not None:
+        var = (
+            db.query(ProductoVariante)
+            .with_for_update()
+            .populate_existing()
+            .filter(ProductoVariante.id == variante.id)
+            .first()
+        )
+    return prod, var
+
+
 def descontar_stock(
     db: Session,
     producto: Producto,
@@ -81,25 +109,7 @@ def descontar_stock(
     if unidades <= 0:
         raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a cero")
 
-    prod = (
-        db.query(Producto)
-        .with_for_update()
-        .populate_existing()
-        .filter(Producto.id_producto == producto.id_producto)
-        .first()
-    )
-    if not prod:
-        raise HTTPException(status_code=404, detail=f"Producto #{producto.id_producto} no existe")
-
-    var = None
-    if variante is not None:
-        var = (
-            db.query(ProductoVariante)
-            .with_for_update()
-            .populate_existing()
-            .filter(ProductoVariante.id == variante.id)
-            .first()
-        )
+    prod, var = _bloquear_producto_y_variante(db, producto, variante)
 
     disponible_prod = Decimal(prod.stock_producto or 0)
     if unidades > disponible_prod:
@@ -161,25 +171,7 @@ def reintegrar_stock(
     if unidades <= 0:
         raise HTTPException(status_code=400, detail="La cantidad a reintegrar debe ser mayor a cero")
 
-    prod = (
-        db.query(Producto)
-        .with_for_update()
-        .populate_existing()
-        .filter(Producto.id_producto == producto.id_producto)
-        .first()
-    )
-    if not prod:
-        raise HTTPException(status_code=404, detail=f"Producto #{producto.id_producto} no existe")
-
-    var = None
-    if variante is not None:
-        var = (
-            db.query(ProductoVariante)
-            .with_for_update()
-            .populate_existing()
-            .filter(ProductoVariante.id == variante.id)
-            .first()
-        )
+    prod, var = _bloquear_producto_y_variante(db, producto, variante)
 
     prod.stock_producto = Decimal(prod.stock_producto or 0) + unidades
     if var is not None:
