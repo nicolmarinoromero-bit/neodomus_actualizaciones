@@ -190,6 +190,8 @@ jobs:
 
       - name: Run backend migrations (Alembic head, base CI)
         shell: bash
+        # alembic.ini vive en be/ (script_location relativo al ini)
+        working-directory: be
         env:
           # Credenciales dummy del servicio CI (nunca de desarrollo)
           MINIO_DB_USER: neodomus_ci_user
@@ -333,6 +335,8 @@ jobs:
 
       - name: Run backend migrations (base CI)
         shell: bash
+        # alembic.ini vive en be/ (script_location relativo al ini)
+        working-directory: be
         env:
           DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
         run: python -m alembic upgrade head
