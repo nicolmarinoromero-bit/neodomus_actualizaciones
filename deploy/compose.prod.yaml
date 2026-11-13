@@ -3,62 +3,147 @@ name: neodomus-prod
 services:
   web:
     image: neodomus-web:1.0.0
+    build:
+      context: ../fe
+      dockerfile: ../deploy/Dockerfile.frontend
     ports:
       - "127.0.0.1:8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
     image: neodomus-api:1.0.0
     build: ../be
+    # Las migraciones corren por un job separado con neodomus_owner.
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
-      DATABASE_URL: "mysql+pymysql://neodomus:${MYSQL_PASSWORD:?Falta MYSQL_PASSWORD}@db:3306/neodomus?charset=utf8mb4"
+      DATABASE_URL: "mysql+pymysql://${MYSQL_APP_USER:?Falta MYSQL_APP_USER}:${MYSQL_APP_PASSWORD:?Falta MYSQL_APP_PASSWORD}@db:3306/neodomus?charset=utf8mb4"
+      MYSQL_USER: "${MYSQL_APP_USER:?Falta MYSQL_APP_USER}"
+      MYSQL_PASSWORD: "${MYSQL_APP_PASSWORD:?Falta MYSQL_APP_PASSWORD}"
+      MYSQL_DATABASE: neodomus
+      DB_HOST: db
+      DB_PORT: "3306"
       SECRET_KEY: "${SECRET_KEY:?Falta SECRET_KEY}"
+      ALGORITHM: "${ALGORITHM:-HS256}"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-60}"
+      REFRESH_TOKEN_EXPIRE_DAYS: "${REFRESH_TOKEN_EXPIRE_DAYS:-30}"
       ENVIRONMENT: production
-      FRONTEND_URL: http://localhost:8080
-      # La API no publica puertos: solo el proxy web de este compose puede
-      # alcanzarla, por lo que se confía en la red interna de Docker.
+      FRONTEND_URL: "${FRONTEND_URL:?Falta FRONTEND_URL}"
+      CORS_ORIGINS: "${CORS_ORIGINS:?Falta CORS_ORIGINS}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-simulator}"
+      MINIO_ENDPOINT: "${MINIO_ENDPOINT:-minio:9000}"
+      MINIO_ACCESS_KEY: "${MINIO_USER:?Falta MINIO_USER}"
+      MINIO_SECRET_KEY: "${MINIO_PASSWORD:?Falta MINIO_PASSWORD}"
+      MINIO_BUCKET: "${MINIO_BUCKET:-neodomus-media}"
+      MINIO_PRIVATE_BUCKET: "${MINIO_PRIVATE_BUCKET:-neodomus-private}"
+      MINIO_PUBLIC_ENDPOINT: "${MINIO_PUBLIC_ENDPOINT:?Falta MINIO_PUBLIC_ENDPOINT}"
+      MINIO_SECURE: "${MINIO_SECURE:-false}"
+      FRONTEND_VERIFY_EMAIL_PATH: "${FRONTEND_VERIFY_EMAIL_PATH:-/verify-email}"
+      FRONTEND_RESET_PASSWORD_PATH: "${FRONTEND_RESET_PASSWORD_PATH:-/reset-password}"
+      SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      EMAIL_PROVIDER: "${EMAIL_PROVIDER:-smtp}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_REFRESH_TOKEN: "${GOOGLE_REFRESH_TOKEN:-}"
+      GOOGLE_SIGNIN_CLIENT_ID: "${GOOGLE_SIGNIN_CLIENT_ID:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-Neodomus <onboarding@resend.dev>}"
+      NOTIFICAR_CLIENTE_CAMBIOS_TECNICO: "${NOTIFICAR_CLIENTE_CAMBIOS_TECNICO:-false}"
+      VERIFICATION_TOKEN_EXPIRE_HOURS: "${VERIFICATION_TOKEN_EXPIRE_HOURS:-24}"
+      PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: "${PASSWORD_RESET_TOKEN_EXPIRE_MINUTES:-10}"
       RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
       RATE_LIMIT_STORAGE_URI: "${RATE_LIMIT_STORAGE_URI:-memory://}"
       RATE_LIMIT_HEADERS_ENABLED: "${RATE_LIMIT_HEADERS_ENABLED:-true}"
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-172.16.0.0/12}"
-      PAYMENT_PROVIDER: simulator
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: neodomus
-      MINIO_SECRET_KEY: "${MINIO_PASSWORD:?Falta MINIO_PASSWORD}"
-      MINIO_BUCKET: neodomus-media
-      MINIO_PUBLIC_ENDPOINT: http://localhost:8080
     depends_on:
       db:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/readiness', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+  migrate:
+    image: neodomus-api:1.0.0
+    build: ../be
+    profiles: ["ops"]
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: "mysql+pymysql://${MYSQL_OWNER_USER:?Falta MYSQL_OWNER_USER}:${MYSQL_OWNER_PASSWORD:?Falta MYSQL_OWNER_PASSWORD}@db:3306/neodomus?charset=utf8mb4"
+      MYSQL_USER: "${MYSQL_OWNER_USER:?Falta MYSQL_OWNER_USER}"
+      MYSQL_PASSWORD: "${MYSQL_OWNER_PASSWORD:?Falta MYSQL_OWNER_PASSWORD}"
+      ENVIRONMENT: migration
+      SECRET_KEY: "${MIGRATION_JOB_SECRET:?Falta MIGRATION_JOB_SECRET}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
   db:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Falta MYSQL_ROOT_PASSWORD}"
       MYSQL_DATABASE: neodomus
-      MYSQL_USER: neodomus
-      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Falta MYSQL_PASSWORD}"
+      MYSQL_APP_USER: "${MYSQL_APP_USER:?Falta MYSQL_APP_USER}"
+      MYSQL_APP_PASSWORD: "${MYSQL_APP_PASSWORD:?Falta MYSQL_APP_PASSWORD}"
+      MYSQL_OWNER_USER: "${MYSQL_OWNER_USER:?Falta MYSQL_OWNER_USER}"
+      MYSQL_OWNER_PASSWORD: "${MYSQL_OWNER_PASSWORD:?Falta MYSQL_OWNER_PASSWORD}"
+      MYSQL_BACKUP_USER: "${MYSQL_BACKUP_USER:-neodomus_backup_runtime}"
+      MYSQL_BACKUP_PASSWORD: "${MYSQL_BACKUP_PASSWORD:?Falta MYSQL_BACKUP_PASSWORD}"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./scripts/01_init_db_roles.sql:/docker-entrypoint-initdb.d/01_init_db_roles.sql:ro
+      - ./scripts/02_create_db_users.sh:/docker-entrypoint-initdb.d/02_create_db_users.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysql --protocol=tcp -h 127.0.0.1 -u neodomus -p\"$$MYSQL_PASSWORD\" neodomus -e 'SELECT 1' >/dev/null 2>&1"]
-      interval: 5s
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_APP_PASSWORD\" mysql --protocol=tcp -h 127.0.0.1 -u \"$$MYSQL_APP_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
       timeout: 5s
-      retries: 20
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging: *default-logging
 
   minio:
     image: elestio/minio:latest
     command: server /data
     environment:
-      MINIO_ROOT_USER: neodomus
+      MINIO_ROOT_USER: "${MINIO_USER:?Falta MINIO_USER}"
       MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD:?Falta MINIO_PASSWORD}"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9000/minio/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   mysql_data:
