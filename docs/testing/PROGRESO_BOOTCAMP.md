@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 1 | Pirámide, AAA, primer E2E, línea base de cobertura | Playwright a estudio del proyecto, E2E de login con AAA, cobertura FE (`@vitest/coverage-v8`) + re-medición BE, matriz de rotación, umbral línea base | ✅ COMPLETADA |
 | 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ✅ COMPLETADA |
-| 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ⚪ PENDIENTE |
+| 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ✅ COMPLETADA |
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ⚪ PENDIENTE |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
 | 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ⚪ PENDIENTE |
@@ -171,3 +171,56 @@ verde) y evidencia verificable en esta misma sesión.
 **Estado de aprobación: COMPLETADA.** ≥3 unitarias por "integrante" (78 FE +
 52 BE sobre reglas de negocio reales), CI con umbral 30 % en ambas capas
 (BE efectivamente 50 por trinquete), suites en verde y sin regresiones.
+
+### Semana 3 — Componentes React con React Testing Library
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. `@testing-library/user-event@14.5.2` añadido (receta de la semana); los
+   tests nuevos de interacción lo usan (type/click/selectOptions/keyboard).
+2. Formularios críticos probados a nivel página (los que INVENTARIO marcaba
+   sin cubrir):
+   - `pages/auth/Login.test.tsx` (7): validación nativa del correo, 401 con
+     mensaje real, 403 inhabilitada + solicitud de habilitación, "Recordarme"
+     (guarda solo el correo), redirección por rol y cierre del modal.
+   - `pages/auth/Register.test.tsx` (8): requisitos de contraseña en vivo,
+     filtrado de documento/teléfono, dependencia ciudad→municipio,
+     normalización del correo, payload completo y error del backend.
+   - `pages/public/CheckoutPage.tarjeta.test.tsx` (7): validaciones campo a
+     campo (datos/número/expiración/vencida/CVV/simulador), pago exitoso y
+     regla de privacidad (número completo sin persistir).
+   - `pages/cliente/CitasPage.test.tsx` (8): flujo de 3 pasos completo
+     (técnico→fecha/hora→pago), aviso sin técnico, sin método de pago,
+     payload de creación, cancelación con desglose de reembolso e historial
+     con calificación.
+   - `pages/cliente/AyudaPage.test.tsx` (12): FAQ acordeón, chat asistente,
+     formulario de contacto con validaciones y toasts, "Mis solicitudes" con
+     marcado de respuesta leída (PATCH) y estado vacío.
+   - `pages/admin/AdminProductos.test.tsx` (10): tabla con badges de
+     stock/estado/precio con descuento, búsqueda, filtro, paginación,
+     visibilidad, ocultado (payload completo), estados vacío/error con
+     reintentar y modal de reabastecimiento (2 tests, incluido el aviso sin
+     cantidades).
+   - `pages/admin/AdminConsultas.test.tsx` (9): aprobar/rechazar solicitudes
+     de clientes y técnicos, habilitar cuentas (endpoints correctos),
+     búsqueda de cuentas y gestión de consultas de ayuda con filtro.
+   - Componentes/contextos reutilizables: `ConfirmDialog` (5),
+     `PasswordInput` (4), `ProtectedRoute` (5), `RoleRoute` (7, normalización
+     admin), `AuthModalContext` (5).
+3. **Defecto real detectado y corregido (H-5)**: en `pages/auth/Register.tsx`
+   el estado inicial `tipo_documento` era 2 (CE) mientras el select visible
+   muestra CC (defaultValue="1"): quien no toca el select se registraba con
+   CE viendo CC. Corregido a 1; el test lo fija.
+4. Cobertura: **40.92 % líneas / 74.2 % ramas / 50 % funciones** (49 archivos
+   / 257 pruebas, todas verdes). Umbral fijado en `fe/vitest.config.ts`
+   (40/74/50). Backend mantiene su piso (50 combinado > piso semanal 40).
+
+**Notas de aprendizaje registradas**: los `<form>` sin nombre accesible no
+exponen role="form" (se localiza por clase del componente); los inputs
+`type=email` bloquean el submit con validación nativa (jsdom imita a Chrome)
+— el test afirma el comportamiento real del navegador.
+
+**Estado de aprobación: COMPLETADA.** ≥3 tests con interacción + ≥1 estado no
+feliz por cada área, sin repeticiones, sin probar detalles internos (todo se
+localiza por rol/label/placeholder accesible salvo justificación escrita).

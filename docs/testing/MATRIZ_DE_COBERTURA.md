@@ -10,8 +10,8 @@
 |---|---|---|---|---|
 | S1 (línea base) | **56.08 % / 31.20 %** (Cover combinado 50 %) | 56 / 31 (piso real) | **27.55 % / 68.94 % / 38.51 %** | 27 / 68 / 38 |
 | S2 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | **50** (combinado, trinquete) | **30.01 % / 72.77 % / 42.92 %** | **30 / 72 / 42** |
-| S3 | — | 50 (piso semanal 40) | — | 30 (piso semanal 40 en S3: se exige al cerrarla) |
-| S4 | — | 50 % | — | 50 % |
+| S3 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | 50 (piso semanal 40) | **40.92 % / 74.20 % / 50.00 %** | **40 / 74 / 50** |
+| S4 | — | 50 (piso semanal 50) | — | 40 (piso semanal 50 al cerrar S4) |
 | S5 | — | 60 % | — | 60 % |
 | S6 | — | 70 % | — | 70 % |
 | S7 | — | 75 % | — | 75 % |
@@ -83,6 +83,7 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-13 | BE pytest S2 (unitarias+suite) | 343 passed | 50.53 % combinado (umbral 50 ✓) | `pytest app/tests -q` (contenedor) |
 | 2026-11-13 | FE cobertura S2 | 196/196 OK (42 archivos) | 30.01 % líneas / 72.77 % ramas | `pnpm test --coverage` |
 | 2026-11-13 | Umbral FE en rojo (verificación) | 1 archivo → 0.15 % < 30 % → ERROR | — | `pnpm vitest run src/utils/metros.test.ts --coverage` |
+| 2026-11-13 | FE cobertura S3 | 257/257 OK (49 archivos) | 40.92 % líneas / 74.20 % ramas | `pnpm test --coverage` |
 
 ## Semanas siguientes (plantilla de registro)
 
