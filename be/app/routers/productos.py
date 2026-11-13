@@ -259,7 +259,9 @@ def _serializar(p: Producto) -> ProductoResponse:
         venta_por_metros=bool(p.venta_por_metros),
         referencia_producto=p.referencia_producto,
         precio_compra_producto=p.precio_compra_producto,
-        precio_venta_producto=p.precio_venta_producto,
+        # Columna nullable: un producto heredado sin precio no debe romper el
+        # detalle ni el listado con 500; el contrato público expone 0.
+        precio_venta_producto=precio_venta,
         fecha_registro_producto=p.fecha_registro_producto,
         imagen_url=p.imagen_url,
         id_cate_pr=p.id_cate_pr,

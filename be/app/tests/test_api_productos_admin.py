@@ -280,6 +280,21 @@ class ProductosAdminTestCase(BaseT1TestCase):
             self.db.query(ProductoVariante).filter(ProductoVariante.id == variante.id).first(),
         )
 
+    # ── Robustez de datos heredados (H-4) ─────────────────────────────────
+    def test_precio_nulo_se_expone_como_cero_sin_romper_detalle_ni_listado(self):
+        # Arrange: la columna es nullable; un producto sin precio no debe
+        # provocar 500 al serializar ProductoResponse (regresión H-4).
+        p = self._producto(nombre="Producto heredado sin precio", precio=None)
+        # Act
+        r_detalle = self._get(f"/api/v1/productos/{p.id_producto}")
+        r_listado = self._get("/api/v1/productos/?limit=100&estado=todos", headers=self.admin_headers)
+        # Assert
+        self.assertEqual(r_detalle.status_code, 200, r_detalle.text)
+        self.assertEqual(r_detalle.json()["precio_venta_producto"], 0)
+        self.assertEqual(r_listado.status_code, 200, r_listado.text)
+        fila = next(x for x in r_listado.json()["data"] if x["id_producto"] == p.id_producto)
+        self.assertEqual(fila["precio_venta_producto"], 0)
+
     # ── Detalle y borrado ──────────────────────────────────────────────────
     def test_detalle_publico_404_y_borrado_admin(self):
         # Arrange

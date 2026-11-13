@@ -11,7 +11,7 @@
 | 1 | Pirámide, AAA, primer E2E, línea base de cobertura | Playwright a estudio del proyecto, E2E de login con AAA, cobertura FE (`@vitest/coverage-v8`) + re-medición BE, matriz de rotación, umbral línea base | ✅ COMPLETADA |
 | 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ✅ COMPLETADA |
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ✅ COMPLETADA |
-| 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | 🔵 EN CURSO |
+| 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ✅ COMPLETADA |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
 | 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ⚪ PENDIENTE |
 | 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ⚪ PENDIENTE |
@@ -225,22 +225,87 @@ exponen role="form" (se localiza por clase del componente); los inputs
 feliz por cada área, sin repeticiones, sin probar detalles internos (todo se
 localiza por rol/label/placeholder accesible salvo justificación escrita).
 
-### Semana 4 — Pruebas de API (contrato HTTP) (EN CURSO)
-- `test_api_contrato.py` (17 casos): solicitudes de cuenta (listar/aprobar/
-  rechazar/habilitar-cuenta/empleados, 404, 400 de cuenta ya activa),
-  tarifas (listado público + escritura admin + 400 costo<=0 + 404) y
-  contacto/consultas (POST público, autenticado con correo de la cuenta,
-  listado admin, resolución, estado inválido, "mías" aislado por cliente).
-  Verificaciones transversales: Content-Type JSON en todas las respuestas,
-  JSON mal formado → 4xx JSON sin HTML, y sin fugas de SQL/stack en cuerpos
-  de error (`_sin_fugas`).
-- `test_api_productos_admin.py` (13 casos): listado paginado con metadatos,
-  creación (referencia única, dificultad inválida, nombre obligatorio),
-  edición parcial (conserva campos no enviados), visibilidad (toggle
-  idempotente), estado activo/inactivo, variantes (crear/listar/eliminar y
-  404 de producto ajeno), detalle público, borrado (401/200/404 repetido).
-- Contratos reales fijados por las pruebas: cliente autenticado en rutas de
-  empleados responde **401** (no 403, por diseño de `get_current_employee`);
-  PUT de productos exige `nombre_producto`+`precio_venta_producto`
-  (422 si faltan) aunque el handler conserve campos no enviados; el nombre
-  del producto se normaliza con capitalización por palabra.
+### Semana 4 — Pruebas de API (contrato HTTP)
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. Backend — contrato HTTP de routers sin cubrir (43 casos nuevos):
+   - `test_api_contrato.py` (18): solicitudes de cuenta (listar/aprobar/
+     rechazar/habilitar-cuenta/empleados, 404, 400 de cuenta ya activa),
+     tarifas (listado público + escritura admin + 400 costo<=0 + 404) y
+     contacto/consultas (POST público, autenticado con correo de la cuenta,
+     listado admin, resolución, estado inválido, "mías" aislado por cliente).
+     Verificaciones transversales: Content-Type JSON en todas las respuestas,
+     JSON mal formado → 4xx JSON sin HTML, y sin fugas de SQL/stack en cuerpos
+     de error (`_sin_fugas`). El caso 18 es la regresión de H-4.
+   - `test_api_productos_admin.py` (14): listado paginado con metadatos,
+     creación (referencia única, dificultad inválida, nombre obligatorio),
+     edición parcial (conserva campos no enviados), visibilidad (toggle
+     idempotente), estado activo/inactivo, variantes (crear/listar/eliminar y
+     404 de producto ajeno), detalle público, borrado (401/200/404 repetido)
+     y precio NULL tolerado (H-4).
+   - `test_api_novedades_reports.py` (11): catálogos públicos y listado admin
+     de novedades, 400 por tipo/prioridad inválidos, 403 de técnico sobre cita
+     ajena, detalle 404, cambio de estado, ciclo completo de cupón (crear →
+     validar → duplicado 409 → agotado), cupones del cliente y contrato de
+     reportes (permisos y estructura de resumen/ventas).
+2. **Robustez H-4 corregida** (hallazgo de S1):
+   - `GET /clients`: el listado admin ya no construye `ClientResponse` por
+     fila; serializa el dict con los mismos campos. Una fila heredada con
+     correo inválido ya no tumba TODO el listado con 500: se devuelve tal cual
+     para que el admin pueda detectarla. La validación `EmailStr` se mantiene
+     en escrituras y en `/clients/me`; el contrato del endpoint ya era
+     `List[dict]`.
+   - `GET /productos/{id}` y listados: `_serializar` usa el fallback ya
+     calculado (`precio_venta_producto=precio_venta`), de modo que una columna
+     nullable con NULL se expone como **0** en lugar de romper la respuesta.
+     El contrato público (`float`) no cambia.
+   - Ambos casos con prueba de regresión que escribe la fila corrupta
+     directamente en BD (saltando la validación de la API).
+3. Frontend — 6 paneles administrativos/técnico (59 pruebas nuevas, RTL +
+   user-event, red simulada):
+   - `AdminDevoluciones.test.tsx` (10): estados de solicitud, aprobar/rechazar
+     con motivo, observaciones y reembolsos (crear/procesar).
+   - `TechnicianDashboard.test.tsx` (7): carga de citas/entregas/recogidas,
+     métricas, agrupación por fecha, detalle y cambio de estado.
+   - `AdminTecnicos.test.tsx` (12): listado con disponibilidad, alta/edición
+     (contraseña opcional), inhabilitación con motivo/fecha, habilitación e
+     historial por pestañas.
+   - `AdminNovedades.test.tsx` (11): filtros combinados, detalle, cambio de
+     estado, cupón, respuesta al técnico, mensaje al cliente y reasignación.
+   - `AdminPedidos.test.tsx` (8): listado, búsqueda, edición de fecha/horas
+     con horarios del backend, cambio de técnico y errores.
+   - `AdminClientes.test.tsx` (11): listado, búsqueda, historial de
+     pedidos/servicios/devoluciones, factura PDF e inhabilitar/habilitar.
+4. **Métricas reales (2026-11-13)**:
+   - Backend: **386 passed**, 0 skipped · líneas **59.91 %** (6297/10511) ·
+     ramas **36.25 %** (1126/3106) · Cover combinado **54.51 %** (piso 50 ✓).
+     Evidencia: `be_pytest_s4_final.txt`; XML `be/coverage.xml`.
+   - Frontend: **55 archivos / 316 pruebas, todas verdes** · líneas
+     **52.75 %** · ramas **74.01 %** · funciones **54.61 %** ·
+     statements 52.75 %. Umbrales en `fe/vitest.config.ts`: **52 / 74 / 54 /
+     52**; `pnpm test --coverage` termina **EXIT OK**.
+   - Trinquete verificado: las corridas intermedias con ramas 73.12 %, 73.70 %
+     y 73.91 % fallaron con `ERROR: Coverage for branches ... does not meet
+     global threshold (74%)`; solo al cubrir la rama faltante la suite pasó
+     (evidencia `fe_s4_full2.txt` → `fe_s4_final.txt`).
+5. Contratos reales fijados por las pruebas: cliente autenticado en rutas de
+   empleados responde **401** (no 403, por diseño de `get_current_employee`);
+   PUT de productos exige `nombre_producto`+`precio_venta_producto`
+   (422 si faltan) aunque el handler conserve campos no enviados; el nombre
+   del producto se normaliza con capitalización por palabra; novedad cambia de
+   estado con `{"nuevo_estado": ...}`; cupón duplicado responde 400/409 según
+   la capa que lo detecte.
+
+**Notas de aprendizaje registradas**: los listados admin de solo lectura deben
+ser tolerantes a datos heredados (un registro corrupto no puede degradar la
+pantalla completa); la validación estricta se reserva para escrituras y
+recursos propios. En FE, los filtros con `<select>` que repiten textos de la
+tabla obligan a acotar las consultas con `within(tabla)`; los date inputs se
+manipulan con `fireEvent.change` y las ausencias con `waitFor` por
+`AnimatePresence`.
+
+**Estado de aprobación: COMPLETADA.** 43 pruebas BE nuevas (contrato + H-4) y
+59 FE nuevas (6 áreas), con estados felices, negativos y de permisos; suite
+completa verde y umbrales aplicados (BE 50 combinado; FE 52/74/54/52).

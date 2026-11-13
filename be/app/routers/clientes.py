@@ -50,19 +50,21 @@ def listar_clientes(
     )
     pedidos_por_cliente = dict(pedidos)
     citas_por_cliente = dict(citas)
+    # Listado de solo lectura tolerante a datos heredados: si una fila tiene un
+    # correo que EmailStr rechaza, construir ClientResponse abortaría TODO el
+    # listado con 500. El endpoint ya declara List[dict]; la validación estricta
+    # sigue vigente en las escrituras y en /clients/me.
     return [
         {
-            **ClientResponse(
-                id_cliente=c.id_cliente,
-                first_name=c.first_name,
-                last_name=c.last_name,
-                id_tipo_documento_c=c.id_tipo_documento_c,
-                documento_cliente=c.documento_cliente,
-                telefono_cliente=c.telefono_cliente,
-                email=c.email,
-                address=c.address,
-                is_active=c.is_active,
-            ).model_dump(),
+            "id_cliente": c.id_cliente,
+            "first_name": c.first_name,
+            "last_name": c.last_name,
+            "id_tipo_documento_c": c.id_tipo_documento_c,
+            "documento_cliente": c.documento_cliente,
+            "telefono_cliente": c.telefono_cliente,
+            "email": c.email,
+            "address": c.address,
+            "is_active": c.is_active,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "pedidos_count": pedidos_por_cliente.get(c.id_cliente, 0),
             "citas_count": citas_por_cliente.get(c.id_cliente, 0),

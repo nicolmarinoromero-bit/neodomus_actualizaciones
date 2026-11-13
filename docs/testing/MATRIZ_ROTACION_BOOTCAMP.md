@@ -10,7 +10,7 @@
 | S1 | E2E | Primer E2E con AAA + línea base de cobertura | **56.08 %** líneas (31.2 % ramas) | **27.55 %** líneas | línea base |
 | S2 | Unitarias (BE+FE) | ≥3 unitarias de reglas de negocio + CI con umbral 30 % | 56.09 % líneas (Cover 50.53 %) | **30.01 %** líneas | BE 50 (combinado) / FE 30 |
 | S3 | Componentes React | Formularios críticos con user-event | 56.09 % líneas (Cover 50.53 %) | **40.92 %** líneas | BE 50 (combinado) / FE 40 |
-| S4 | Pruebas de API | Contrato HTTP de routers sin cubrir + negativos | — | — | 50 % |
+| S4 | Pruebas de API | Contrato HTTP de routers sin cubrir + negativos + H-4 (listados robustos) | **59.91 %** líneas (36.25 % ramas; Cover 54.51 %) | **52.75 %** líneas (74.01 % ramas) | BE 50 (combinado) / FE 52 |
 | S5 | Dobles de prueba | Inventario de dependencias + dobles (MinIO/SMTP/reloj) | — | — | 60 % |
 | S6 | Integración BD | MySQL de pruebas en compose + pruebas de repositorios | — | — | 70 % |
 | S7 | E2E avanzado | 3 flujos críticos estables + Page Objects + HTML report | — | — | 75 % |

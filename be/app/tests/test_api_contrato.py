@@ -426,5 +426,36 @@ class ContactoConsultasTestCase(BaseT1TestCase):
         self.assertTrue(_sin_fugas(r.text))
 
 
+class ListadosAdminRobustosTestCase(BaseT1TestCase):
+    """H-4: un dato heredado inválido no debe tumbar el listado admin.
+
+    La validación EmailStr se conserva en escrituras y en /clients/me; el
+    listado de solo lectura devuelve la fila tal como está para que el admin
+    pueda detectarla y corregirla en lugar de recibir un 500 global.
+    """
+
+    def setUp(self):
+        super().setUp()
+        admin = self._crear_admin("list")
+        self.admin_h = self._bearer(self._token(self._login(admin.email)))
+        self.cliente = self._crear_cliente("h4")
+        # Simula una fila heredada/corrupta: se escribe directo en BD para
+        # saltar la validación de la API.
+        self.cliente.email = f"correo-invalido.{int(time.time() * 1_000_000)}"
+        self.db.commit()
+
+    def test_listado_clientes_tolera_email_invalido(self):
+        # Act
+        r = self._get("/api/v1/clients", headers=self.admin_h)
+        # Assert: 200, JSON y la fila visible con su correo crudo.
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(_es_json(r))
+        fila = next(x for x in r.json() if x["id_cliente"] == self.cliente.id_cliente)
+        self.assertEqual(fila["email"], self.cliente.email)
+        self.assertEqual(fila["pedidos_count"], 0)
+        self.assertEqual(fila["citas_count"], 0)
+        self.assertTrue(_sin_fugas(r.text))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
