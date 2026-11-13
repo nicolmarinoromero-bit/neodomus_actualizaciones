@@ -70,8 +70,10 @@ def descargar_evidencia_novedad(
     if not evidencia:
         raise HTTPException(status_code=404, detail="Evidencia no encontrada")
     if isinstance(current_user, Cliente):
-        if evidencia.novedad.id_cliente_n != current_user.id_cliente or not evidencia.novedad.cliente_visible:
-            raise HTTPException(status_code=403, detail="No tienes permiso para ver esta evidencia")
+        if evidencia.novedad.id_cliente != current_user.id_cliente or not evidencia.novedad.cliente_visible:
+            # Responder igual que ante un ID inexistente evita revelar si la
+            # evidencia de otro cliente está registrada.
+            raise HTTPException(status_code=404, detail="Evidencia no encontrada")
     else:
         role = db.execute(
             select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
