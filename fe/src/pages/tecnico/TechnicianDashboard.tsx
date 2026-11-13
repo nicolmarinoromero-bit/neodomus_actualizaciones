@@ -991,13 +991,13 @@ const TechnicianDashboard = () => {
               role="button"
               tabIndex={0}
               onClick={() => {
-                if (!n.leida) marcarLeida(n.id);
+                if (!n.leida) void marcarLeida(n.id);
                 if (n.accion?.to) navigate(n.accion.to);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  if (!n.leida) marcarLeida(n.id);
+                  if (!n.leida) void marcarLeida(n.id);
                   if (n.accion?.to) navigate(n.accion.to);
                 }
               }}

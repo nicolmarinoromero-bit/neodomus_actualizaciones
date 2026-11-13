@@ -160,7 +160,7 @@ const AdminNotificaciones = () => {
                 className={`an-item ${notificacion.tipo} ${notificacion.leida ? '' : 'unread'}`}
                 style={{ cursor: notificacion.leida ? 'default' : 'pointer' }}
                 onClick={() => {
-                  if (!notificacion.leida) marcarLeida(notificacion.id);
+                  if (!notificacion.leida) void marcarLeida(notificacion.id);
                 }}
               >
                 <div className={`an-icon ${notificacion.tipo}`}>{ICONO_TIPO[notificacion.tipo]}</div>

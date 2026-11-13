@@ -340,13 +340,13 @@ const CitasPage = () => {
   };
 
   useEffect(() => {
-    if (vista === 'mis-citas' || vista === 'historial') cargarCitas();
+    if (vista === 'mis-citas' || vista === 'historial') void cargarCitas();
   }, [vista, cargarCitas]);
 
   // Pre-cargar las citas al montar para que el contador de la pestaña
   // "Mis citas" y la lista estén siempre sincronizados con la base de datos.
   useEffect(() => {
-    cargarCitas();
+    void cargarCitas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -565,7 +565,7 @@ const CitasPage = () => {
         setPago({ numero: '', titular: '', expiracion: '', cvv: '', banco: '', correo_paypal: '', resultado_simulacion: '', punto_pago: '' });
         setVista('mis-citas');
       }
-      cargarCitas();
+      void cargarCitas();
     } catch (err: any) {
       console.error(err);
       setToast({ msg: err.response?.data?.detail || t('citas.errorGenerico'), tipo: 'error' });
@@ -600,7 +600,7 @@ const CitasPage = () => {
         hora: aplazandoHora,
       });
       setToast({ msg: t('citas.exitoReagendada'), tipo: 'success' });
-      cargarCitas();
+      void cargarCitas();
       setHorasRefreshKey((k) => k + 1);
     } catch (err: any) {
       console.error(err);
@@ -623,7 +623,7 @@ const CitasPage = () => {
           : t('citas.exitoCancelada'),
         tipo: 'success',
       });
-      cargarCitas();
+      void cargarCitas();
     } catch (err: any) {
       console.error(err);
       setToast({ msg: err.response?.data?.detail || t('citas.errorGenerico'), tipo: 'error' });
@@ -654,7 +654,7 @@ const CitasPage = () => {
       setCalificandoCita(null);
       setRatingEstrellas(0);
       setRatingComentario('');
-      cargarCitas();
+      void cargarCitas();
     } catch (err: any) {
       console.error(err);
       setToast({ msg: err.response?.data?.detail || 'No se pudo guardar la calificación', tipo: 'error' });

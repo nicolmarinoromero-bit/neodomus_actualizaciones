@@ -159,7 +159,7 @@ const NotificacionesBell = ({
                 to={n.accion?.to || verTodasTo}
                 className={`anr-notif-item ${n.leida ? '' : 'unread'}`}
                 onClick={() => {
-                  if (marcarLeida && !n.leida) marcarLeida(n.id);
+                  if (marcarLeida && !n.leida) void marcarLeida(n.id);
                   setOpen(false);
                 }}
               >
