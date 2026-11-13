@@ -6,7 +6,12 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # Importar middlewares desde la nueva carpeta
-from app.middleware import setup_cors, setup_rate_limit, setup_security_headers
+from app.middleware import (
+    setup_cors,
+    setup_rate_limit,
+    setup_security_headers,
+    setup_trusted_proxy,
+)
 
 
 @asynccontextmanager
@@ -86,6 +91,9 @@ app = FastAPI(
 setup_cors(app)
 setup_rate_limit(app)
 setup_security_headers(app)
+# Debe ser el último en añadirse para quedar como middleware más externo y
+# resolver IP/esquema reales antes del resto de la cadena.
+setup_trusted_proxy(app)
 
 # Prefijo común de la API
 API_PREFIX = "/api/v1"

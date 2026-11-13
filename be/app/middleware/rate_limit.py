@@ -1,9 +1,12 @@
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+"""Registro del limitador de peticiones en la aplicación FastAPI."""
+
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-limiter = Limiter(key_func=get_remote_address)
+from app.utils.limiter import limiter
 
-def setup_rate_limit(app):
+
+def setup_rate_limit(app) -> None:
+    """Expone el limitador compartido y su respuesta 429."""
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

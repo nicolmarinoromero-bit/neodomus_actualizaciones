@@ -192,6 +192,10 @@ Principales variables de la plantilla raíz (inicial en negrita):
 | ACCESS_TOKEN_EXPIRE_MINUTES | Vigencia del token de acceso (min) | `60` |
 | REFRESH_TOKEN_EXPIRE_DAYS | Vigencia del token de refresco (días) | `30` |
 | ENVIRONMENT | Entorno de ejecución (`development`/`staging`/`production`) | `development` |
+| RATE_LIMIT_ENABLED | Activa el limitador de peticiones (slowapi) | `true` |
+| RATE_LIMIT_STORAGE_URI | Backend de contadores (`memory://` por proceso o `redis://...` compartido) | `memory://` |
+| RATE_LIMIT_HEADERS_ENABLED | Devuelve cabeceras `X-RateLimit-*` y `Retry-After` en los 429 | `true` |
+| TRUSTED_PROXIES | IPs/CIDR de proxies autorizados a enviar `X-Forwarded-For` (`*` solo si la API no es accesible directamente) | `127.0.0.1,::1` |
 | EJECUTAR_SEED_AL_ARRANCAR | Siembra usuarios de prueba al arrancar (solo desarrollo) | `true` |
 | WATCHFILES_FORCE_POLLING / WATCHFILES_POLL_DELAY_MS | Estabilidad del recargador en bind mounts Windows/WSL | `true` / `500` |
 | VERIFICATION_TOKEN_EXPIRE_HOURS | Vigencia del código de verificación de registro (h) | `24` |

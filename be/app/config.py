@@ -86,7 +86,19 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     FRONTEND_VERIFY_EMAIL_PATH: str = "/verify-email"
     FRONTEND_RESET_PASSWORD_PATH: str = "/reset-password"
-    
+
+    # --- Rate limiting y proxies de confianza ---
+    # En producción con varios workers/procesos conviene un almacenamiento
+    # compartido (p. ej. redis://...) para que los contadores sean globales;
+    # "memory://" mantiene un contador por proceso.
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
+    RATE_LIMIT_HEADERS_ENABLED: bool = True
+    # IPs/CIDR de los proxies autorizados a enviar X-Forwarded-For/Proto.
+    # Vacío = no se confía en ninguna cabecera. "*" confía en todos: úsalo
+    # solo cuando la API no sea accesible directamente por los clientes.
+    TRUSTED_PROXIES: str = "127.0.0.1,::1"
+
     # --- Entorno ---
     ENVIRONMENT: str = "development"  # development, staging, production
 

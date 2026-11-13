@@ -53,6 +53,14 @@ services:
       FRONTEND_VERIFY_EMAIL_PATH: /verify-email
       FRONTEND_RESET_PASSWORD_PATH: /reset-password
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Rate limiting por IP real. La API está publicada en el puerto 8000, así
+      # que por defecto solo se confía en loopback; si la expones únicamente a
+      # través de Caddy/nginx, añade su subred (p. ej. 172.16.0.0/12). Así un
+      # cliente directo no puede falsificar X-Forwarded-For.
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_STORAGE_URI: ${RATE_LIMIT_STORAGE_URI:-memory://}
+      RATE_LIMIT_HEADERS_ENABLED: ${RATE_LIMIT_HEADERS_ENABLED:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
       # Polling evita errores del watcher sobre bind mounts de Windows/WSL.
       WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
       WATCHFILES_POLL_DELAY_MS: ${WATCHFILES_POLL_DELAY_MS:-500}
