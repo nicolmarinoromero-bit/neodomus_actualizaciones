@@ -42,6 +42,14 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 - [Corrección de sesión actual](gestion/Correccion_session_actual.md)
 - [Errores del equipo 2026-10-21](gestion/Errores_equipo_2026-10-21.md)
 
+## Validación y operación
+
+- [Requisito académico PSI: aclaraciones y criterios](requisitos/PSI_criterios_aceptacion.md)
+- [Checklist de validación del proyecto](qa/checklist-validacion.md)
+- [Análisis comercial, pagos y conciliación](analisis/procesos-comerciales-pagos-conciliacion.md)
+- [Administración, permisos y auditoría](analisis/administracion-permisos-auditoria.md)
+- [Propuesta de piloto operativo en Bogotá](implantacion/piloto-bogota.md)
+
 ## Histórico (frontend)
 
 - [Plan de trabajo frontend 2026-05](historico/frontend/PLAN_TRABAJO_2026-05.md)
