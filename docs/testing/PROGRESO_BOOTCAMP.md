@@ -11,7 +11,7 @@
 | 1 | Pirámide, AAA, primer E2E, línea base de cobertura | Playwright a estudio del proyecto, E2E de login con AAA, cobertura FE (`@vitest/coverage-v8`) + re-medición BE, matriz de rotación, umbral línea base | ✅ COMPLETADA |
 | 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ✅ COMPLETADA |
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ✅ COMPLETADA |
-| 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ⚪ PENDIENTE |
+| 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | 🔵 EN CURSO |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
 | 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ⚪ PENDIENTE |
 | 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ⚪ PENDIENTE |
@@ -224,3 +224,23 @@ exponen role="form" (se localiza por clase del componente); los inputs
 **Estado de aprobación: COMPLETADA.** ≥3 tests con interacción + ≥1 estado no
 feliz por cada área, sin repeticiones, sin probar detalles internos (todo se
 localiza por rol/label/placeholder accesible salvo justificación escrita).
+
+### Semana 4 — Pruebas de API (contrato HTTP) (EN CURSO)
+- `test_api_contrato.py` (17 casos): solicitudes de cuenta (listar/aprobar/
+  rechazar/habilitar-cuenta/empleados, 404, 400 de cuenta ya activa),
+  tarifas (listado público + escritura admin + 400 costo<=0 + 404) y
+  contacto/consultas (POST público, autenticado con correo de la cuenta,
+  listado admin, resolución, estado inválido, "mías" aislado por cliente).
+  Verificaciones transversales: Content-Type JSON en todas las respuestas,
+  JSON mal formado → 4xx JSON sin HTML, y sin fugas de SQL/stack en cuerpos
+  de error (`_sin_fugas`).
+- `test_api_productos_admin.py` (13 casos): listado paginado con metadatos,
+  creación (referencia única, dificultad inválida, nombre obligatorio),
+  edición parcial (conserva campos no enviados), visibilidad (toggle
+  idempotente), estado activo/inactivo, variantes (crear/listar/eliminar y
+  404 de producto ajeno), detalle público, borrado (401/200/404 repetido).
+- Contratos reales fijados por las pruebas: cliente autenticado en rutas de
+  empleados responde **401** (no 403, por diseño de `get_current_employee`);
+  PUT de productos exige `nombre_producto`+`precio_venta_producto`
+  (422 si faltan) aunque el handler conserve campos no enviados; el nombre
+  del producto se normaliza con capitalización por palabra.
