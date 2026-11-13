@@ -93,8 +93,8 @@ export default function NovedadesClienteScreen() {
   }, []);
 
   useEffect(() => {
-    cargar();
-    const i = setInterval(() => cargar(true), 30000);
+    void cargar();
+    const i = setInterval(() => void cargar(true), 30000);
     return () => clearInterval(i);
   }, [cargar]);
 

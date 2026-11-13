@@ -8,7 +8,7 @@ export function HapticTab(props: any) {
       {...props}
       onPressIn={(ev: any) => {
         if (process.env.EXPO_OS === 'ios') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
         props.onPressIn?.(ev);
       }}

@@ -103,7 +103,7 @@ const TecnicoCitas = () => {
 
   useEffect(() => {
     void fetchCitas();
-    const interval = setInterval(fetchCitas, 10000);
+    const interval = setInterval(() => void fetchCitas(), 10000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -148,7 +148,7 @@ const TecnicoCitas = () => {
 
   useEffect(() => {
     if (reagendando && nuevaFecha) {
-      cargarHorasDisponibles(reagendando.id_cita, nuevaFecha);
+      void cargarHorasDisponibles(reagendando.id_cita, nuevaFecha);
     } else {
       setHorasDisponibles([]);
     }

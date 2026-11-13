@@ -100,7 +100,7 @@ const CarritoPage = () => {
 
   useEffect(() => {
     if (itemsRef.current.length > 0) {
-      validarStockBackend();
+      void validarStockBackend();
     }
   }, [firmaValidacion, validarStockBackend]);
 

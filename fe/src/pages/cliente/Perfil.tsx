@@ -436,7 +436,7 @@ const Perfil = () => {
         onEmailVerificado={(nuevo) => {
           setEmail(nuevo);
           setEmailOriginal(nuevo);
-          refreshUserProfile();
+          void refreshUserProfile();
           window.dispatchEvent(new CustomEvent('client-profile-updated'));
         }}
         onGuardar={async (payload) => {

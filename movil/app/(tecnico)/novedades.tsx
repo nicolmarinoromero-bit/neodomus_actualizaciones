@@ -204,15 +204,15 @@ export default function NovedadesScreen() {
   }, []);
 
   useEffect(() => {
-    cargar();
-    const i = setInterval(() => cargar(true), 30000);
+    void cargar();
+    const i = setInterval(() => void cargar(true), 30000);
     return () => clearInterval(i);
   }, [cargar]);
 
   useEffect(() => {
     if (vistaCliente) {
-      cargarNovedadesCliente();
-      const i = setInterval(() => cargarNovedadesCliente(), 30000);
+      void cargarNovedadesCliente();
+      const i = setInterval(() => void cargarNovedadesCliente(), 30000);
       return () => clearInterval(i);
     }
   }, [vistaCliente, cargarNovedadesCliente]);

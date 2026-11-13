@@ -199,7 +199,7 @@ const AdminPerfil = () => {
           onEmailVerificado={(nuevo) => {
             setEmail(nuevo);
             setEmailOriginal(nuevo);
-            refreshUserProfile();
+            void refreshUserProfile();
             window.dispatchEvent(new CustomEvent('admin-profile-updated'));
           }}
           onGuardar={async (payload) => {

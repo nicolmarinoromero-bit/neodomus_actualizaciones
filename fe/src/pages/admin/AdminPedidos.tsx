@@ -91,7 +91,7 @@ const AdminPedidos = () => {
 
   useEffect(() => {
     void cargar();
-    const intervalo = window.setInterval(() => cargar(true), 30000);
+    const intervalo = window.setInterval(() => void cargar(true), 30000);
     return () => window.clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -149,7 +149,7 @@ const AdminPedidos = () => {
     setHoraFinSeleccion(pedido.hora_entrega_fin || '');
     // Cargar horarios disponibles del backend
     const fecha = pedido.fecha_entrega || hoyStr;
-    cargarHorarios(fecha, pedido.id_tecnico_entrega);
+    void cargarHorarios(fecha, pedido.id_tecnico_entrega);
   }, [hoyStr, cargarHorarios]);
 
   const cancelarEdicion = () => {
@@ -282,7 +282,7 @@ const AdminPedidos = () => {
                               setFechaSeleccion(e.target.value);
                               setHoraSeleccion('');
                               setHoraFinSeleccion('');
-                              cargarHorarios(e.target.value, p.id_tecnico_entrega);
+                              void cargarHorarios(e.target.value, p.id_tecnico_entrega);
                             }}
                             style={{ fontSize: '0.85rem' }}
                           />

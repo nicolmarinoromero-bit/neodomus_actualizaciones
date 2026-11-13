@@ -109,6 +109,9 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
           // JSON corrupto → se empieza con carrito vacío.
         }
       })
+      .catch(() => {
+        // Si el almacenamiento no está disponible, se inicia con un carrito vacío.
+      })
       .finally(() => {
         if (activo) setListo(true);
       });

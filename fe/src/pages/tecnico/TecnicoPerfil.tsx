@@ -342,7 +342,7 @@ const TechnicalPerfil = () => {
           onEmailVerificado={(nuevo) => {
             setEmail(nuevo);
             setEmailOriginal(nuevo);
-            refreshUserProfile();
+            void refreshUserProfile();
             window.dispatchEvent(new CustomEvent('technical-profile-updated'));
           }}
           onGuardar={async (payload) => {

@@ -17,7 +17,7 @@ const AdminLayout = () => {
 
   useEffect(() => {
     const onSolicitudesUpdated = () => {
-      recargar();
+      void recargar();
     };
     window.addEventListener('admin-solicitudes-updated', onSolicitudesUpdated);
     return () => window.removeEventListener('admin-solicitudes-updated', onSolicitudesUpdated);
