@@ -23,5 +23,47 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Páginas pesadas (Checkout, Paneles admin) pueden exceder los 5 s por
+    // defecto cuando la ejecución está instrumentada por coverage (v8).
+    testTimeout: 15_000,
+    coverage: {
+      // Cobertura de la Semana 1 del bootcamp (receta "medir la cobertura
+      // desde el día 1", adaptada a Vitest 2 + Vite 5). La línea base queda
+      // registrada en docs/testing/MATRIZ_DE_COBERTURA.md y su umbral sube
+      // semana a semana (30 → 80); nunca baja respecto a la medición real.
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        // Arranque de la app (no es lógica de negocio medible).
+        'src/main.tsx',
+        'src/App.tsx',
+        // Tipos y constantes sin ejecución medible.
+        'src/vite-env.d.ts',
+        'src/types/**',
+        // Traducciones declarativas: solo los MAPAS de cadenas. La lógica de
+        // traducción (translations.ts, translateLocalizedMessage.ts,
+        // IdiomaContext.tsx) queda incluida porque es código ejecutable.
+        'src/i18n/*Translations.ts',
+        // Datos estáticos del chatbot y assets verificados con tests de
+        // claves, no lógica de negocio.
+        'src/data/**',
+        'src/assets/**',
+        // Infraestructura de pruebas: no se auto-mide (los *.test.* ya vienen
+        // excluidos por los defaults de Vitest).
+        'src/test/**',
+      ],
+      reporter: ['text', 'lcov', 'json-summary'],
+      reportsDirectory: 'coverage',
+      thresholds: {
+        // Línea base real de la Semana 1 (medición 2026-11-12, suite completa
+        // 30 archivos/118 pruebas): líneas 27.55, ramas 68.94, funciones 38.51.
+        // Piso = redondeo hacia abajo de la medición real (regla del trinquete:
+        // nunca baja; en S2+ el piso semanal manda si es mayor).
+        lines: 27,
+        branches: 68,
+        functions: 38,
+        statements: 27,
+      },
+    },
   },
 });

@@ -51,7 +51,9 @@ def main():
     if not node:
         raise RuntimeError('Node no está disponible')
     tag = uuid4().hex
-    email = f'e2e.session.{tag}@example.test'
+    # example.com (reservado IANA y aceptado por EmailStr del backend). El
+    # TLD .test lo rechaza email-validator==2.1.0 (nombre especial, RFC 2606).
+    email = f'e2e.session.{tag}@example.com'
     acceso_demo = f'Session{tag}9'
     db = testdb.TestSessionLocal()
     client_id = product_id = None

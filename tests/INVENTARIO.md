@@ -4,8 +4,9 @@
 > `def test_` / `it|test` por archivo, no estimados). Actualizar al añadir o
 > retirar pruebas. Las clases de soporte (`testdb.py`) no son pruebas.
 
-**Totales:** backend **249** casos (23 módulos unittest) · frontend **~86**
-casos (23 archivos Vitest) · E2E **26** casos (8 specs Playwright) · móvil 0.
+**Totales:** backend **291** casos (24 módulos unittest, medición 2026-11-12) ·
+frontend **118** casos (30 archivos Vitest) · E2E **28** casos (9 specs
+Playwright) · móvil 0.
 
 ---
 
@@ -86,6 +87,7 @@ validan la BD al final.
 
 | Spec (`fe/e2e/`) | Casos | Orquestador (`scripts/`) | Requisitos | Estado |
 |---|---|---|---|---|
+| `login.e2e.spec.ts` | 2 | `e2e_login.py` (S1 bootcamp: AAA, login válido + error 401) | MySQL pruebas + fe deps + node | Activo |
 | `admin-paginacion.e2e.spec.ts` | 9 | `e2e_admin_paginacion.py` | MySQL pruebas + fe deps + node | Activo |
 | `foto-tecnico.e2e.spec.ts` | 5 | `e2e_foto_tecnico.py` | idem | Activo |
 | `cart-checkout.e2e.spec.ts` | 2 | `e2e_cart_checkout.py` | idem (valida pedido en BD) | Activo |

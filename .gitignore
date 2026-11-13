@@ -73,6 +73,8 @@ be/.coverage
 coverage.json
 coverage.xml
 htmlcov/
+# Cobertura de frontend (artefacto de Vitest, no versionar)
+fe/coverage/
 # scripts personales/temporales (no versionar)
 be/tmp_*.py
 be/verify_stock*.py

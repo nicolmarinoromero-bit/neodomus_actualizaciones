@@ -58,7 +58,9 @@ describe('Hook compartido de notificaciones', () => {
     );
 
     const { result } = renderHook(() => useNotificacionesRol('cliente'));
-    await waitFor(() => expect(result.current.noLeidas).toBe(1));
+    // Ventana ampliada: bajo instrumentación de cobertura la carga tarda más
+    // de 1 s en llegar; la aserción no cambia.
+    await waitFor(() => expect(result.current.noLeidas).toBe(1), { timeout: 5_000 });
 
     let primera: Promise<boolean> = Promise.resolve(false);
     let segunda: Promise<boolean> = Promise.resolve(false);

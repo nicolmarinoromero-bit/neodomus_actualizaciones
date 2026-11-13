@@ -41,7 +41,7 @@ class FacturaPDFLogoTestCase(unittest.TestCase):
                          metodo_pago='punto_pago', estado_pago='aprobado', numero_transaccion='TEST')
         self.cliente = N(first_name='Cliente', last_name='Prueba', id_tipo_documento_c=None,
                          documento_cliente=None, telefono_cliente=None, address='Direccion de prueba',
-                         email='pdf@example.test')
+                         email='pdf@test.neodomus.com')
         self.detalle = N(descripcion_detalle='Cable', producto=None, cantidad_detalle=1,
                          cantidad_metros=Decimal('1.50'), precio_unitario_detalle=1000,
                          subtotal_detalle=1500, id_producto_d=1)

@@ -18,7 +18,7 @@
 
 .PARAMETER E2E
   Nombre del flujo E2E con orquestador, p.ej. cart-checkout, register, session,
-  admin-paginacion, foto-tecnico, reporte-ventas.
+  login, admin-paginacion, foto-tecnico, reporte-ventas.
 
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_one.ps1 -Backend test_auth

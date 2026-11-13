@@ -148,7 +148,9 @@ afterEach(() => {
 // timers reales. En la suite completa (paralela, I/O alto del working tree en
 // Desktop) el timeout por defecto de 5000 ms se excede por contención; aislado
 // pasa en ~3 s. Se da margen explícito (15000 ms) sin omitir aserciones.
-describe('ProductoDetalle -> carrito -> checkout', () => {
+// Con instrumentación de cobertura (v8) el mismo margen se agota bajo la carga
+// de la suite completa: 45 s explícitos para este describe (Semana 1 bootcamp).
+describe('ProductoDetalle -> carrito -> checkout', { timeout: 45_000 }, () => {
   it('conserva cantidad y variante hasta el pedido', async () => {
     renderFlujo('/producto/7');
     await screen.findByRole('button', { name: 'Agregar al carrito' });
