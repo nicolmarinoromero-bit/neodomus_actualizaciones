@@ -1,0 +1,5 @@
+# Instalar como /etc/sudoers.d/neodomus, propietario root:root, modo 0440.
+# sysadmin administra servicios/paquetes seleccionados; sin shell root ni ALL.
+%sysadmin ALL=(root) /usr/bin/systemctl status neodomus-api.service, /usr/bin/systemctl restart neodomus-api.service, /usr/bin/systemctl reload neodomus-api.service, /usr/bin/journalctl -u neodomus-api.service
+%deployer ALL=(root) /usr/bin/systemctl restart neodomus-api.service, /usr/bin/systemctl status neodomus-api.service
+%sysdevs ALL=(root) /usr/bin/journalctl -u neodomus-api.service

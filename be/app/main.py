@@ -1,4 +1,5 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request
@@ -12,6 +13,11 @@ from app.middleware import (
     setup_security_headers,
     setup_trusted_proxy,
 )
+from app.config import settings
+
+_log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+logging.basicConfig(level=_log_level)
+logging.getLogger().setLevel(_log_level)
 
 
 @asynccontextmanager
@@ -136,6 +142,38 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/health/readiness")
+def readiness_check():
+    """Comprueba dependencias necesarias para atender tráfico real."""
+    from urllib.error import URLError
+    from urllib.request import urlopen
+
+    from fastapi import HTTPException
+    from sqlalchemy import text
+
+    from app.config import settings
+    from app.database import engine
+
+    checks = {"database": False, "storage": False}
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        checks["database"] = True
+    except Exception:
+        pass
+
+    scheme = "https" if settings.MINIO_SECURE else "http"
+    try:
+        with urlopen(f"{scheme}://{settings.MINIO_ENDPOINT}/minio/health/ready", timeout=3):
+            checks["storage"] = True
+    except (URLError, TimeoutError, OSError):
+        pass
+
+    if not all(checks.values()):
+        raise HTTPException(status_code=503, detail={"status": "not_ready", "checks": checks})
+    return {"status": "ready", "checks": checks}
 
 # Manejador de excepciones genéricas
 @app.exception_handler(Exception)

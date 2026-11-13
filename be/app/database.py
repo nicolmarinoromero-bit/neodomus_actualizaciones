@@ -2,7 +2,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from typing import Generator
 
-from app.config import settings
+from app.config import settings, validate_startup_settings
+
+# Fallar antes de crear el engine si falta una variable obligatoria o la URL
+# no corresponde al motor actualmente soportado por el proyecto.
+validate_startup_settings()
 
 engine = create_engine(
     settings.DATABASE_URL,

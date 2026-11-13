@@ -10,9 +10,9 @@
 -->
 
 > **Proyecto:** Neodomus — Plataforma web/móvil de domótica y servicios técnicos
-> **Entregable:** Semana 1 — Ficha Técnica y Matriz de Requisitos
-> **Versión:** 1.0
-> **Fecha:** 20/10/2026
+> **Entregable:** Semanas 1, 4 y 5 — Ficha técnica, despliegue y configuración/verificación
+> **Versión:** 1.1
+> **Fecha:** 13/11/2026
 > **Informe ejecutivo asociado:** [`docs/informe-semana-1.md`](informe-semana-1.md)
 > **Entorno de referencia:** Ubuntu Server 24.04.5 LTS x86_64 · Docker Engine 29.5.2 · Docker Compose 5.1.4
 > **Convención de seguridad:** todas las IP, hosts, usuarios, dominios y credenciales de este documento son genéricos. No se publican datos de producción ni secretos.
@@ -526,7 +526,61 @@ $ SIMULATE_FAIL=true ./scripts/verificar-requisitos.sh
 
 ---
 
-> **Fin de la Sección 1.** Las secciones 2 a 5 (instalación, configuración, operación y pruebas) se completarán en las siguientes semanas.
+> **Cierre de la Sección 1.** La evidencia de migración se documenta en la Sección 2; las secciones 3 y 4 corresponden a sus entregables respectivos; el despliegue de la Semana 4 está en la Sección 5 y la configuración/verificación de Semana 5 en la Sección 6.
+
+## 2. Evidencia y procedimiento de migración — Semana 5
+
+**Estado de cierre:** parcial. Hay evidencia histórica de despliegue y smoke test básico en Linux/WSL y Railway, además de actualización/rollback de la web. Esas evidencias no prueban una migración de datos. La comparación de conteos y SHA-256, el corte real y el smoke test ampliado posterior al corte siguen pendientes.
+
+| Evidencia previa | Registro disponible | Qué demuestra | Qué no demuestra |
+|---|---|---|---|
+| `evidencias/smoke-linux.txt` | Prueba Linux/WSL, HTTP 200 y catálogo con 10 productos | Web/API respondían en ese momento | Migración de origen a destino, huellas comparadas ni autenticación del smoke test actual |
+| `evidencias/smoke-nube.txt` | Prueba histórica de web/API/catálogo en Railway | Despliegue básico de nube y lectura del catálogo | Migración de datos, MinIO, carga/descarga de objetos ni huellas post-corte |
+| `evidencias/actualizacion-linux.txt` y `evidencias/rollback-linux.txt` | Web 1.0.1 desplegada y rollback a 1.0.0 con HTTP 200 | Cambio y reversión de imagen web | Rollback de esquema/base de datos |
+
+La evidencia se considera histórica y debe repetirse contra la versión/destino que se acepte ahora. No atribuirle resultado al corte de datos.
+
+### 2.1 Preparación y ensayo
+
+1. Designar responsable técnico, responsable funcional y ventana de mantenimiento; confirmar acceso administrativo y espacio del destino.
+2. Confirmar compatibilidad del motor con la aplicación y fijar versión de origen, destino y migraciones. Para Neon/Supabase, bloquear esta fase hasta completar portabilidad PostgreSQL en código y Alembic.
+3. Inventariar tablas, vistas, índices, constraints, triggers, usuarios/roles, volumen de archivos MinIO y tamaño de respaldos. Registrar conteos base antes del ensayo.
+4. Ensayar una restauración íntegra en un destino aislado. Aplicar migraciones, verificar conteos/checksums y ejecutar smoke test contra esa copia. Registrar hora UTC, versiones, responsable y resultados sin incluir secretos ni datos personales.
+5. Preparar respaldo cifrado con Restic y retención definida. En despliegue, usar el script de Semana 6 con un archivo root-only de configuración; no generar dumps SQL sin cifrar en el repositorio del proyecto. Para el ensayo de migración, restaurar el dump desde el snapshot a un directorio cifrado temporal.
+6. Verificar que Restic puede leer el snapshot, que el SHA-256 del dump restaurado coincide con el sidecar registrado y que se puede importar en ambiente aislado. El dump contiene información sensible y no debe anexarse al informe.
+
+### 2.2 Corte y copia
+
+1. Anunciar inicio de ventana y activar mantenimiento visible. Suspender escrituras: poner la web en modo mantenimiento y detener procesos, workers, tareas programadas y clientes que puedan escribir. Confirmar que no hay sesiones de escritura activas.
+2. Tomar respaldo final consistente de origen. Registrar fecha/hora, versión, nombre del artefacto (sin ruta sensible) y SHA-256 del archivo. Conservar origen sin cambios hasta aceptar el destino.
+3. Migrar estructura y datos con herramienta compatible con los motores elegidos. Mantener orden de dependencias/foreign keys; conservar codificación y zona horaria acordadas. Para cambio a PostgreSQL, usar un proceso de conversión probado y aprobado, no restaurar un dump MySQL directamente.
+4. Migrar objetos MinIO por un flujo separado; comparar inventario, número de objetos y checksums del contenido cuando el proveedor permita descargarlos. La verificación SQL no cubre archivos.
+5. Ejecutar `scripts/verificar-migracion.py` con `SOURCE_DATABASE_URL` y `TARGET_DATABASE_URL` configuradas de forma segura en el entorno. El script compara tablas reflejadas, `COUNT(*)` exacto y SHA-256 de filas canonizadas. Código de salida: `0` si todas coinciden, `1` si hay diferencias, `2` si no se pudo ejecutar. Para instalar el driver PostgreSQL solo en el entorno temporal:
+
+```bash
+uv run --project be --with "psycopg[binary]" python scripts/verificar-migracion.py
+```
+
+6. No exponer URLs en terminales compartidas o logs de CI; el verificador no imprime credenciales ni valores de filas. Los cambios de tipo/precisión o conversiones pueden requerir reglas de canonicalización aprobadas antes del corte; no se aceptan diferencias sin explicación firmada.
+7. Configurar el backend al destino aprobado, iniciar API y dependencias, observar healthchecks y ejecutar el smoke test completo. Verificar login, consulta del catálogo, lectura de detalle y flujos de lectura priorizados por el responsable funcional.
+8. Aceptar el corte solo con cero diferencias inexplicadas en conteos y hashes, smoke test satisfactorio, métricas estables y aprobación registrada. Entonces retirar modo mantenimiento y habilitar escrituras en el nuevo destino.
+
+### 2.3 Evidencia que debe adjuntarse al informe
+
+| Evidencia | Registro requerido | Estado en este entregable |
+|---|---|---|
+| Configuración validada | Resultado `docker compose config --quiet`, fecha y versión | Validada estáticamente en el workspace; pendiente registrar en host de despliegue |
+| Respaldo final | Fecha UTC, tamaño y SHA-256; ubicación se conserva fuera del informe | Pendiente de ventana de corte |
+| Conteos y hashes | Salida del verificador por tabla; sin URLs ni datos de filas | Pendiente de acceso a origen y destino |
+| Healthchecks | Estado `healthy` de web, API, MySQL y MinIO | Definidos en Compose; estado actual del servidor pendiente |
+| Smoke test | Código de salida, endpoints y hora UTC; ocultar credenciales | Básico histórico aprobado en Linux/WSL y nube; repetir smoke ampliado con autenticación después del corte |
+| Aprobación funcional | Responsable, fecha/hora y resultado de flujos críticos | Pendiente |
+
+**Declaración de ejecución:** No se realizó una migración de datos en esta entrega porque no se proporcionaron acceso al origen/destino, credenciales ni ventana de mantenimiento. Por tanto, no se afirman conteos, hashes ni pruebas externas como ejecutadas. La evidencia se completa durante el corte real con los artefactos de la tabla anterior.
+
+**Criterio de cierre de Semana 5:** origen y destino identificados; respaldo restaurable; conteos y SHA-256 coincidentes (o diferencias formalmente conciliadas); smoke test autenticado satisfactorio en destino después del corte; healthchecks saludables; aprobación funcional y técnica registradas. Hasta completar esos puntos, el estado es **PARCIAL / PENDIENTE DE CORTE REAL**.
+
+---
 
 ## 5. Procedimiento de despliegue — Semana 4
 
@@ -534,18 +588,21 @@ $ SIMULATE_FAIL=true ./scripts/verificar-requisitos.sh
 
 La versión base usa imágenes separadas para web y API. Nginx sirve la web compilada y reenvía las consultas a FastAPI. MySQL y MinIO permanecen en la red del Compose. La prueba se realizó en Ubuntu sobre WSL, con el proyecto en /opt/neodomus y el puerto 8080 publicado en la interfaz local.
 
+Crear `deploy/.env.prod` desde `deploy/env.prod.example`, reemplazar todos los placeholders por secretos únicos (contraseñas DB con `openssl rand -hex 32`), establecer `FRONTEND_URL`/`CORS_ORIGINS` y proteger con modo `0600`. No cambiar la contraseña root en una base con volumen existente sin un procedimiento de rotación.
+
 Desde la raíz del proyecto en Linux, con Docker y Compose disponibles:
 
 ```bash
-docker build -f deploy/Dockerfile.frontend -t neodomus-web:1.0.0 ./fe
-if [ ! -e deploy/.env.prod ]; then
-  (umask 077
-   for key in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD SECRET_KEY MINIO_PASSWORD; do
-     printf '%s=%s\n' "$key" "$(openssl rand -hex 32)"
-   done > deploy/.env.prod)
-fi
-docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d --build
+chmod 600 deploy/.env.prod
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml config --quiet
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d --build db minio
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml --profile ops run --rm migrate
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d --build api web
+read -r -p 'Email de prueba: ' SMOKE_EMAIL
+read -r -s -p 'Contraseña de prueba: ' SMOKE_PASSWORD; echo
+export SMOKE_EMAIL SMOKE_PASSWORD
 bash scripts/smoke-test.sh http://localhost:8080
+unset SMOKE_EMAIL SMOKE_PASSWORD
 ```
 
 Resultado esperado: web, salud y consulta del producto responden HTTP 200. La evidencia inicial registró 10 productos en el catálogo.
@@ -553,12 +610,7 @@ Resultado esperado: web, salud y consulta del producto responden HTTP 200. La ev
 ### 5.2 Respaldo, actualización y rollback
 
 ```bash
-mkdir -p respaldos
-respaldo="respaldos/neodomus-$(date +%Y%m%d-%H%M%S).sql"
-(umask 077
- docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml \
-   exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --no-tablespaces neodomus' \
-   > "$respaldo") && test -s "$respaldo"
+sudo bash -c 'set -a; . /etc/neodomus/backup.env; set +a; exec /usr/local/sbin/neodomus-backup-restic'
 ```
 
 Continuar solo después de confirmar que el respaldo terminó correctamente. Para la prueba se creó una imagen derivada con un marcador de versión:
@@ -571,7 +623,11 @@ EOF
 docker compose --env-file deploy/.env.prod \
   -f deploy/compose.prod.yaml -f deploy/compose.update.yaml up -d --no-deps web
 curl -fsS http://localhost:8080/version.txt
+read -r -p 'Email de prueba: ' SMOKE_EMAIL
+read -r -s -p 'Contraseña de prueba: ' SMOKE_PASSWORD; echo
+export SMOKE_EMAIL SMOKE_PASSWORD
 bash scripts/smoke-test.sh http://localhost:8080
+unset SMOKE_EMAIL SMOKE_PASSWORD
 ```
 
 El marcador devolvió Neodomus web 1.0.1. Para volver a la imagen anterior:
@@ -579,7 +635,11 @@ El marcador devolvió Neodomus web 1.0.1. Para volver a la imagen anterior:
 ```bash
 docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d --no-deps web
 docker inspect --format '{{.Config.Image}}' neodomus-prod-web-1
+read -r -p 'Email de prueba: ' SMOKE_EMAIL
+read -r -s -p 'Contraseña de prueba: ' SMOKE_PASSWORD; echo
+export SMOKE_EMAIL SMOKE_PASSWORD
 bash scripts/smoke-test.sh http://localhost:8080
+unset SMOKE_EMAIL SMOKE_PASSWORD
 ```
 
 La inspección devolvió neodomus-web:1.0.0 y la web y el producto respondieron HTTP 200. El cambio fue solo de la web, por lo que no requirió restaurar MySQL. Las migraciones aditivas pueden permitir rollback si la versión anterior sigue funcionando con el esquema nuevo. Ante una eliminación de columnas o una transformación incompatible, detener escrituras y ensayar la restauración antes de recuperar el servicio. Esa restauración no se probó en esta entrega.
@@ -588,8 +648,14 @@ La inspección devolvió neodomus-web:1.0.0 y la web y el producto respondieron 
 
 Se conectaron las imágenes juliancc13/neodomus-api:1.0.0 y juliancc13/neodomus-web:1.0.0 desde Docker Hub. La API se conectó a MySQL por red privada. Los secretos se configuraron en Railway. La web usa la configuración deploy/nginx.railway.conf y reenvía las consultas a la API por HTTPS. La prueba verificó el catálogo y el detalle del producto. La carga de archivos en MinIO en la nube queda sin verificar.
 
+El resultado anterior corresponde a la evidencia histórica de la Semana 4. El smoke test ampliado de Semana 5 también exige readiness de MinIO y autenticación con una cuenta de prueba; su ejecución contra Railway queda pendiente hasta configurar y verificar esa dependencia.
+
 ```bash
+read -r -p 'Email de prueba: ' SMOKE_EMAIL
+read -r -s -p 'Contraseña de prueba: ' SMOKE_PASSWORD; echo
+export SMOKE_EMAIL SMOKE_PASSWORD
 bash scripts/smoke-test.sh https://neodomus-web-production.up.railway.app
+unset SMOKE_EMAIL SMOKE_PASSWORD
 ```
 
 Evidencias: [Linux](../evidencias/smoke-linux.txt), [Railway](../evidencias/smoke-nube.txt), [actualización](../evidencias/actualizacion-linux.txt) y [rollback](../evidencias/rollback-linux.txt).
@@ -597,3 +663,92 @@ Evidencias: [Linux](../evidencias/smoke-linux.txt), [Railway](../evidencias/smok
 ### 5.4 Costos
 
 Para la demostración se eligió Railway Trial porque permitió conservar MySQL y usar crédito de prueba. La prueba ofrece USD 5 por única vez, hasta 30 días. Como alternativa en la misma plataforma, Hobby tiene un mínimo de USD 5 al mes, con el consumo incluido hasta ese importe y cobro adicional si se supera. El costo real depende de CPU, memoria, almacenamiento y tráfico. Consultado el 4 de noviembre de 2026. [Prueba de Railway](https://docs.railway.com/pricing/free-trial) · [Planes y tarifas](https://docs.railway.com/pricing/plans)
+
+
+---
+
+## 6. Configuración, verificación y resiliencia — Semana 5
+
+### Alcance
+
+Esta entrega establece configuración reproducible, validación temprana de variables, checks de salud, pruebas de humo y un procedimiento auditable para mover datos. El backend del repositorio es FastAPI con SQLAlchemy/Alembic y el despliegue existente usa MySQL 8, además de MinIO para objetos. Las migraciones contienen construcciones específicas de MySQL. Por ello, Neon y Supabase PostgreSQL **no son destinos intercambiables en el estado actual**: antes de utilizarlos se requiere portar y probar el esquema, migraciones, consultas, valores ENUM, colaciones y dependencias.
+
+La migración a PostgreSQL no se declara ejecutada ni compatible. El procedimiento operativo de corte descrito aquí aplica cuando el destino ya sea compatible con la versión de base de datos soportada por la aplicación. Para usar Neon/Supabase, completar primero el trabajo de portabilidad y una migración de ensayo.
+
+### 6.1 Gestión de configuración y secretos (12-Factor)
+
+La aplicación lee configuración del entorno o de `.env`; los `.env` reales no se versionan. Plantillas disponibles: `.env.example`, `be/.env.example` y `deploy/env.prod.example`. En producción, la plataforma de despliegue debe inyectar los secretos desde un gestor de secretos y no desde el repositorio.
+
+Variables críticas:
+
+| Variable | Uso | Regla |
+|---|---|---|
+| `DATABASE_URL` | Conexión SQLAlchemy al MySQL soportado | Obligatoria; esquema `mysql+pymysql://` |
+| `SECRET_KEY` | Firma de tokens JWT | Obligatoria; sustituir el valor de ejemplo; mínimo 32 caracteres en producción |
+| `MYSQL_APP_USER` / `MYSQL_APP_PASSWORD` | Cuenta de API con rol DML | Obligatoria; distinta de owner/backup; password aleatoria hexadecimal |
+| `MYSQL_OWNER_USER` / `MYSQL_OWNER_PASSWORD` | Cuenta exclusiva para job de migraciones | Obligatoria; no se entrega a la API |
+| `MYSQL_BACKUP_USER` / `MYSQL_BACKUP_PASSWORD` | Cuenta de lectura usada por el dump | Obligatoria; sin DDL ni DML de escritura |
+| `MYSQL_ROOT_PASSWORD` | Bootstrap/administración de emergencia de MySQL | Solo DBA; nunca API ni backup diario |
+| `MINIO_PASSWORD` / `MINIO_SECRET_KEY` | Acceso al almacenamiento de objetos | Inyectar un secreto distinto al de ejemplo |
+| `FRONTEND_URL` | Origen de enlaces y configuración de la aplicación | Debe corresponder al dominio publicado |
+| `CORS_ORIGINS` | Orígenes web autorizados | Obligatoria en producción; no se admite `*` |
+| `LOG_LEVEL` | Nivel de logging (`CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`) | Por defecto `INFO` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_PROVIDER` | Envío de correos transaccionales | Configurar solo según el proveedor habilitado |
+| `TRUSTED_PROXIES`, `RATE_LIMIT_*` | Proxy inverso y limitación de solicitudes | Limitar la confianza al proxy/red interna reales |
+| `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_PUBLIC_ENDPOINT` | Almacenamiento y URLs de medios | Ajustar a los endpoints internos/públicos del entorno |
+
+Al importar la capa de base de datos, `validate_startup_settings()` comprueba que existan `DATABASE_URL` y `SECRET_KEY`, rechaza la clave de ejemplo y el motor no soportado, valida la clave de producción y el nivel de logs. Si falla, el proceso termina antes de crear el engine y emite un mensaje accionable sin imprimir credenciales. FastAPI entrega `/health` como liveness y `/health/readiness` comprueba `SELECT 1` y el endpoint de disponibilidad de MinIO.
+
+Crear secretos de ejemplo localmente (no copiar la salida al repositorio):
+
+```bash
+openssl rand -hex 32
+```
+
+### 6.2 Orquestación y resiliencia
+
+El archivo `deploy/compose.prod.yaml` orquesta `web` (React/Vite compilado y servido por Nginx), `api` (FastAPI), `db` (MySQL) y `minio` (objetos). Los servicios usan `restart: unless-stopped`, `json-file` con límite `10m` y tres archivos, y healthchecks con intervalo de 10 s, timeout de 5 s, tres reintentos y periodo inicial de 15 s. `web` espera a `api` saludable; `api` espera a MySQL y MinIO saludables.
+
+Antes de levantar servicios, crear `deploy/.env.prod` a partir de `deploy/env.prod.example`, completar secretos en el host y proteger sus permisos. No compartir el archivo ni adjuntarlo a evidencias. Comprobar configuración sin imprimir secretos:
+
+```bash
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml config --quiet
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml build
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d db minio
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml --profile ops run --rm migrate
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml up -d api web
+docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml ps
+```
+
+El servicio API productivo ejecuta Uvicorn con el rol limitado y no aplica Alembic al iniciar. El perfil `ops` ejecuta una migración aprobada con `neodomus_owner`; no usarlo como cuenta runtime. Docker no reinicia un contenedor solo por pasar a estado `unhealthy`: ese estado refleja fallos del healthcheck, mientras `restart` reacciona al proceso que termina. Diagnosticar `docker inspect`, `docker logs` y `docker compose ps`; corregir la causa del healthcheck o del proceso.
+
+### 6.3 Verificación posterior al despliegue
+
+`scripts/smoke-test.sh [BASE_URL] [PRODUCT_ID]` valida HTTP 200 en la aplicación SPA, ruta de producto, `/health`, `/health/readiness`, `/openapi.json`, listado y detalle de productos. Falla con código distinto de cero ante cualquier error. Requiere `SMOKE_EMAIL` y `SMOKE_PASSWORD` de una cuenta temporal habilitada; prueba login y sesión Bearer sin imprimir credenciales ni token.
+
+Ejemplo (usar una cuenta temporal de pruebas; introducir la contraseña de forma interactiva y no guardar valores en el historial):
+
+```bash
+read -r -p 'Email de prueba: ' SMOKE_EMAIL
+read -r -s -p 'Contraseña de prueba: ' SMOKE_PASSWORD; echo
+export SMOKE_EMAIL SMOKE_PASSWORD
+scripts/smoke-test.sh https://<dominio-neodomus> 10
+unset SMOKE_EMAIL SMOKE_PASSWORD
+```
+
+### 6.4 Reversión (rollback)
+
+1. Mantener el origen íntegro y sin eliminarlo durante la ventana de observación acordada. No permitir escrituras simultáneas en origen y destino.
+2. Si falla la compatibilidad, readiness, verificación de integridad o smoke test, mantener modo mantenimiento y bloquear escrituras en el destino.
+3. Restaurar la configuración anterior del backend y reconectar al origen. Si el origen recibió escrituras después del corte, definir y ejecutar primero una reconciliación aprobada para no perder esas operaciones.
+4. Iniciar servicios contra el origen y comprobar liveness, readiness, login y lecturas clave con el smoke test. Reabrir escrituras solo cuando el responsable funcional confirme.
+5. Registrar incidente, causa, hora, versión y decisión. Conservar logs y respaldos según política; retirar el destino fallido solo después de preservar evidencia y autorización operativa.
+
+## Anexo — Archivos incorporados
+
+- `be/app/config.py`: validación fail-fast de configuración y secretos.
+- `be/app/main.py`: readiness que comprueba base de datos y MinIO.
+- `deploy/compose.prod.yaml` y `deploy/nginx.conf`: healthchecks, dependencias saludables, reinicio y rotación.
+- `scripts/smoke-test.sh`: verificación HTTP y autenticación obligatoria con cuenta de prueba.
+- `scripts/verificar-migracion.py`: comparación exacta de conteos y hashes SHA-256.
+- Plantillas `.env.example`, `be/.env.example` y `deploy/env.prod.example`: variables declaradas sin secretos reales.

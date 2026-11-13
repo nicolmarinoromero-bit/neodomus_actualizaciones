@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     FRONTEND_VERIFY_EMAIL_PATH: str = "/verify-email"
     FRONTEND_RESET_PASSWORD_PATH: str = "/reset-password"
+    CORS_ORIGINS: str = ""
 
     # --- Rate limiting y proxies de confianza ---
     # En producción con varios workers/procesos conviene un almacenamiento
@@ -101,23 +102,13 @@ class Settings(BaseSettings):
 
     # --- Entorno ---
     ENVIRONMENT: str = "development"  # development, staging, production
+    LOG_LEVEL: str = "INFO"
 
     @model_validator(mode="after")
     def _aplicar_google_signin_por_defecto(self):
         """Usa el Client ID público si la variable llega vacía (p. ej. Docker Compose)."""
         if not self.GOOGLE_SIGNIN_CLIENT_ID:
             self.GOOGLE_SIGNIN_CLIENT_ID = DEFAULT_GOOGLE_SIGNIN_CLIENT_ID
-        return self
-
-    @model_validator(mode="after")
-    def _construir_database_url(self):
-        """Construye DATABASE_URL desde MYSQL_* si no viene definida."""
-        if not self.DATABASE_URL:
-            self.DATABASE_URL = (
-                f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD or ''}"
-                f"@{self.DB_HOST}:{self.DB_PORT}/{self.MYSQL_DATABASE}"
-                "?charset=utf8mb4"
-            )
         return self
 
     @model_validator(mode="after")
@@ -129,12 +120,20 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SECRET_KEY insegura en producción: genera con `openssl rand -hex 32` y configura en .env"
                 )
-            if not self.MYSQL_PASSWORD or len(self.MYSQL_PASSWORD) < 12:
+            if (
+                not self.MYSQL_PASSWORD
+                or len(self.MYSQL_PASSWORD) < 12
+                or self.MYSQL_PASSWORD.strip().lower().startswith(("change_me", "cambiar", "replace_me"))
+            ):
                 raise ValueError(
                     "MYSQL_PASSWORD insegura en producción: usa al menos 12 caracteres y configúrala en .env"
                 )
-            if self.MINIO_SECRET_KEY == "neodomus12345":
-                raise ValueError("MINIO_SECRET_KEY insegura en producción")
+            if (
+                len(self.MINIO_SECRET_KEY) < 32
+                or self.MINIO_SECRET_KEY.strip().lower().startswith(("change_me", "cambiar", "replace_me"))
+                or self.MINIO_SECRET_KEY == "neodomus12345"
+            ):
+                raise ValueError("MINIO_SECRET_KEY insegura o placeholder en producción; usa una clave aleatoria de al menos 32 caracteres")
         return self
     
     model_config = ConfigDict(
@@ -147,6 +146,48 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore"
     )
+
+
+def validate_startup_settings() -> None:
+    """Valida las variables imprescindibles antes de abrir conexiones."""
+    required = {
+        "DATABASE_URL": settings.DATABASE_URL,
+        "SECRET_KEY": settings.SECRET_KEY,
+    }
+    missing = [name for name, value in required.items() if not value or not value.strip()]
+    if missing:
+        raise RuntimeError(
+            "Configuración incompleta: faltan variables obligatorias "
+            f"{', '.join(missing)}. Define estas variables en .env o en el entorno."
+        )
+
+    if not settings.DATABASE_URL.startswith("mysql+pymysql://"):
+        raise RuntimeError(
+            "DATABASE_URL no compatible: NEODOMUS utiliza actualmente "
+            "MySQL mediante mysql+pymysql. PostgreSQL requiere adaptar y validar "
+            "el esquema y las migraciones antes de usarlo."
+        )
+    secret_key = settings.SECRET_KEY.strip()
+    if (
+        secret_key == "clave_super_segura_para_desarrollo_cambiar_en_produccion"
+        or secret_key.lower().startswith(("genera_", "cambiar", "change_me", "replace_me"))
+    ):
+        raise RuntimeError(
+            "SECRET_KEY conserva el valor de ejemplo. Genera una clave aleatoria "
+            "(por ejemplo, `openssl rand -hex 32`) y configúrala en .env."
+        )
+    if settings.ENVIRONMENT == "production" and not settings.MYSQL_PASSWORD:
+        raise RuntimeError("MYSQL_PASSWORD es obligatoria en producción.")
+    if settings.ENVIRONMENT == "production" and len(settings.MINIO_SECRET_KEY) < 12:
+        raise RuntimeError("MINIO_SECRET_KEY debe tener al menos 12 caracteres en producción.")
+    if settings.ENVIRONMENT == "production" and not settings.CORS_ORIGINS.strip():
+        raise RuntimeError("CORS_ORIGINS es obligatoria en producción.")
+    if settings.ENVIRONMENT == "production" and "*" in settings.CORS_ORIGINS:
+        raise RuntimeError("CORS_ORIGINS no debe incluir el comodín '*' en producción.")
+    if settings.ENVIRONMENT == "production" and len(settings.SECRET_KEY) < 32:
+        raise RuntimeError("SECRET_KEY debe tener al menos 32 caracteres en producción.")
+    if settings.LOG_LEVEL.upper() not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:
+        raise RuntimeError("LOG_LEVEL debe ser CRITICAL, ERROR, WARNING, INFO o DEBUG.")
 
 
 # Instancia única para importar en otros módulos
