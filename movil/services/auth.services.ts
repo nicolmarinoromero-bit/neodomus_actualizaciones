@@ -81,8 +81,11 @@ export const solicitarHabilitacion = (email: string, password: string) =>
   });
 
 // Comunica con el backend mediante API "/auth/logout".
-export const cerrarSesionBackend = () =>
-  apiFetch<{ msg: string }>("/auth/logout", { method: "POST" });
+export const cerrarSesionBackend = (refreshToken?: string) =>
+  apiFetch<{ msg: string }>("/auth/logout", {
+    method: "POST",
+    ...(refreshToken ? { body: json({ refresh_token: refreshToken }) } : {}),
+  });
 
 // Comunica con el backend mediante API "/auth/session".
 export const validarSesionBackend = () =>

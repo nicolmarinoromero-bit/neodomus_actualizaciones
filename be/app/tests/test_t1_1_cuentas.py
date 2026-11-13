@@ -198,8 +198,8 @@ class TiposTokenYHashTestCase(BaseT1TestCase):
         self._forgot(c.email)
         code = self._codigo_reset(c.email)
         self._post("/api/v1/auth/reset-password", json={"token": code, "new_password": "NuevaPass123"})
-        # Contrato: los JWT son sin estado; cambiar la contraseña NO revoca
-        # sesiones previas (no hay revocación en servidor).
+        # Los access JWT son sin estado y siguen válidos hasta expirar; el
+        # refresh token de esa sesión sí se revoca al cambiar la contraseña.
         self.assertEqual(self._get("/api/v1/notificaciones/mias", headers=self._bearer(access)).status_code, 200)
 
     def _forgot(self, email):

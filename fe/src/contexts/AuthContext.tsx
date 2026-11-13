@@ -412,8 +412,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Comunica con el backend mediante POST '/auth/logout'.
   const logout = () => {
-    // Cierra la sesión en el servidor (elimina las cookies HttpOnly).
-    api.post('/auth/logout').catch(() => {
+    // Cierra la sesión en el servidor revocando este refresh token y las cookies.
+    const refreshToken = tabGet('refresh_token');
+    api.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : undefined).catch(() => {
       /* noop: el cierre local procede igual */
     });
     // Rotar el id de sesión PRIMERO: si esta pestaña heredó el id de otra

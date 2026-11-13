@@ -177,7 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const cerrarSesion = useCallback(async () => {
     try {
-      await cerrarSesionBackend();
+      const sesion = await obtenerSesion();
+      await cerrarSesionBackend(sesion?.refreshToken);
     } catch {
       // Aunque el backend falle (offline, token ya inválido), la sesión local se cierra igual.
     }

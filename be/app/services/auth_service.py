@@ -7,6 +7,7 @@ import json
 import secrets
 import unicodedata
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -17,6 +18,7 @@ from app.models.cliente import Cliente
 from app.models.email_verification_token import EmailVerificationToken
 from app.models.password_reset_token import PasswordResetToken
 from app.models.pending_registration import PendingRegistration
+from app.models.refresh_token import RefreshToken
 from app.models.roles_usuario import RolesUsuario
 from app.models.solicitud_cuenta import SolicitudCuenta
 from app.models.solicitud_habilitacion_empleado import SolicitudHabilitacionEmpleado
@@ -98,28 +100,60 @@ def _cliente_perfil_incompleto(cliente: Cliente | None) -> bool:
         and bool((cliente.address or "").strip())
     )
 
-# 🔐 _create_tokens: sub=email (compat) + uid=id_usuario/id_cliente (identidad estable)
-def _create_tokens(
+def _build_token_pair(
     user_id: int,
     email: str,
     user_type: str,
     rol: str = None,
-    password_reset_required: bool = False,
-) -> TokenResponse:
+    family_id: str = None,
+) -> tuple[TokenResponse, RefreshToken]:
+    """Construye un par access/refresh y el registro que lo respalda."""
+    jti = uuid4().hex
+    family_id = family_id or uuid4().hex
     access = create_access_token(
         {"sub": email}, user_type=user_type, rol=rol, user_id=user_id
     )
     refresh = create_refresh_token(
-        {"sub": email}, user_type=user_type, rol=rol, user_id=user_id
+        {"sub": email},
+        user_type=user_type,
+        rol=rol,
+        user_id=user_id,
+        jti=jti,
+        family_id=family_id,
     )
-    return TokenResponse(
+    respuesta = TokenResponse(
         access_token=access,
         refresh_token=refresh,
         token_type="bearer",
         user_type=user_type,
         rol=rol,
-        password_reset_required=password_reset_required,
     )
+    registro = RefreshToken(
+        jti=jti,
+        family_id=family_id,
+        user_id=user_id,
+        user_type=user_type,
+        expires_at=ahora_utc_naiva() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+    return respuesta, registro
+
+
+def _create_tokens(
+    db: Session,
+    user_id: int,
+    email: str,
+    user_type: str,
+    rol: str = None,
+    password_reset_required: bool = False,
+    family_id: str = None,
+) -> TokenResponse:
+    respuesta, registro = _build_token_pair(
+        user_id, email, user_type, rol=rol, family_id=family_id
+    )
+    respuesta.password_reset_required = password_reset_required
+    db.add(registro)
+    db.commit()
+    return respuesta
 
 # ──────────────────────────────────────────────────────────────────
 # 📝 Registro y verificación de clientes (con pendientes)
@@ -330,7 +364,7 @@ def login(db: Session, login_data: UserLogin) -> TokenResponse:
     auditoría con su motivo.
 
     Args:
-        db: Sesión de base de datos (solo lectura; no confirma cambios).
+        db: Sesión de base de datos; registra el refresh token emitido.
         login_data: Credenciales con ``email``, ``password`` y
             ``user_type`` (``"employee"`` | ``"client"`` | ``None``).
 
@@ -367,6 +401,7 @@ def login(db: Session, login_data: UserLogin) -> TokenResponse:
             raise HTTPException(403, "Tu cuenta no tiene un rol válido asignado. Contacta al administrador.")
         log_login_success(email, "employee")
         return _create_tokens(
+            db,
             user.id_usuario,
             email,
             "employee",
@@ -397,7 +432,7 @@ def login(db: Session, login_data: UserLogin) -> TokenResponse:
             log_login_failed(email, "account_inactive", "client")
             raise HTTPException(403, "Tu cuenta está inhabilitada")
         log_login_success(email, "client")
-        respuesta = _create_tokens(client.id_cliente, email, "client", rol="cliente")
+        respuesta = _create_tokens(db, client.id_cliente, email, "client", rol="cliente")
         respuesta.perfil_incompleto = _cliente_perfil_incompleto(client)
         return respuesta
 
@@ -424,18 +459,108 @@ def login(db: Session, login_data: UserLogin) -> TokenResponse:
 # 🔄 Refresco de token
 # ──────────────────────────────────────────────────────────────────
 
+def _mark_refresh_tokens_revoked(records: list[RefreshToken], reason: str) -> None:
+    ahora = ahora_utc_naiva()
+    for record in records:
+        record.revoked_at = ahora
+        record.revoked_reason = reason
+
+
+def _revoke_refresh_family(db: Session, family_id: str, reason: str) -> None:
+    """Revoca todos los tokens vigentes de una misma sesión/dispositivo."""
+    records = db.execute(
+        select(RefreshToken).where(
+            RefreshToken.family_id == family_id,
+            RefreshToken.revoked_at.is_(None),
+        )
+    ).scalars().all()
+    _mark_refresh_tokens_revoked(records, reason)
+
+
+def _get_active_refresh_record(
+    db: Session,
+    jti: str,
+    user_type: str,
+    user_id: int,
+) -> RefreshToken:
+    """Devuelve el registro vigente del token o falla si fue revocado/expirado.
+
+    Si el token ya fue rotado/revocado se asume reuso y se revoca toda la
+    familia, invalidando cualquier acceso derivado de esa sesión.
+    """
+    record = db.execute(
+        select(RefreshToken).where(RefreshToken.jti == jti).with_for_update()
+    ).scalar_one_or_none()
+    if record is None or record.user_type != user_type or record.user_id != user_id:
+        raise HTTPException(401, "Refresh token inválido")
+    if record.revoked_at is not None:
+        _revoke_refresh_family(db, record.family_id, "reuse")
+        db.commit()
+        raise HTTPException(401, "Refresh token revocado")
+    if record.expires_at <= ahora_utc_naiva():
+        record.revoked_at = ahora_utc_naiva()
+        record.revoked_reason = "expired"
+        db.commit()
+        raise HTTPException(401, "Refresh token expirado")
+    return record
+
+
+def _rotate_refresh_token(db: Session, actual: RefreshToken, nuevo: RefreshToken) -> None:
+    """Registra el token nuevo y marca el anterior como rotado."""
+    db.add(nuevo)
+    actual.revoked_at = ahora_utc_naiva()
+    actual.revoked_reason = "rotated"
+    actual.replaced_by_jti = nuevo.jti
+    db.commit()
+
+
+def revoke_refresh_token(db: Session, refresh_token: str, reason: str = "logout") -> None:
+    """Revoca la sesión asociada a un refresh token (operación idempotente)."""
+    payload = decode_token(refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        return
+    family_id = payload.get("sid")
+    jti = payload.get("jti")
+    if jti:
+        record = db.execute(
+            select(RefreshToken).where(RefreshToken.jti == jti)
+        ).scalar_one_or_none()
+        if record:
+            family_id = record.family_id
+    if not family_id:
+        return
+    _revoke_refresh_family(db, family_id, reason)
+    db.commit()
+
+
+def revoke_user_refresh_tokens(
+    db: Session,
+    user_id: int,
+    user_type: str,
+    reason: str = "password_changed",
+) -> None:
+    """Revoca todas las sesiones vigentes de una cuenta."""
+    records = db.execute(
+        select(RefreshToken).where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.user_type == user_type,
+            RefreshToken.revoked_at.is_(None),
+        )
+    ).scalars().all()
+    _mark_refresh_tokens_revoked(records, reason)
+
+
 # Consulta User, Cliente.
 def refresh_access_token(db: Session, refresh_token: str) -> TokenResponse:
-    """Renueva el par de tokens a partir de un refresh token válido.
+    """Rota un refresh token vigente y emite un par nuevo.
 
-    Comprueba que el JWT sea de tipo ``refresh``, que la identidad
-    (``uid``, con respaldo por correo) siga existiendo y que la cuenta
-    esté activa. El rol del nuevo token se conserva del payload sin
-    revalidar contra la base: un cambio de rol surte efecto al iniciar
-    sesión de nuevo.
+    Valida firma y tipo del JWT, exige ``jti``/``sid`` registrados en la base,
+    comprueba identidad y cuenta activa, marca el token usado como rotado y
+    crea uno nuevo dentro de la misma familia. Reutilizar un token ya rotado
+    revoca toda la familia.
 
     Args:
-        db: Sesión de base de datos (solo lectura; no confirma cambios).
+        db: Sesión de base de datos; confirma la rotación.
         refresh_token: JWT de refresco emitido por el login.
 
     Returns:
@@ -443,51 +568,53 @@ def refresh_access_token(db: Session, refresh_token: str) -> TokenResponse:
         rol y marcas de estado del usuario.
 
     Raises:
-        HTTPException: 401 si el token es inválido o no es de refresco,
-            si está malformado, si la identidad ya no existe o si la
-            cuenta está inhabilitada.
+        HTTPException: 401 si el token es inválido, no es de refresco, fue
+            revocado/reutilizado, expiró, o la cuenta ya no está activa.
     """
     payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(401, "Refresh token inválido")
     email = payload.get("sub")
     user_type = payload.get("user_type")
-    if not email or user_type not in ("employee", "client"):
-        raise HTTPException(401, "Token malformado")
+    jti = payload.get("jti")
+    family_id = payload.get("sid")
     uid = payload.get("uid")
+    if not email or user_type not in ("employee", "client") or not jti or not family_id or uid is None:
+        raise HTTPException(401, "Token malformado")
+    try:
+        user_id = int(uid)
+    except (TypeError, ValueError):
+        raise HTTPException(401, "Token malformado")
+
     if user_type == "employee":
-        user = None
-        if uid:
-            try:
-                user = db.query(User).filter(User.id_usuario == int(uid)).first()
-            except (TypeError, ValueError):
-                user = None
-        if user is None:
-            user = _get_user_by_email(db, email)
+        user = db.query(User).filter(User.id_usuario == user_id).first()
         if not user or not user.is_active:
             raise HTTPException(401, "Usuario no válido")
-        rol = payload.get("rol")
-        return _create_tokens(
+        record = _get_active_refresh_record(db, jti, user_type, user_id)
+        respuesta, nuevo = _build_token_pair(
             user.id_usuario,
             email,
             "employee",
-            rol=rol,
-            password_reset_required=bool(user.password_reset_required),
+            rol=payload.get("rol"),
+            family_id=record.family_id,
         )
+        respuesta.password_reset_required = bool(user.password_reset_required)
     else:
-        client = None
-        if uid:
-            try:
-                client = db.query(Cliente).filter(Cliente.id_cliente == int(uid)).first()
-            except (TypeError, ValueError):
-                client = None
-        if client is None:
-            client = _get_client_by_email(db, email)
+        client = db.query(Cliente).filter(Cliente.id_cliente == user_id).first()
         if not client or not client.is_active:
             raise HTTPException(401, "Cliente no válido")
-        respuesta = _create_tokens(client.id_cliente, email, "client", rol="cliente")
+        record = _get_active_refresh_record(db, jti, user_type, user_id)
+        respuesta, nuevo = _build_token_pair(
+            client.id_cliente,
+            email,
+            "client",
+            rol="cliente",
+            family_id=record.family_id,
+        )
         respuesta.perfil_incompleto = _cliente_perfil_incompleto(client)
-        return respuesta
+
+    _rotate_refresh_token(db, record, nuevo)
+    return respuesta
 
 # ──────────────────────────────────────────────────────────────────
 # 🔒 Cambio de contraseña
@@ -513,6 +640,7 @@ def change_password(db: Session, current_user: User | Cliente, req: ChangePasswo
         current_user.password_reset_required = False
     else:
         current_user.password_hash = new_hash
+    revoke_user_refresh_tokens(db, user_id, user_type, reason="password_changed")
     db.commit()
     log_password_changed(str(user_id), user_type, ip)
 
@@ -525,12 +653,48 @@ def update_password(db: Session, current_user: User, new_password: str, ip: str 
         raise HTTPException(403, "Solo usuarios del equipo pueden usar esta opción")
     current_user.password_hash = hash_password(new_password)
     current_user.password_reset_required = False
+    revoke_user_refresh_tokens(db, current_user.id_usuario, "employee", reason="password_changed")
     db.commit()
     log_password_changed(str(current_user.id_usuario), "employee", ip)
 
 # ──────────────────────────────────────────────────────────────────
 # 📧 Recuperación de contraseña (código de 6 dígitos)
 # ──────────────────────────────────────────────────────────────────
+
+def _find_password_reset_token(
+    db: Session,
+    code: str,
+    email: str | None = None,
+) -> PasswordResetToken | None:
+    """Busca un código de recuperación vigente.
+
+    Solo considera tokens de recuperación (``token`` nulo); los tokens de
+    cambio de correo también viven en esta tabla y no deben servir aquí.
+    Ante posibles colisiones devuelve el más reciente.
+    """
+    stmt = select(PasswordResetToken).where(
+        PasswordResetToken.code == code,
+        PasswordResetToken.token.is_(None),
+        PasswordResetToken.used == False,  # noqa: E712
+        PasswordResetToken.expires_at > ahora_utc_naiva(),
+    )
+    if email is not None:
+        stmt = stmt.where(PasswordResetToken.email == email)
+    return db.execute(stmt.order_by(PasswordResetToken.id.desc())).scalars().first()
+
+
+def _invalidate_active_password_reset_tokens(db: Session, email: str) -> None:
+    """Marca como usados los códigos de recuperación vigentes de un correo."""
+    tokens = db.execute(
+        select(PasswordResetToken).where(
+            PasswordResetToken.email == email,
+            PasswordResetToken.token.is_(None),
+            PasswordResetToken.used == False,  # noqa: E712
+        )
+    ).scalars().all()
+    for token in tokens:
+        token.used = True
+
 
 # confirma los cambios con la sesión de base de datos.
 async def request_password_reset(db: Session, email: str, ip: str = None) -> None:
@@ -545,6 +709,7 @@ async def request_password_reset(db: Session, email: str, ip: str = None) -> Non
     if not user_type:
         log_password_reset_requested(ip=ip)
         return
+    _invalidate_active_password_reset_tokens(db, email)
     code = str(100000 + secrets.randbelow(900000))
     expires = ahora_utc_naiva() + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
     token_record = PasswordResetToken(
@@ -564,27 +729,12 @@ async def request_password_reset(db: Session, email: str, ip: str = None) -> Non
 
 # Valida las condiciones de esta operación y devuelve un error HTTP si no se cumplen.
 def verify_password_reset_code(db: Session, email: str, code: str) -> None:
-    token_rec = db.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.email == email,
-            PasswordResetToken.code == code,
-            PasswordResetToken.used == False,
-            PasswordResetToken.expires_at > ahora_utc_naiva()
-        )
-    ).scalar_one_or_none()
-    if not token_rec:
+    if not _find_password_reset_token(db, code, email):
         raise HTTPException(400, "Código inválido o expirado")
 
 # confirma los cambios con la sesión de base de datos.
 def reset_password(db: Session, req: ResetPasswordRequest) -> None:
-    code = req.token
-    token_rec = db.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.code == code,
-            PasswordResetToken.used == False,
-            PasswordResetToken.expires_at > ahora_utc_naiva()
-        )
-    ).scalar_one_or_none()
+    token_rec = _find_password_reset_token(db, req.token)
     if not token_rec:
         raise HTTPException(400, "Código inválido o expirado")
     email = token_rec.email
@@ -599,6 +749,9 @@ def reset_password(db: Session, req: ResetPasswordRequest) -> None:
         if not entity:
             raise HTTPException(400, "Usuario no encontrado")
         entity.password_hash = hash_password(req.new_password)
+    _invalidate_active_password_reset_tokens(db, email)
+    entity_id = entity.id_cliente if user_type == "client" else entity.id_usuario
+    revoke_user_refresh_tokens(db, entity_id, user_type, reason="password_reset")
     token_rec.used = True
     db.commit()
 
@@ -756,7 +909,7 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
         if not role_name:
             raise HTTPException(status_code=403, detail="Tu cuenta no tiene un rol válido asignado. Contacta al administrador.")
         log_login_success(email, "employee")
-        return _create_tokens(linked_user.id_usuario, linked_user.email, "employee", rol=role_name,
+        return _create_tokens(db, linked_user.id_usuario, linked_user.email, "employee", rol=role_name,
                               password_reset_required=bool(linked_user.password_reset_required))
 
     # Si el correo pertenece a un empleado (administrador/técnico), se autentica
@@ -775,6 +928,7 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
             raise HTTPException(403, "Tu cuenta no tiene un rol válido asignado. Contacta al administrador.")
         log_login_success(email, "employee")
         return _create_tokens(
+            db,
             user.id_usuario,
             email,
             "employee",
@@ -800,7 +954,7 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
             log_login_failed(email, "account_inactive", "client")
             raise HTTPException(403, "Tu cuenta está inhabilitada")
         log_login_success(email, "client")
-        respuesta = _create_tokens(client.id_cliente, email, "client", rol="cliente")
+        respuesta = _create_tokens(db, client.id_cliente, email, "client", rol="cliente")
         respuesta.perfil_incompleto = _cliente_perfil_incompleto(client)
         return respuesta
 
@@ -824,7 +978,7 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
     db.commit()
     db.refresh(new_client)
     log_login_success(email, "client")
-    respuesta = _create_tokens(new_client.id_cliente, email, "client", rol="cliente")
+    respuesta = _create_tokens(db, new_client.id_cliente, email, "client", rol="cliente")
     respuesta.perfil_incompleto = True
     return respuesta
 
@@ -867,5 +1021,5 @@ def link_google_employee(db: Session, credential: str, email: str, password: str
     user.google_id = google_uid
     db.commit()
     log_login_success(user.email, "employee")
-    return _create_tokens(user.id_usuario, user.email, "employee", rol=role_name,
+    return _create_tokens(db, user.id_usuario, user.email, "employee", rol=role_name,
                           password_reset_required=bool(user.password_reset_required))

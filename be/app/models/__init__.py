@@ -3,6 +3,7 @@ from .cliente import Cliente
 from .roles_usuario import RolesUsuario
 from .password_reset_token import PasswordResetToken
 from .email_verification_token import EmailVerificationToken
+from .refresh_token import RefreshToken
 from .producto import Producto
 from .producto_variante import ProductoVariante
 from .categoria import Categoria

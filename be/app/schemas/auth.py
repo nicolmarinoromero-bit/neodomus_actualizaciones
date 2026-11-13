@@ -66,7 +66,7 @@ class ForgotPasswordRequest(BaseModel):
 
 # Agrupa los campos de ResetPasswordRequest: token, new_password.
 class ResetPasswordRequest(BaseModel):
-    token: str = Field(min_length=6, max_length=6)
+    token: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
     new_password: str
 
     @field_validator("new_password")

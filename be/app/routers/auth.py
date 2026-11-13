@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.database import get_db
@@ -21,6 +21,7 @@ from app.services.auth_service import (
     request_password_reset,
     verify_password_reset_code,
     reset_password,
+    revoke_refresh_token,
     solicitar_habilitacion,
     google_login,
     link_google_employee,
@@ -57,7 +58,7 @@ class ForgotPasswordRequest(BaseModel):
 
 # Agrupa los campos de ResetPasswordCodeRequest: token, new_password.
 class ResetPasswordCodeRequest(BaseModel):
-    token: str
+    token: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
     new_password: str
 
 # Agrupa los campos de ResendVerificationRequest: email.
@@ -71,7 +72,13 @@ class RefreshTokenRequest(BaseModel):
 # Registro y verificación — email en background para respuesta inmediata
 @router.post("/register/client", response_model=dict)
 @limiter.limit("3/minute")
-async def register_client_endpoint(request: Request, client_data: ClientCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def register_client_endpoint(
+    request: Request,
+    response: Response,
+    client_data: ClientCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     # La creación del pendiente es síncrona (rápida); el envío de correo va en background
     # para que el formulario no quede congelado esperando SMTP.
     return await register_client(db, client_data, background_tasks)
@@ -83,13 +90,23 @@ def verify_email_endpoint(code: str, db: Session = Depends(get_db)):
 
 @router.post("/resend-verification")
 @limiter.limit("3/minute")
-async def resend_verification_endpoint(request: Request, req: ResendVerificationRequest, db: Session = Depends(get_db)):
+async def resend_verification_endpoint(
+    request: Request,
+    response: Response,
+    req: ResendVerificationRequest,
+    db: Session = Depends(get_db),
+):
     return await resend_verification_code(db, req.email)
 
 # Login y autenticación
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-def login_endpoint(request: Request, response: Response, login_data: UserLogin, db: Session = Depends(get_db)):
+def login_endpoint(
+    request: Request,
+    response: Response,
+    login_data: UserLogin,
+    db: Session = Depends(get_db),
+):
     result = login(db, login_data)
     # Cookies HttpOnly para la web; los tokens también van en el cuerpo para el móvil.
     set_auth_cookies(response, result.access_token, result.refresh_token)
@@ -131,7 +148,12 @@ def google_link_employee_endpoint(
 
 @router.post("/solicitar-habilitacion")
 @limiter.limit("5/minute")
-async def solicitar_habilitacion_endpoint(request: Request, req: UserLogin, db: Session = Depends(get_db)):
+async def solicitar_habilitacion_endpoint(
+    request: Request,
+    response: Response,
+    req: UserLogin,
+    db: Session = Depends(get_db),
+):
     """Crea una solicitud de habilitación para un cliente con la cuenta inhabilitada.
     Requiere email y contraseña para comprobar la identidad. No habilita la cuenta."""
     return solicitar_habilitacion(db, req.email, req.password)
@@ -159,8 +181,17 @@ def refresh_token(
 
 
 @router.post("/logout")
-def logout(response: Response):
-    """Cierra la sesión web eliminando las cookies HttpOnly."""
+def logout(
+    response: Response,
+    request: Request,
+    req: Optional[RefreshTokenRequest] = None,
+    db: Session = Depends(get_db),
+):
+    """Cierra la sesión web eliminando las cookies HttpOnly y revocando el
+    refresh token presentado (por cuerpo o cookie)."""
+    token = (req.refresh_token if req else None) or request.cookies.get(REFRESH_COOKIE_NAME)
+    if token:
+        revoke_refresh_token(db, token)
     clear_auth_cookies(response)
     return {"msg": "Sesión cerrada"}
 
@@ -232,6 +263,7 @@ def update_password_endpoint(
 @limiter.limit("3/minute")
 async def forgot_password(
     request: Request,
+    response: Response,
     req: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
 ):
@@ -262,7 +294,12 @@ async def forgot_password(
 
 @router.post("/verify-code")
 @limiter.limit("5/minute")
-def verify_code(request: Request, req: VerifyCodeRequest, db: Session = Depends(get_db)):
+def verify_code(
+    request: Request,
+    response: Response,
+    req: VerifyCodeRequest,
+    db: Session = Depends(get_db),
+):
     verify_password_reset_code(db, req.email, req.code)
     return {"valid": True, "message": "Código válido. Ahora puedes restablecer tu contraseña."}
 
@@ -270,6 +307,7 @@ def verify_code(request: Request, req: VerifyCodeRequest, db: Session = Depends(
 @limiter.limit("5/minute")
 def reset_password_endpoint(
     request: Request,
+    response: Response,
     req: ResetPasswordCodeRequest,
     db: Session = Depends(get_db)
 ):

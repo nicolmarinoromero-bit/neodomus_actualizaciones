@@ -60,6 +60,8 @@ def create_refresh_token(
     user_type: str = None,
     rol: str = None,
     user_id: int = None,
+    jti: str = None,
+    family_id: str = None,
 ) -> str:
     to_encode = data.copy()
     if user_type:
@@ -68,6 +70,10 @@ def create_refresh_token(
         to_encode["rol"] = rol
     if user_id is not None:
         to_encode["uid"] = str(user_id)
+    if jti:
+        to_encode["jti"] = jti
+    if family_id:
+        to_encode["sid"] = family_id
     expire = ahora_utc_naiva() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
