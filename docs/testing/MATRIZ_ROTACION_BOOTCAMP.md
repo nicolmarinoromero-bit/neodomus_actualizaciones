@@ -8,7 +8,7 @@
 | Semana | Capa principal | Entregable núcleo | Cobertura BE real (líneas) | Cobertura FE real | Umbral vigente BE/FE |
 |---|---|---|---|---|---|
 | S1 | E2E | Primer E2E con AAA + línea base de cobertura | **56.08 %** líneas (31.2 % ramas) | **27.55 %** líneas | línea base |
-| S2 | Unitarias (BE+FE) | ≥3 unitarias de reglas de negocio + CI con umbral 30 % | — | — | 30 % |
+| S2 | Unitarias (BE+FE) | ≥3 unitarias de reglas de negocio + CI con umbral 30 % | 56.09 % líneas (Cover 50.53 %) | **30.01 %** líneas | BE 50 (combinado) / FE 30 |
 | S3 | Componentes React | Formularios críticos con user-event | — | — | 40 % |
 | S4 | Pruebas de API | Contrato HTTP de routers sin cubrir + negativos | — | — | 50 % |
 | S5 | Dobles de prueba | Inventario de dependencias + dobles (MinIO/SMTP/reloj) | — | — | 60 % |

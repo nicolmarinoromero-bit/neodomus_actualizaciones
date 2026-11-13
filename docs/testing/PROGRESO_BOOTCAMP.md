@@ -9,7 +9,7 @@
 | Sem | Tema (bootcamp) | Actividades previstas en NeoDomus | Estado |
 |---|---|---|---|
 | 1 | Pirámide, AAA, primer E2E, línea base de cobertura | Playwright a estudio del proyecto, E2E de login con AAA, cobertura FE (`@vitest/coverage-v8`) + re-medición BE, matriz de rotación, umbral línea base | ✅ COMPLETADA |
-| 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | 🔵 EN CURSO |
+| 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ✅ COMPLETADA |
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ⚪ PENDIENTE |
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ⚪ PENDIENTE |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
@@ -120,16 +120,54 @@ verificado dos veces, pirámide documentada, cobertura configurada y línea base
 registrada en ambas capas), sin regresiones atribuibles (suite heredada en
 verde) y evidencia verificable en esta misma sesión.
 
-### Semana 2 — Pruebas unitarias y CI inicial (EN CURSO)
-- Infra pytest añadida al proyecto (`be/pyproject.toml`: pytest, pytest-cov,
-  pytest-mock; runner compatible con los 291 TestCase unittest heredados).
-- Unitarias backend nuevas (pytest, puros, sin BD): `test_unidades_seguridad.py`
-  (17 casos: política de contraseñas, hash/verify incluida vía legacy inválida,
-  tokens JWT tipo/expiración/alteración), `test_unidades_recomendacion.py`
-  (15: horas por dificultad/normalización/cantidad/redondeo + pin de
-  comportamiento de cantidad 0), `test_unidades_i18n_bd.py` (17: resolución de
-  idioma con q-values, lista blanca de traducción, auditoría con correo
-  ofuscado), `test_unidades_fechas.py` (3: contrato naive Bogotá UTC-5).
-- Unitarias frontend nuevas: `src/i18n/traducciones.test.ts` (14),
-  `src/utils/tabStorage.test.ts` (6), `src/utils/favoritos.test.tsx` (6).
-- (El registro se completa al cerrar la semana con las mediciones reales.)
+### Semana 2 — Pruebas unitarias y CI inicial
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. Infra pytest añadida al proyecto (`be/pyproject.toml`: pytest, pytest-cov,
+   pytest-mock; `[tool.pytest.ini_options]` con testpaths y addopts de
+   cobertura; `uv.lock` regenerado). pytest ejecuta también los 291 TestCase
+   unittest heredados sin reescribirlos.
+2. Unitarias backend nuevas (pytest, puras, sin BD): `test_unidades_seguridad.py`
+   (17), `test_unidades_recomendacion.py` (15), `test_unidades_i18n_bd.py` (17),
+   `test_unidades_fechas.py` (3). Total **52 casos nuevos**.
+3. Unitarias/componentes frontend nuevos (78 casos): `i18n/traducciones.test.ts`
+   (14: construirT + traducirMensajeNotificacion + parser), `utils/tabStorage.test.ts`
+   (6), `utils/favoritos.test.tsx` (6), `utils/productImages.test.ts` (9),
+   `utils/tecnicosSync.test.ts` (3), `utils/metrosLimites.test.ts` (5),
+   `constants.test.ts` (9: contrato STOCK_MINIMO/categorías espejo del backend),
+   `components/common/ProtectedRoute.test.tsx` (5), `components/layout/RoleRoute.test.tsx`
+   (7: normalización admin/roles), `contexts/AuthModalContext.test.tsx` (5),
+   `components/common/ConfirmDialog.test.tsx` (5), `components/common/PasswordInput.test.tsx` (4).
+4. Umbral de cobertura: FE fijado y VERIFICADO (30 % líneas / 72 ramas / 42
+   funciones en `fe/vitest.config.ts`; una corrida parcial confirma que el
+   umbral falla cuando no se alcanza). BE `--cov-fail-under=50` (combinado ≥
+   piso semanal; trinquete por encima del piso de 30).
+5. CI (`.github/workflows/tests.yml`, cambios staged selectivamente para no
+   incluir ediciones ajenas concurrentes): job backend ahora corre `pytest`
+   con cobertura + umbral y `-rs` (omitidos visibles); job frontend corre
+   `-Coverage`; artefactos de log+cobertura se suben SIEMPRE (verificable
+   aunque falle el umbral). Sin push (no autorizado): validado localmente.
+
+**Resultados reales**
+
+| Suite | Resultado |
+|---|---|
+| Backend (pytest, todo + cobertura + umbral) | **343 passed** · cobertura combinada **50.53 %** (umbral 50 ✓) · 187 s |
+| Frontend (Vitest + cobertura + thresholds) | **42 archivos / 196 pruebas OK** · líneas **30.01 %** · ramas 72.77 % |
+| Umbrales verificados en rojo | corrida de 1 archivo FE → `Coverage for lines (0.15%) does not meet global threshold (30%)` ✓ |
+
+**Hallazgos y notas**
+- `recomendacion_service.horas_estimadas_producto(cantidad=0)` trata 0 como 1
+  unidad (`cantidad or 1`): comportamiento fijado con test y observación para
+  el equipo (no es un defecto de contrato del API hoy).
+- El fallback frase-a-frase de `translateLocalizedMessage` sustituye frases
+  conocidas dentro de mensajes desconocidos (ej. "Mensaje inexistente" →
+  "Message inexistente"): comportamiento real documentado con test.
+- `formatMetros(1.005)` → "1" (comportamiento estándar de toFixed en binario):
+  fijado con test.
+
+**Estado de aprobación: COMPLETADA.** ≥3 unitarias por "integrante" (78 FE +
+52 BE sobre reglas de negocio reales), CI con umbral 30 % en ambas capas
+(BE efectivamente 50 por trinquete), suites en verde y sin regresiones.

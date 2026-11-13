@@ -9,8 +9,8 @@
 | Semana | Backend líneas / ramas | Umbral BE vigente | Frontend líneas / ramas / funciones | Umbral FE vigente |
 |---|---|---|---|---|
 | S1 (línea base) | **56.08 % / 31.20 %** (Cover combinado 50 %) | 56 / 31 (piso real) | **27.55 % / 68.94 % / 38.51 %** | 27 / 68 / 38 |
-| S2 | — | ≥ 56 (piso real; piso semanal 30) | — | ≥ 27 (piso semanal 30) |
-| S3 | — | 40 % | — | 40 % |
+| S2 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | **50** (combinado, trinquete) | **30.01 % / 72.77 % / 42.92 %** | **30 / 72 / 42** |
+| S3 | — | 50 (piso semanal 40) | — | 30 (piso semanal 40 en S3: se exige al cerrarla) |
 | S4 | — | 50 % | — | 50 % |
 | S5 | — | 60 % | — | 60 % |
 | S6 | — | 70 % | — | 70 % |
@@ -80,6 +80,9 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-12 | FE completa | 118/118 OK | — | `pnpm test` |
 | 2026-11-12 | FE cobertura | 118/118 OK | 27.55 % líneas | `pnpm test --coverage` |
 | 2026-11-12 | E2E login (nuevo) | 4/4 × 2 corridas | — | `python scripts/e2e_login.py` |
+| 2026-11-13 | BE pytest S2 (unitarias+suite) | 343 passed | 50.53 % combinado (umbral 50 ✓) | `pytest app/tests -q` (contenedor) |
+| 2026-11-13 | FE cobertura S2 | 196/196 OK (42 archivos) | 30.01 % líneas / 72.77 % ramas | `pnpm test --coverage` |
+| 2026-11-13 | Umbral FE en rojo (verificación) | 1 archivo → 0.15 % < 30 % → ERROR | — | `pnpm vitest run src/utils/metros.test.ts --coverage` |
 
 ## Semanas siguientes (plantilla de registro)
 
