@@ -9,7 +9,7 @@
 | Sem | Tema (bootcamp) | Actividades previstas en NeoDomus | Estado |
 |---|---|---|---|
 | 1 | Pirámide, AAA, primer E2E, línea base de cobertura | Playwright a estudio del proyecto, E2E de login con AAA, cobertura FE (`@vitest/coverage-v8`) + re-medición BE, matriz de rotación, umbral línea base | ✅ COMPLETADA |
-| 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ⚪ PENDIENTE |
+| 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | 🔵 EN CURSO |
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ⚪ PENDIENTE |
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ⚪ PENDIENTE |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
@@ -119,3 +119,17 @@ aceptación cubiertos (Playwright configurado con reporte HTML, E2E real con AAA
 verificado dos veces, pirámide documentada, cobertura configurada y línea base
 registrada en ambas capas), sin regresiones atribuibles (suite heredada en
 verde) y evidencia verificable en esta misma sesión.
+
+### Semana 2 — Pruebas unitarias y CI inicial (EN CURSO)
+- Infra pytest añadida al proyecto (`be/pyproject.toml`: pytest, pytest-cov,
+  pytest-mock; runner compatible con los 291 TestCase unittest heredados).
+- Unitarias backend nuevas (pytest, puros, sin BD): `test_unidades_seguridad.py`
+  (17 casos: política de contraseñas, hash/verify incluida vía legacy inválida,
+  tokens JWT tipo/expiración/alteración), `test_unidades_recomendacion.py`
+  (15: horas por dificultad/normalización/cantidad/redondeo + pin de
+  comportamiento de cantidad 0), `test_unidades_i18n_bd.py` (17: resolución de
+  idioma con q-values, lista blanca de traducción, auditoría con correo
+  ofuscado), `test_unidades_fechas.py` (3: contrato naive Bogotá UTC-5).
+- Unitarias frontend nuevas: `src/i18n/traducciones.test.ts` (14),
+  `src/utils/tabStorage.test.ts` (6), `src/utils/favoritos.test.tsx` (6).
+- (El registro se completa al cerrar la semana con las mediciones reales.)
