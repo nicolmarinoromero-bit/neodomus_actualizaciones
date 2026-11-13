@@ -125,6 +125,10 @@ jobs:
           # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
           pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'
 
+      - name: Generate ephemeral JWT secret (backend CI only)
+        shell: bash
+        run: python -c 'import secrets; print("SECRET_KEY=" + secrets.token_hex(32))' >> "$GITHUB_ENV"
+
       # MinIO de pruebas: los service containers de GitHub Actions no admiten
       # campo 'command' y la imagen arrancada sin 'server /data' imprime su
       # ayuda y muere (run 43106631303). Se lanza como paso controlado con el
@@ -283,6 +287,10 @@ jobs:
           pip install --only-binary :all: -r be/requirements.txt
           # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
           pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'
+
+      - name: Generate ephemeral JWT secret (E2E CI only)
+        shell: bash
+        run: python -c 'import secrets; print("SECRET_KEY=" + secrets.token_hex(32))' >> "$GITHUB_ENV"
 
       # Misma solución que el job backend: paso controlado con 'server /data'
       # explícito (los service containers no admiten campo 'command').
