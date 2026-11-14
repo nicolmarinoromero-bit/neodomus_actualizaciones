@@ -99,6 +99,15 @@ $BucketPrivate  = 'neodomus-test-private'
 $TestMinioVars  = @('TEST_MINIO_ENDPOINT','TEST_MINIO_ACCESS_KEY','TEST_MINIO_SECRET_KEY',
                     'TEST_MINIO_BUCKET','TEST_MINIO_PRIVATE_BUCKET','TEST_MINIO_PUBLIC_ENDPOINT')
 
+# El backend valida SECRET_KEY durante el arranque incluso en migraciones y
+# pruebas. Si el usuario no definio una, usa una clave efimera de esta sesion.
+if ([string]::IsNullOrWhiteSpace($env:SECRET_KEY)) {
+    $secretBytes = [byte[]]::new(32)
+    $secretGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $secretGenerator.GetBytes($secretBytes) } finally { $secretGenerator.Dispose() }
+    $env:SECRET_KEY = [BitConverter]::ToString($secretBytes).Replace('-', '').ToLowerInvariant()
+}
+
 function Write-Rule([string]$Text = '=') {
     Write-Host ($Text * 78) -ForegroundColor DarkGray
 }
@@ -521,8 +530,14 @@ if ($InDocker) {
     $runArgs = @(
         'run', '--rm', '--network', $TestNetwork,
         ('-v', ('{0}:/src:ro' -f $BeDir)),
+        ('-v', ('{0}:/scripts:ro' -f (Join-Path $Root 'scripts'))),
         ('-v', ('{0}:/logs' -f $LogsDir)),
+        # Import app.database requires DATABASE_URL before testdb.py replaces
+        # the engine. Use an unreachable, test-only URL so a test cannot touch
+        # the developer's database if it imports modules out of order.
+        '-e', 'DATABASE_URL=mysql+pymysql://unused:unused@127.0.0.1:1/neodomus_app_test_guard',
         '-e', 'TEST_DATABASE_URL',
+        '-e', 'SECRET_KEY',
         '-e', 'TEST_MINIO_ENDPOINT', '-e', 'TEST_MINIO_ACCESS_KEY', '-e', 'TEST_MINIO_SECRET_KEY',
         '-e', 'TEST_MINIO_BUCKET', '-e', 'TEST_MINIO_PRIVATE_BUCKET', '-e', 'TEST_MINIO_PUBLIC_ENDPOINT',
         '--entrypoint', '/bin/sh', $TestImage, '-c', $beSh
