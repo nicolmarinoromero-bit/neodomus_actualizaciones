@@ -679,29 +679,36 @@ class ReposicionInventarioTestCase(BasePen0910):
                 u = db.query(User).filter(User.id_usuario == id_usuario).first()
                 from app.routers.devoluciones import subir_evidencia_recogida
 
-                with patch(
-                    "app.services.minio_service.subir_imagen_privada",
-                    return_value="recogidas/test.jpg",
-                ):
-                    _run(
-                        subir_evidencia_recogida(
-                            id_devolucion,
-                            file=_ArchivoFalso("recogida.png", _png_valido()),
-                            current_user=u,
-                            db=db,
-                        )
+                _run(
+                    subir_evidencia_recogida(
+                        id_devolucion,
+                        file=_ArchivoFalso("recogida.png", _png_valido()),
+                        current_user=u,
+                        db=db,
                     )
-                    codigos.append(200)
+                )
+                codigos.append(200)
             except Exception as e:
                 codigos.append(getattr(e, "status_code", 0))
             finally:
                 db.close()
 
-        hilos = [threading.Thread(target=intentar) for _ in range(2)]
-        for h in hilos:
-            h.start()
-        for h in hilos:
-            h.join()
+        # unittest.mock.patch NO es thread-safe: si dos hilos hacen enter/exit
+        # intercalados, el último en salir restaura el valor que capturó el
+        # OTRO hilo (su propio mock) y el mock queda "pegado" para el resto de
+        # la suite (provocó NoSuchKey/404 en los tests reales de MinIO en CI).
+        # El parche se aplica y restaura SOLO en el hilo principal, alrededor
+        # del lanzamiento de los hilos: ambas llamadas concurrentes leen el
+        # atributo del módulo ya parcheado, con el mismo comportamiento.
+        with patch(
+            "app.services.minio_service.subir_imagen_privada",
+            return_value="recogidas/test.jpg",
+        ):
+            hilos = [threading.Thread(target=intentar) for _ in range(2)]
+            for h in hilos:
+                h.start()
+            for h in hilos:
+                h.join()
 
         self.assertEqual(sorted(codigos), [200, 400], codigos)
         self.assertEqual(

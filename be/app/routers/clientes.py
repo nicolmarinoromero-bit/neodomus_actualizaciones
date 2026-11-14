@@ -10,6 +10,7 @@ from app.models.solicitud_cuenta import SolicitudCuenta
 from app.models.user import User
 from app.schemas.cliente import ClientResponse, ClientUpdate
 from app.schemas.solicitud import SolicitudCreate, SolicitudResponse
+from app.utils.fechas import ahora_utc_naiva
 from app.utils.imagenes import validar_imagen_perfil
 from app.utils.security import get_current_client, get_current_employee
 from app.models.cita import Cita
@@ -129,6 +130,34 @@ async def crear_solicitud(
 
     _alertar_admin_nueva_solicitud(db, current_client, data.tipo, data.motivo)
     return solicitud
+
+
+@router.delete("/me/cuenta-solicitud", status_code=204)
+def cancelar_solicitud(
+    current_client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Cancela la solicitud pendiente del propio cliente.
+
+    La fila no se elimina: pasa a estado "cancelada" y conserva la auditoría
+    de quién la solicitó y cuándo, igual que las resoluciones del admin.
+    """
+    solicitud = (
+        db.query(SolicitudCuenta)
+        .filter(
+            SolicitudCuenta.id_cliente == current_client.id_cliente,
+            SolicitudCuenta.estado == "pendiente",
+        )
+        .order_by(SolicitudCuenta.created_at.desc())
+        .first()
+    )
+    if not solicitud:
+        raise HTTPException(status_code=404, detail="No tienes una solicitud pendiente")
+
+    solicitud.estado = "cancelada"
+    solicitud.resuelta_at = ahora_utc_naiva()
+    db.commit()
+
 
 @router.put("/{id_cliente}/habilitar", response_model=ClientResponse)
 async def habilitar_cliente(

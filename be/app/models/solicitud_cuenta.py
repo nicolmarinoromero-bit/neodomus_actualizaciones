@@ -18,7 +18,7 @@ class SolicitudCuenta(Base):
     tipo: Mapped[str] = mapped_column(String(20), nullable=False)  # 'inhabilitar' | 'habilitar'
     estado: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pendiente"
-    )  # 'pendiente' | 'aprobada' | 'rechazada'
+    )  # 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada'
     motivo: Mapped[str] = mapped_column(Text, nullable=True)
     resuelta_por: Mapped[int] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

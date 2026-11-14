@@ -14,10 +14,10 @@
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ✅ COMPLETADA |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ✅ COMPLETADA |
 | 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ✅ COMPLETADA |
-| 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ⚪ PENDIENTE |
-| 8 | CI completo y calidad | Cobertura+umbral en CI, artefactos, job de calidad, 0 omitidas justificadas | ⚪ PENDIENTE |
-| 9 | Integrador | ESTRATEGIA_DE_PRUEBAS.md, matrices de cobertura y trazabilidad, consolidación | ⚪ PENDIENTE |
-| 10 | TDD | Historia de usuario nueva con ciclos RED→GREEN→REFACTOR documentados | ⚪ PENDIENTE |
+| 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ✅ COMPLETADA |
+| 8 | CI completo y calidad | Cobertura+umbral en CI, artefactos, job de calidad, 0 omitidas justificadas | ✅ COMPLETADA |
+| 9 | Integrador | ESTRATEGIA_DE_PRUEBAS.md, matrices de cobertura y trazabilidad, consolidación | ✅ COMPLETADA |
+| 10 | TDD | Historia nueva: cancelar solicitud pendiente de baja, con ciclo RED→GREEN→REFACTOR y regresión verificada | ✅ COMPLETADA |
 
 ## Registro por semana
 
@@ -754,3 +754,55 @@ referencia y los documentos del bootcamp se añaden sin sobrescribirla.
 con 35 filas de requisitos, 12 defectos trazados, brechas declaradas y
 verificación de que todas las referencias existen; sin cambios de código y con
 el trinquete de cobertura intacto.
+
+
+### Semana 10 — TDD: cancelar una solicitud pendiente de baja
+**Estado: COMPLETADA**
+
+**Historia y criterios de aceptación**: Como cliente autenticado, quiero
+cancelar mi solicitud de baja mientras siga pendiente, conservando el historial
+de auditoría. El endpoint `DELETE /api/v1/clients/me/cuenta-solicitud` requiere
+sesión de cliente, responde 204 sin cuerpo al cancelar y marca la fila como
+`cancelada` con `resuelta_at`; responde 404 si no hay solicitud pendiente. La
+acción solo afecta al cliente autenticado, no elimina la fila y no cambia
+solicitudes ya resueltas.
+
+**Ciclo TDD y cambios**
+
+1. **RED**: la sesión previa ejecutó las cinco pruebas antes del endpoint y
+   obtuvo 5 fallas HTTP 405, por la ausencia del método DELETE.
+2. **GREEN**: se implementó el endpoint con `get_current_client`, selección de
+   una solicitud pendiente propia, transición a `cancelada`, sello de
+   resolución y commit. No se añadió ruta de base de datos ni nueva
+   dependencia. Se escribieron cinco pruebas: éxito y auditoría, sin pendiente,
+   aislamiento entre clientes, solicitud resuelta y sesión requerida.
+3. **REFACTOR**: se revisó el handler y se mantuvo la lógica dentro de la ruta
+   existente, que es corta y usa el mismo patrón de autenticación/SQLAlchemy
+   del módulo. Se normalizó el espaciado del bloque; no se extrajo una capa
+   adicional sin necesidad. Tras el ajuste final, las cinco pruebas enfocadas
+   volvieron a pasar.
+
+**Verificación real en MySQL/MinIO de pruebas (2026-11-14)**
+
+| Corrida | Resultado |
+|---|---|
+| S10 enfocada, después del cambio final | **5 passed · 0 skipped · EXIT 0** (12.59 s) |
+| Backend completo, primera ejecución | 583 passed y 4 fallidas; cobertura 81.90 %. Las cuatro fallas ajenas a S10 pasaron al aislarse. |
+| Backend completo, repetición tras aislar los casos | **587 passed · 0 skipped · EXIT 0** (551.03 s) · **81.91 %** de cobertura total; piso vigente 80 %. |
+
+La primera ejecución completa no fue aprobatoria. Sus cuatro fallas estaban en
+pruebas de reposición/devoluciones y resumen de citas; las cuatro pasaron al
+correrse aisladas y la repetición completa quedó verde. Se conserva ambas
+corridas en las evidencias para que la variación no quede oculta. La suite
+reportó 1.022 advertencias de dependencias/deprecaciones en la repetición,
+sin fallas ni omisiones.
+
+**Evidencias**: `evidencias/testing/s10_targeted_final.txt`,
+`evidencias/testing/s10_backend_full.txt` (primera corrida, fallida) y
+`evidencias/testing/s10_backend_full_retry.txt` (regresión final, EXIT 0).
+`git diff --check` no reporta errores. No se elevó ni manipuló el umbral de
+cobertura.
+
+**Estado de aprobación: COMPLETADA.** Historia implementada con RED → GREEN →
+REFACTOR revisado; cinco pruebas específicas aprobadas; regresión backend
+completa aprobada sin omitidas; cobertura 81.91 % sobre el piso de 80 %.
