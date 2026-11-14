@@ -71,6 +71,7 @@ def crear_novedad(
         descripcion_novedad=descripcion,
         prioridad=prioridad,
         estado_novedad="Pendiente",
+        fecha_reporte_novedad=datetime.now(),
         id_pedido=id_pedido,
         id_cita=id_cita,
         id_cliente=id_cliente,

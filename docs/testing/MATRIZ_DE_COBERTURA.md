@@ -13,7 +13,7 @@
 | S3 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | 50 (piso semanal 40) | **40.92 % / 74.20 % / 50.00 %** | **40 / 74 / 50** |
 | S4 | **59.91 % líneas / 36.25 % ramas** (Cover combinado 54.51 %) | 50 (combinado, piso semanal 50) | **52.75 % / 74.01 % / 54.61 %** | **52 / 74 / 54** |
 | S5 | **60.64 % líneas / 36.25 % ramas** (Cover combinado 60.64 %) | **60** (combinado, piso semanal 60) | **64.84 % / 75.24 % / 58.73 %** | **60 / 74 / 58 / 60** |
-| S6 | — | 70 % | — | 70 % |
+| S6 | **81.87 % líneas / 80.30 % ramas** (Cover combinado 82 %) | **70** (piso semanal 70) | **70.31 % / 76.50 % / 60.85 %** | **70 / 76 / 60 / 70** |
 | S7 | — | 75 % | — | 75 % |
 | S8–S10 | — | 80 % | — | 80 % |
 
@@ -92,6 +92,8 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-13 | FE cobertura S5 | **379/379 OK (61 archivos)** | **64.84 % líneas / 75.24 % ramas / 58.73 % funciones** | `pnpm test --coverage` |
 | 2026-11-13 | E2E S5 técnico (page.route) | **2/2 passed** | — | `python scripts/e2e_tecnico_novedades.py` |
 | 2026-11-13 | E2E S5 admin (page.route) | **2/2 passed** | — | `python scripts/e2e_admin_instalaciones.py` |
+| 2026-11-13 | BE pytest S6 (integración MySQL real, 65 pruebas nuevas) | **582 passed · 0 skipped** | **81.87 % líneas / 80.30 % ramas / 82 % combinado** (umbral 70 ✓) | `pytest app/tests -q` (contenedor, `neodomus_test`) |
+| 2026-11-13 | FE cobertura S6 | **431/431 OK (67 archivos)** | **70.31 % líneas / 76.50 % ramas / 60.85 % funciones** | `pnpm exec vitest run --coverage` |
 
 ## Semanas siguientes (plantilla de registro)
 

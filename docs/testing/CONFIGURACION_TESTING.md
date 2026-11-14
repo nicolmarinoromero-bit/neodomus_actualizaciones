@@ -28,15 +28,26 @@ $env:TEST_DATABASE_URL = "mysql+pymysql://neodomus:$env:MYSQL_PASSWORD@db:3306/n
 $env:TEST_DATABASE_URL = "mysql+pymysql://neodomus:$env:MYSQL_PASSWORD@localhost:3307/neodomus_test?charset=utf8mb4" # modo host (E2E)
 ```
 
-Backend (contenedor `api`, base de pruebas migrada a head):
+Backend (contenedor `api`, base de pruebas migrada a head —la suite actual
+tiene 582 pruebas, incluidas las 65 de integración de S6):
 
 ```powershell
-# Suite completa (291 pruebas)
-docker compose exec -T -e TEST_DATABASE_URL=$url api uv run python -m unittest discover -s app/tests -p "test_*.py"
-# Cobertura (líneas + ramas) con reportes HTML/XML
-docker compose exec -T -e TEST_DATABASE_URL=$url api uv run coverage run --source=app --branch -m unittest discover -s app/tests -p "test_*.py"
-docker compose exec -T api uv run coverage report; docker compose exec -T api uv run coverage html; docker compose exec -T api uv run coverage xml
+# Suite completa con cobertura y umbral vigente (pytest, S2+)
+. $env:TEMP\opencode\testenv.ps1
+$url = "mysql+pymysql://neodomus:$env:MYSQL_PASSWORD@db:3306/neodomus_test?charset=utf8mb4"
+docker compose exec -T -e TEST_DATABASE_URL=$url `
+  -e TEST_MINIO_ENDPOINT=neodomus-minio-test:9000 `
+  -e TEST_MINIO_PUBLIC_ENDPOINT=http://localhost:9100 `
+  -e TEST_MINIO_ACCESS_KEY=$env:TEST_MINIO_ACCESS_KEY `
+  -e TEST_MINIO_SECRET_KEY=$env:TEST_MINIO_SECRET_KEY `
+  -e TEST_MINIO_BUCKET=$env:TEST_MINIO_BUCKET `
+  -e TEST_MINIO_PRIVATE_BUCKET=$env:TEST_MINIO_PRIVATE_BUCKET `
+  api uv run pytest app/tests -q -rs
 ```
+
+`neodomus_minio_test` debe estar arriba (`docker start neodomus_minio_test`)
+tras reiniciar Docker Desktop. Las pruebas S6 crean y limpian sus propias
+fixtures en `neodomus_test`; nunca se ejecutan dos suites a la vez.
 
 Frontend (host):
 
@@ -82,6 +93,9 @@ cd fe; pnpm exec playwright show-report
 - Cada prueba crea sus propias fixtures (usuarios/productos únicos por `uuid`)
   y las limpia en `tearDown`/`finally`; los orquestadores E2E validan limpieza
   (`Fixtures propios restantes: 0`).
+- Las pruebas S6 usan `be/app/tests/s6_base.py`, que borra en orden FK-safe
+  (hijos → padres), limpia `PasswordResetToken` y verifica el estado persistido
+  antes de cerrar; la suite completa no deja residuos en `neodomus_test`.
 - Correos de prueba: `@example.com` (reservado IANA, aceptado por
   `EmailStr`). El TLD `.test` fue **rechazado** por `email-validator==2.1.0`
   (defecto corregido en Semana 1; ver PROGRESO).

@@ -804,7 +804,7 @@ def listar_facturas_admin(
         elif f.cita:
             cliente = (
                 db.query(Cliente)
-                .filter(Cliente.id_cliente == f.cita.id_cliente_c)
+                .filter(Cliente.id_cliente == f.cita.id_cliente)
                 .first()
             )
             cita_info = {

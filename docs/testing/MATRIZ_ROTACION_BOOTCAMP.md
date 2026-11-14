@@ -12,7 +12,7 @@
 | S3 | Componentes React | Formularios críticos con user-event | 56.09 % líneas (Cover 50.53 %) | **40.92 %** líneas | BE 50 (combinado) / FE 40 |
 | S4 | Pruebas de API | Contrato HTTP de routers sin cubrir + negativos + H-4 (listados robustos) | **59.91 %** líneas (36.25 % ramas; Cover 54.51 %) | **52.75 %** líneas (74.01 % ramas) | BE 50 (combinado) / FE 52 |
 | S5 | Dobles de prueba | Inventario de dependencias + dobles (MinIO/SMTP/Gmail/reloj/pagos/scheduler/MSW) | **60.64 %** líneas (36.25 % ramas; Cover 60.64 %) | **64.84 %** líneas (75.24 % ramas; 58.73 % funciones) | BE 60 (combinado) / FE 60 |
-| S6 | Integración BD | MySQL de pruebas en compose + pruebas de repositorios | — | — | 70 % |
+| S6 | Integración BD | MySQL de pruebas en compose + pruebas de repositorios | **81.87 %** líneas (80.30 % ramas; Cover 82 %) | **70.31 %** líneas (76.50 % ramas; 60.85 % funciones) | BE 70 / FE 70 |
 | S7 | E2E avanzado | 3 flujos críticos estables + Page Objects + HTML report | — | — | 75 % |
 | S8 | CI completo | Cobertura y artefactos en CI, 0 omitidas justificadas | — | — | 80 % |
 | S9 | Integrador | Estrategia de pruebas + matrices | — | — | ≥80 % |

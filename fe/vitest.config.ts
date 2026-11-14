@@ -55,13 +55,13 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
       thresholds: {
-        // Semana 5 del bootcamp: piso 60 % alcanzado con la medición real
-        // (2026-11-13: 64.84 % líneas, 75.24 % ramas, 58.73 % funciones con
-        // 61 archivos / 379 pruebas). Trinquete: nunca baja; S6 piso 70.
-        lines: 60,
-        branches: 74,
-        functions: 58,
-        statements: 60,
+        // Semana 6 del bootcamp: piso 70 % alcanzado con la medición real
+        // (2026-11-13: 70.31 % líneas, 76.50 % ramas, 60.85 % funciones con
+        // 67 archivos / 431 pruebas). Trinquete: nunca baja; S7 piso 75.
+        lines: 70,
+        branches: 76,
+        functions: 60,
+        statements: 70,
       },
     },
   },

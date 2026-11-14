@@ -13,7 +13,7 @@
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ✅ COMPLETADA |
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ✅ COMPLETADA |
 | 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ✅ COMPLETADA |
-| 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ⚪ PENDIENTE |
+| 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ✅ COMPLETADA |
 | 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ⚪ PENDIENTE |
 | 8 | CI completo y calidad | Cobertura+umbral en CI, artefactos, job de calidad, 0 omitidas justificadas | ⚪ PENDIENTE |
 | 9 | Integrador | ESTRATEGIA_DE_PRUEBAS.md, matrices de cobertura y trazabilidad, consolidación | ⚪ PENDIENTE |
@@ -405,3 +405,127 @@ capas, un defecto real de pagos corregido con regresión, 131 casos BE y 61 FE
 nuevos, 4 recorridos E2E con red interceptada, suites completas verdes y
 cobertura por encima del piso S5 (BE 60.64 %, FE 64.84 %), sin bajar el
 trinquete.
+
+### Semana 6 — Pruebas de integración con BD real
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. **Infraestructura de integración aislada** (`docs/testing/CONFIGURACION_TESTING.md`):
+   - MySQL 8 del compose (`neodomus_mysql`) con la base **`neodomus_test`**
+     (nunca `neodomus`), en la revisión Alembic **`0064`**.
+   - MinIO dedicado **`neodomus_minio_test`** (contenedor propio, puerto
+     anfitrión `9100`, buckets `neodomus-test-media` y
+     `neodomus-test-private`) unido a la red `neodomus_tests_net`, a la que
+     también se conecta `neodomus_api` para que la suite resuelva
+     `neodomus-minio-test:9000` sin tocar el MinIO de desarrollo.
+   - Las credenciales se inyectan por variables de entorno en el comando de
+     ejecución; no se versiona ningún `.env` ni secreto.
+2. **Base común de integración** `be/app/tests/s6_base.py`:
+   - Crea usuarios (cliente, técnico, admin), clientes, técnicos y pedidos
+     reales con SQLAlchemy sobre `neodomus_test`; los endpoints se ejercitan
+     por HTTP con `TestClient`.
+   - Limpieza FK-safe en `tearDown` (hijos → padres) y limpieza adicional de
+     `PasswordResetToken`; rate-limit desactivado por `BaseT1TestCase`.
+   - Verificación explícita del **estado persistido** tras cada endpoint, no
+     solo del código de respuesta.
+3. **Backend — 6 archivos S6, 65 pruebas de integración**:
+   - `test_s6_auth_cuentas_integracion.py` (8): login/sesión/refresh/logout,
+     cuentas inactivas, rol inválido, cambio de contraseña cliente/empleado,
+     forgot-password de un solo uso, cambio de correo, Google OAuth simulado y
+     registro con verificación + solicitudes de habilitación.
+   - `test_s6_citas_integracion.py` (20): creación con técnico explícito y
+     pago aprobado, autoasignación, validación de pago/franja/tarifa, rechazo
+     de técnico inexistente o inactivo (**409**), equipo con técnico repetido,
+     horas disponibles, técnico ocupado, listado/estado admin, equipo y
+     comisión, cancelación con reembolso e historial, reasignación y
+     reagendamiento (`id_comision` obligatorio aunque no se use).
+   - `test_s6_devoluciones_novedades_reembolsos_integracion.py` (8):
+     devoluciones y cambios, evidencias, novedades con `cliente_visible`,
+     mensajes admin, reembolsos y transiciones persistidas.
+   - `test_s6_pedidos_instalacion_integracion.py` (9): creación de pedidos con
+     detalles, orden de instalación asociada, entrega, factura y estados.
+   - `test_s6_reportes_integracion.py` (10): resumen de ventas, pedidos por
+     mes, productos más vendidos, citas por estado/mes, totales de clientes,
+     técnicos y productos, solicitudes pendientes y PDF.
+   - `test_s6_tecnicos_entregas_integracion.py` (10): perfil y
+     especializaciones, foto, citas asignadas, entregas, evidencias y
+     permisos por rol.
+   - Franjas reales verificadas: **08:00, 11:00, 14:00, 17:00**;
+     `mantenimiento` 1 h e `instalacion` 1.5 h.
+4. **Defectos reales corregidos con regresión**:
+   - **H-7** — `routers/pedidos.py` usaba `f.cita.id_cliente_c` (campo
+     inexistente) y rompía el listado de pedidos con cita: ahora
+     `f.cita.id_cliente`.
+   - **H-8** — `services/pedidos_service.py`: la orden de instalación y sus
+     detalles no quedaban visibles dentro de la transacción. Se añade
+     `db.flush()` antes de `_crear_orden_instalacion` y un `flush()` interno de
+     la cita cuando `commit=False`, de modo que el resumen devuelto incluya la
+     cita recién creada.
+   - **H-9** — `routers/novedades.py` usaba `evidencia.novedad.id_cliente_n`
+     (inexistente): ahora `evidencia.novedad.id_cliente`.
+   - **H-10** — `novedades.fecha_reporte_novedad` quedaba `NULL`;
+     `crear_novedad` y `_crear_novedad_bd` asignan `datetime.now()`
+     explícitamente.
+   - Regla de negocio fijada: las novedades nacen con `cliente_visible=False`;
+     el cliente solo ve detalle/evidencia tras un mensaje admin con
+     `cliente_visible=True`.
+5. **Frontend — 6 archivos S6, 52 pruebas nuevas**:
+   - `AdminReportes.test.tsx` (7): KPIs, gráficos, estados vacíos, rango
+     inválido/fechas requeridas, reintento y descarga PDF con botón
+     deshabilitado.
+   - `TecnicoHistorial.test.tsx` (8): citas/entregas, filtros por
+     estado/fecha/hora/búsqueda, pestañas, estados vacíos y errores.
+   - `TecnicoPerfil.test.tsx` (14): perfil y catálogo, guardado normalizado,
+     errores del backend, validación de teléfono, foto (tamaño/formato),
+     especializaciones y pestañas.
+   - `ServiciosTab.test.tsx` (9): orden de servicios, detalle/rastreo,
+     técnico por asignar, cancelación y calificación con estrellas.
+   - `FacturasTab.test.tsx` (5): facturas, montos nulos, estado vacío,
+     descarga y error de carga.
+   - `PasswordTab.test.tsx` (9): requisitos en vivo, copiar/pegar bloqueado,
+     coincidencia, visibilidad, envío, estado guardando y errores.
+   - En `TecnicoPerfil.test.tsx` el mock de `useAuth` devuelve un objeto
+     `user` estable (hoisted): si se recrea en cada render, el
+     `useEffect([user])` entra en bucle infinito.
+6. **Limpieza de residuos**: tras un intento fallido se eliminaron y
+   verificaron en `neodomus_test` la novedad 109, el pedido 6436, los clientes
+   8045/8046, los usuarios 7770/7771/7772, los técnicos 5708/5709 y 16
+   notificaciones. La suite deja la base sin residuos.
+
+**Resultados reales (2026-11-13)**
+
+| Suite | Resultado |
+|---|---|
+| Backend (pytest + cobertura + umbral 70) | **582 passed, 0 skipped** · líneas **81.87 %** · ramas **80.30 %** · Cover **82 %** · 704 s (verificación final; 934 s en la primera corrida) |
+| Pruebas S6 BE nuevas | **65/65 OK** en 6 archivos |
+| Frontend (Vitest + cobertura + thresholds) | **67 archivos / 431 pruebas OK** · líneas **70.31 %** · ramas **76.50 %** · funciones **60.85 %** · statements 70.31 % |
+| Pruebas S6 FE nuevas | **52/52 OK** en 6 archivos |
+
+- Umbrales FE en `fe/vitest.config.ts`: **70 / 76 / 60 / 70**
+  (líneas/ramas/funciones/statements); la corrida completa termina **EXIT 0**.
+- Umbral BE en `be/pyproject.toml`: `--cov-fail-under=70` y `fail_under = 70`;
+  la suite reporta `Required test coverage of 70% reached`.
+- Evidencias: `s6_full_run1.txt` (582 passed, 81.87 %),
+  `s6_full_run3.txt` (verificación final con umbral 70),
+  `s6_fe_cov_run8.txt` (431/431, 70.31 %) y las corridas dirigidas
+  `s6_fe_nuevas_run3.txt`, `s6_fe_facturas_run1.txt`,
+  `s6_fe_password_run1.txt` (carpeta de evidencias del entorno de ejecución).
+- Cobertura BE por módulo: `auth.py` 95 %, `auth_service.py` 88 %,
+  `citas.py` 75 %, `tecnicos.py` 89 %, `devoluciones.py` 88 %,
+  `novedades.py` 84 %, `reembolsos.py` 80 %, `reportes_service.py` 93 %,
+  `pedidos_service.py` 69 %.
+
+**Notas de aprendizaje registradas**: las pruebas de integración deben
+verificar el estado persistido y limpiar en orden FK-safe; un `flush()` dentro
+de la transacción evita que los resúmenes devuelvan IDs nulos sin cambiar el
+contrato; los técnicos inactivos y las reglas de franja se validan mejor desde
+HTTP; en FE, los mocks de contexto deben ser estables para no disparar efectos
+en bucle; la suite completa FE necesita límites de workers por contención de
+CPU, sin relajar la configuración comprometida.
+
+**Estado de aprobación: COMPLETADA.** 65 pruebas BE y 52 FE nuevas contra
+MySQL/MinIO reales de pruebas, 4 defectos reales corregidos con regresión
+(H-7…H-10), suites completas verdes y cobertura por encima del piso S6
+(BE 81.87 %, FE 70.31 %), con el trinquete subido a 70/70 y sin tocar la base
+de desarrollo ni producción.
