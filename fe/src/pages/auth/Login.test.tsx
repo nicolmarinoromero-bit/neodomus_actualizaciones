@@ -2,7 +2,7 @@
 // Interacción real con user-event; estados no felices: correo inválido,
 // credenciales incorrectas (401), cuenta inhabilitada (403) con solicitud de
 // habilitación y correo recordado precargado. Red/estado global simulados.
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -206,5 +206,29 @@ describe('Login (página)', () => {
     montar();
     // Assert
     expect(screen.queryByRole('button', { name: /google/i })).toBeNull();
+  });
+
+  it('dos envíos síncronos generan un solo login (H-11)', async () => {
+    // Arrange: el primer login queda pendiente para que el segundo envío
+    // ocurra antes de que React re-renderice el botón deshabilitado.
+    const loginMock = vi.fn().mockResolvedValue({ rol: 'cliente' });
+    useAuthMock.mockReturnValue({
+      login: loginMock,
+      googleLogin: vi.fn(),
+      isAuthenticated: false,
+      passwordResetRequired: false,
+    });
+    const usuario = userEvent.setup();
+    montar();
+    await usuario.type(screen.getByPlaceholderText('Correo electrónico'), CORREO);
+    await usuario.type(screen.getByPlaceholderText('Contraseña'), CLAVE);
+
+    // Act: dos submits síncronos sobre el mismo formulario.
+    const form = document.querySelector('form.login-card') as HTMLFormElement;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    // Assert: la guarda síncrona descarta el duplicado.
+    await waitFor(() => expect(loginMock).toHaveBeenCalledTimes(1));
   });
 });

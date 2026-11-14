@@ -36,5 +36,5 @@ test('descarga PDF de ventas con filtros y contraste de totales', async ({ page 
   expect(response.status()).toBe(200);
 
   const body = await response.body();
-  writeFileSync(required('E2E_REPORTE_PATH'), body);
+  writeFileSync(required('E2E_REPORTE_PATH'), new Uint8Array(body));
 });

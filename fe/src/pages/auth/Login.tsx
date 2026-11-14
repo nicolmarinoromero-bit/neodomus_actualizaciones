@@ -1,5 +1,5 @@
 ﻿// Pantalla Login de Neodomus. Reúne el estado y las acciones de su vista.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCircleExclamation } from 'react-icons/fa6';
 import { GoogleLogin } from '@react-oauth/google';
@@ -83,8 +83,12 @@ const Login = () => {
   }, []);
 
   // accede a localStorage para conservar o recuperar datos locales.
+  // Guarda síncrona contra doble envío: el estado `loading` no se actualiza
+  // hasta el siguiente render y dos submits síncronos lanzarían dos logins.
+  const enviandoRef = useRef(false);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (enviandoRef.current) return;
     setError('');
     setCuentaInhabilitada(false);
     setSolicitudEnviada(false);
@@ -93,6 +97,7 @@ const Login = () => {
       setError(t('auth.login.errorCorreo'));
       return;
     }
+    enviandoRef.current = true;
     setLoading(true);
     try {
       await login(email, password);
@@ -118,6 +123,7 @@ const Login = () => {
         setError(detail);
       }
     } finally {
+      enviandoRef.current = false;
       setLoading(false);
     }
   };

@@ -49,12 +49,14 @@ docker compose exec -T -e TEST_DATABASE_URL=$url `
 tras reiniciar Docker Desktop. Las pruebas S6 crean y limpian sus propias
 fixtures en `neodomus_test`; nunca se ejecutan dos suites a la vez.
 
-Frontend (host):
+Frontend (host; suite actual: 77 archivos / 522 pruebas):
 
 ```powershell
 cd fe
 pnpm test            # Vitest run (suite completa)
 pnpm test --coverage # Vitest + cobertura v8 (reporte en fe/coverage/)
+# En esta máquina, la suite completa con cobertura se ejecuta con:
+pnpm exec vitest run --coverage --minWorkers=1 --maxWorkers=4 --testTimeout=60000
 ```
 
 E2E (host; orquestadores con servidores efímeros):
@@ -67,9 +69,28 @@ python scripts\e2e_login.py
 # Flujos S5 (red interceptada con page.route; no escriben en la BD):
 python scripts\e2e_tecnico_novedades.py
 python scripts\e2e_admin_instalaciones.py
+# Repetición de cada prueba S7 para detectar flakiness:
+$env:E2E_REPEAT_EACH = "2"
+python scripts\e2e_login.py
+python scripts\e2e_admin_paginacion.py
+Remove-Item Env:E2E_REPEAT_EACH
 # Reporte HTML del último run:
 cd fe; pnpm exec playwright show-report
 ```
+
+- Los Page Objects viven en `fe/e2e/pages/` (`LoginPage`, `CartCheckoutPage`,
+  `AdminPaginationPage`, `AdminProductosPage`). Playwright usa transformación
+  *strip-only*: hay que asignar `page` explícitamente, sin parameter
+  properties.
+- `cart-checkout` debe ejecutarse con `E2E_REPEAT_EACH=1`: su verificador
+  exige un único pedido por cliente. Su estabilidad se demuestra con dos
+  ejecuciones independientes, no con `repeat-each`.
+- No se permiten `waitForTimeout` en `fe/e2e/`; la sincronización usa las
+  aserciones con auto-waiting de Playwright.
+- Verificación de tipos de E2E (host, sin incluir los specs en el build de Vite):
+  `node node_modules/typescript/bin/tsc --noEmit --target ES2022 --module ESNext
+  --moduleResolution bundler --skipLibCheck --strict <pages y specs>`, con
+  **EXIT 0** al cierre de S7.
 
 ## 3. Cobertura: qué se incluye y qué se excluye
 

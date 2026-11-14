@@ -1,5 +1,15 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
+import { LoginPage } from './pages/LoginPage';
+import { CartCheckoutPage } from './pages/CartCheckoutPage';
+import {
+  AdminProductosPage,
+  type FiltroProductos,
+} from './pages/AdminProductosPage';
+
+// Semana 7 — el flujo crítico de compra se expresa con Page Objects
+// (LoginPage, CartCheckoutPage y AdminProductosPage) y se eliminan las
+// esperas fijas: la estabilidad se comprueba con expect.poll determinista.
 
 const required = (name: string) => {
   const value = process.env[name];
@@ -7,16 +17,18 @@ const required = (name: string) => {
   return value;
 };
 
-const login = async (page: Page, email: string, password: string, destination: RegExp) => {
-  await page.goto('/login');
-  await page.getByPlaceholder('Correo electrónico', { exact: true }).fill(email);
-  await page.getByPlaceholder('Contraseña', { exact: true }).fill(password);
-  const response = page.waitForResponse(
-    (r) => r.url().endsWith('/api/v1/auth/login') && r.request().method() === 'POST',
-  );
-  await page.locator('button.btn-login-submit').click();
-  expect((await response).status()).toBe(200);
-  await page.waitForURL(destination);
+/** Espera una ventana de tranquilidad y falla si llegan peticiones nuevas. */
+const esperarSinNuevasPeticiones = async (contar: () => number) => {
+  const antes = contar();
+  await expect
+    .poll(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        return contar();
+      },
+      { timeout: 3000, intervals: [600] },
+    )
+    .toBe(antes);
 };
 
 test('checkout real por variante y metros con refresco de precio y sin solicitudes repetidas', async ({ page }) => {
@@ -26,35 +38,19 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   const metresId = Number(required('E2E_METRES_PRODUCT_ID'));
   const variantId = Number(required('E2E_UNIT_VARIANT_ID'));
 
-  await login(page, email, password, /\/productos$/);
+  const loginPage = new LoginPage(page);
+  const cart = new CartCheckoutPage(page);
 
-  await page.goto(`/producto/${unitId}?cantidad=2`);
-  const unitAdd = page.locator('button.detalle-agregar-btn');
-  await expect(unitAdd).toBeEnabled();
-  await unitAdd.click();
-  await expect(page.locator('.detalle-toast')).toBeVisible();
+  await loginPage.login(email, password, /\/productos$/);
 
-  await page.goto(`/producto/${metresId}?unidades=3`);
-  // MetrosSelect compartido: botón accesible con popup listbox (no <select> nativo).
-  const metros = page.getByRole('button', {
-    name: 'Metros por unidad'
-  });
-  await expect(metros).toBeEnabled();
-  await metros.click();
+  await cart.addUnitProduct(unitId, 2);
+  await cart.addMetresProduct(metresId, 3, '0.5 m', /1[.,]5 m en total/);
+  await cart.openCart(2);
 
-  await page.getByRole('option', {
-    name: '0.5 m'
-  }).click();
-  await expect(page.locator('.detalle-metros-bloque')).toContainText(/1[.,]5 m en total/);
-  await page.locator('button.detalle-agregar-btn').click();
-
-  await page.goto('/carrito');
-  await expect(page.locator('article.carrito-item')).toHaveCount(2);
-
-  const stale = await page.evaluate(() => JSON.parse(localStorage.getItem('neodomus_carrito') || '[]'));
+  const stale = await cart.storedItems<{ precio_venta_producto: number }>();
   expect(stale).toHaveLength(2);
   for (const item of stale) item.precio_venta_producto = 1;
-  await page.evaluate((items) => localStorage.setItem('neodomus_carrito', JSON.stringify(items)), stale);
+  await cart.replaceStoredItems(stale);
 
   const detailRequests: string[] = [];
   page.on('request', (request) => {
@@ -65,28 +61,20 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
     }
   });
 
-  await page.reload();
-  await expect(page.locator('article.carrito-item')).toHaveCount(2);
-  const subtotals = page.locator('.carrito-item-subtotal');
-  await expect(subtotals.nth(0)).toContainText('$1,500');
-  await expect(subtotals.nth(1)).toContainText('$1,500');
-  await expect(page.locator('.carrito-resumen-total')).toContainText('$3,000');
+  await cart.reloadCart(2);
+  await expect(cart.subtotals.nth(0)).toContainText('$1,500');
+  await expect(cart.subtotals.nth(1)).toContainText('$1,500');
+  await expect(cart.total).toContainText('$3,000');
 
-  await page.waitForTimeout(600);
-  const requestsAfterRefresh = detailRequests.length;
-  await page.waitForTimeout(900);
-  expect(detailRequests.length).toBe(requestsAfterRefresh);
-  expect(requestsAfterRefresh).toBeGreaterThan(0);
+  // El refresco de precios ocurre una sola vez: tras la ventana de espera no
+  // deben aparecer nuevas peticiones de detalle (no hay bucle de efectos).
+  await expect.poll(() => detailRequests.length, { timeout: 3000 }).toBeGreaterThan(0);
+  await esperarSinNuevasPeticiones(() => detailRequests.length);
 
-  await page.locator('button.carrito-finalizar-btn').click();
-  await expect(page).toHaveURL(/\/checkout$/);
+  await cart.goToCheckout();
   await expect(page.locator('.checkout-resumen-items')).toContainText(/1[.,]5 m/);
 
-  const pay = page.locator('button.checkout-pagar-btn');
-  const cardNumber = page.getByPlaceholder('4242 4242 4242 4242');
-  const holder = page.getByPlaceholder('Como aparece en la tarjeta');
-  const expiry = page.getByPlaceholder('MM/AA');
-  const cvv = page.getByPlaceholder('123');
+  const pay = cart.payButton;
   let orderPosts = 0;
   page.on('request', (request) => {
     if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/api/v1/pedidos')) {
@@ -99,22 +87,23 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   expect(orderPosts).toBe(0);
 
   await page.locator('button.checkout-metodo').filter({ hasText: 'PSE' }).click();
-  await expect(cardNumber).toHaveCount(0);
+  await expect(cart.cardNumber).toHaveCount(0);
   // SelectorBanco compartido: botón con popup listbox (no <select> nativo);
   // el placeholder visible es "Selecciona tu banco".
   const bancoTrigger = page.locator('button.checkout-banco-trigger');
   await expect(bancoTrigger).toBeVisible();
   await expect(bancoTrigger).toContainText('Selecciona tu banco');
   await page.locator('button.checkout-metodo').filter({ hasText: 'Tarjeta' }).first().click();
-  await expect(cardNumber).toHaveValue('');
+  await expect(cart.cardNumber).toHaveValue('');
   await expect(pay).toBeEnabled();
 
-  await cardNumber.fill('4242424242424242');
-  await holder.fill('Cliente E2E');
-  await expiry.fill('12/30');
-  await cvv.fill('123');
-  const simulation = page.locator('.checkout-field', { hasText: 'Resultado de simulaci' }).locator('select');
-  await simulation.selectOption('rechazado');
+  await cart.fillCard({
+    numero: '4242424242424242',
+    titular: 'Cliente E2E',
+    expiracion: '12/30',
+    cvv: '123',
+  });
+  await cart.selectSimulation('rechazado');
 
   const rejectedPromise = page.waitForResponse(
     (r) => r.url().endsWith('/api/v1/pedidos') && r.request().method() === 'POST',
@@ -129,14 +118,13 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   expect(orderPosts).toBe(1);
 
   await page.getByRole('button', { name: /Reintentar pago/ }).click();
-  await expect(holder).toHaveValue('Cliente E2E');
-  await expect(expiry).toHaveValue('12/30');
-  await expect(cardNumber).toHaveValue('');
-  await expect(cvv).toHaveValue('');
-  await cardNumber.fill('4242424242424242');
-  await cvv.fill('123');
-  const retrySimulation = page.locator('.checkout-field', { hasText: 'Resultado de simulaci' }).locator('select');
-  await retrySimulation.selectOption('aprobado');
+  await expect(cart.cardHolder).toHaveValue('Cliente E2E');
+  await expect(cart.cardExpiry).toHaveValue('12/30');
+  await expect(cart.cardNumber).toHaveValue('');
+  await expect(cart.cardCvv).toHaveValue('');
+  await cart.cardNumber.fill('4242424242424242');
+  await cart.cardCvv.fill('123');
+  await cart.selectSimulation('aprobado');
 
   let retryPosts = 0;
   page.on('request', (request) => {
@@ -155,7 +143,7 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   await pay.dblclick();
   const retryResponse = await retryPromise;
   expect(retryResponse.status()).toBe(200);
-  await page.waitForTimeout(500);
+  await expect(cart.successDialog).toBeVisible();
   expect(retryPosts).toBe(1);
   expect(orderPosts).toBe(1);
 
@@ -172,10 +160,8 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   expect(body.pago.estado).toBe('aprobado');
   expect(Number(body.factura.monto_total)).toBe(3000);
 
-  const confirmation = page.getByRole('dialog', { name: /Confirmación de compra/ });
-  await expect(confirmation).toBeVisible();
-  await expect(confirmation).toContainText(`#${orderId}`);
-  await expect(confirmation.locator('.checkout-success-datos')).toContainText(/3[.,\s]*000/);
+  await expect(cart.successDialog).toContainText(`#${orderId}`);
+  await expect(cart.successDialog.locator('.checkout-success-datos')).toContainText(/3[.,\s]*000/);
 
   writeFileSync(required('E2E_RESULT_PATH'), JSON.stringify({
     pedido_id: orderId,
@@ -187,15 +173,21 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
 });
 
 test('admin conserva filtro de categoria o proveedor al volver', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'), /\/dashboard\/admin$/);
+  const loginPage = new LoginPage(page);
+  const adminProductos = new AdminProductosPage(page);
 
-  const filters = [
-    ['categoria', required('E2E_CATEGORY_ID')],
-    ['proveedor', required('E2E_PROVIDER_ID')],
+  await loginPage.login(
+    required('E2E_ADMIN_EMAIL'),
+    required('E2E_ADMIN_PASSWORD'),
+    /\/dashboard\/admin$/,
+  );
+
+  const filters: FiltroProductos[] = [
+    { nombre: 'categoria', valor: required('E2E_CATEGORY_ID') },
+    { nombre: 'proveedor', valor: required('E2E_PROVIDER_ID') },
   ];
-  for (const [name, value] of filters) {
-    await page.goto(`/admin/productos/nuevo?${name}=${value}`);
-    const back = page.getByRole('link', { name: /Volver a productos/i });
-    await expect(back).toHaveAttribute('href', `/admin/productos?${name}=${value}`);
+  for (const filter of filters) {
+    await adminProductos.gotoNew(filter);
+    await adminProductos.expectBackKeepsFilter(filter);
   }
 });

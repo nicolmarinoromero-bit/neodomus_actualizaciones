@@ -14,7 +14,7 @@
 | S4 | **59.91 % líneas / 36.25 % ramas** (Cover combinado 54.51 %) | 50 (combinado, piso semanal 50) | **52.75 % / 74.01 % / 54.61 %** | **52 / 74 / 54** |
 | S5 | **60.64 % líneas / 36.25 % ramas** (Cover combinado 60.64 %) | **60** (combinado, piso semanal 60) | **64.84 % / 75.24 % / 58.73 %** | **60 / 74 / 58 / 60** |
 | S6 | **81.87 % líneas / 80.30 % ramas** (Cover combinado 82 %) | **70** (piso semanal 70) | **70.31 % / 76.50 % / 60.85 %** | **70 / 76 / 60 / 70** |
-| S7 | — | 75 % | — | 75 % |
+| S7 | **81.87 % líneas / 80.30 % ramas** (sin cambios BE en S7) | 70 | **78.23 % / 77.89 % / 64.79 %** | **75 / 76 / 60 / 75** |
 | S8–S10 | — | 80 % | — | 80 % |
 
 > La métrica "Cover" de `coverage report` (con `branch=True`) combina líneas y
@@ -94,6 +94,11 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-13 | E2E S5 admin (page.route) | **2/2 passed** | — | `python scripts/e2e_admin_instalaciones.py` |
 | 2026-11-13 | BE pytest S6 (integración MySQL real, 65 pruebas nuevas) | **582 passed · 0 skipped** | **81.87 % líneas / 80.30 % ramas / 82 % combinado** (umbral 70 ✓) | `pytest app/tests -q` (contenedor, `neodomus_test`) |
 | 2026-11-13 | FE cobertura S6 | **431/431 OK (67 archivos)** | **70.31 % líneas / 76.50 % ramas / 60.85 % funciones** | `pnpm exec vitest run --coverage` |
+| 2026-11-14 | E2E S7 login (Page Objects, 4 × 2 repeticiones) | **8 passed · EXIT 0** | — | `python scripts/e2e_login.py` con `E2E_REPEAT_EACH=2` |
+| 2026-11-14 | E2E S7 compra (dos corridas independientes) | **2/2 passed en cada corrida · EXIT 0** | — | `python scripts/e2e_cart_checkout.py` (repetición 1) |
+| 2026-11-14 | E2E S7 admin (9 × 2 repeticiones) | **18 passed · EXIT 0** | — | `python scripts/e2e_admin_paginacion.py` con `E2E_REPEAT_EACH=2` |
+| 2026-11-14 | FE cobertura S7 (medición) | **522/522 OK (77 archivos)** | **78.23 % líneas / 77.89 % ramas / 64.79 % funciones** | `pnpm exec vitest run --coverage --minWorkers=1 --maxWorkers=4` |
+| 2026-11-14 | FE cobertura S7 (trinquete 75) | **522/522 OK · EXIT 0** | 78.23 % líneas / 77.89 % ramas / 64.79 % funciones | misma corrida con thresholds 75/76/60/75 |
 
 ## Semanas siguientes (plantilla de registro)
 

@@ -92,9 +92,10 @@ def main():
                     processes.append(subprocess.Popen(args, cwd=cwd, env=env, stdout=log, stderr=log, creationflags=flags))
                 wait_ready(processes[0], f'http://127.0.0.1:{api_port}/health')
                 wait_ready(processes[1], env['E2E_BASE_URL'])
+                repeat = os.environ.get('E2E_REPEAT_EACH', '2')
                 result = subprocess.run([node, 'node_modules/@playwright/test/cli.js', 'test',
-                                         'login.e2e.spec.ts', '--repeat-each=2'],
-                                        cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=240,
+                                         'login.e2e.spec.ts', f'--repeat-each={repeat}'],
+                                        cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=600,
                                         capture_output=True, text=True, encoding='utf-8', errors='replace')
                 encoding = sys.stdout.encoding or 'utf-8'
                 print(result.stdout.encode(encoding, errors='replace').decode(encoding))

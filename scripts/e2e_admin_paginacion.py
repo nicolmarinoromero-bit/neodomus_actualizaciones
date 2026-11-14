@@ -163,10 +163,11 @@ def main():
                 wait_ready(procesos[0], f'http://127.0.0.1:{api_port}/health')
                 wait_ready(procesos[1], env['E2E_BASE_URL'])
 
+                repeat = os.environ.get('E2E_REPEAT_EACH', '1')
                 result = subprocess.run(
                     [node, 'node_modules/@playwright/test/cli.js', 'test',
-                     'admin-paginacion.e2e.spec.ts', '--workers=1'],
-                    cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=600,
+                     'admin-paginacion.e2e.spec.ts', '--workers=1', f'--repeat-each={repeat}'],
+                    cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=1500,
                     capture_output=True, text=True, encoding='utf-8', errors='replace',
                 )
                 enc = sys.stdout.encoding or 'utf-8'

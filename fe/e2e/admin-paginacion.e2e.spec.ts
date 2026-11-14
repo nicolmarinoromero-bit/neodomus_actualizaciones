@@ -1,4 +1,10 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { LoginPage } from './pages/LoginPage';
+import { AdminPaginationPage } from './pages/AdminPaginationPage';
+
+// Semana 7 — los listados administrativos usan LoginPage y
+// AdminPaginationPage; la numeración se espera con expect.poll (sin esperas
+// fijas) y se conservan los recorridos de escritorio y móvil.
 
 const required = (name: string) => {
   const value = process.env[name];
@@ -8,109 +14,93 @@ const required = (name: string) => {
 
 const PREFIXO = required('E2E_PREFIXO');
 
-const login = async (page: Page, email: string, password: string) => {
-  await page.goto('/login');
-  await page.getByPlaceholder('Correo electrónico', { exact: true }).fill(email);
-  await page.getByPlaceholder('Contraseña', { exact: true }).fill(password);
-  const response = page.waitForResponse(
-    (r) => r.url().endsWith('/api/v1/auth/login') && r.request().method() === 'POST',
+const abrirAdmin = async (page: import('@playwright/test').Page) => {
+  const loginPage = new LoginPage(page);
+  await loginPage.login(
+    required('E2E_ADMIN_EMAIL'),
+    required('E2E_ADMIN_PASSWORD'),
+    /\/dashboard\/admin$/,
   );
-  await page.locator('button.btn-login-submit').click();
-  expect((await response).status()).toBe(200);
-  await page.waitForURL(/\/dashboard\/admin$/);
-};
-
-const buscar = async (page: Page, q: string) => {
-  await page.locator('.ap-search input').first().fill(q);
-};
-
-const numeracionTabla = async (page: Page) => {
-  const filas = page.locator('table.ap-table tbody tr');
-  const n = await filas.count();
-  const textos: string[] = [];
-  for (let i = 0; i < n; i++) {
-    textos.push((await filas.nth(i).locator('td').first().textContent())?.trim() || '');
-  }
-  return textos;
-};
-
-const esperarNumeracion = async (page: Page, esperada: string[]) => {
-  await expect.poll(async () => (await numeracionTabla(page)).join(',')).toBe(esperada.join(','));
+  return new AdminPaginationPage(page);
 };
 
 test('clientes: paginación, numeración y vacío', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/clientes');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('clientes');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
-  await esperarNumeracion(page, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
+  await admin.expectRowNumbers(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
 
-  await page.getByLabel('Ir a la página 2').click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
-  await esperarNumeracion(page, ['11', '12', '13', '14', '15']);
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
+  await admin.expectRowNumbers(['11', '12', '13', '14', '15']);
 
-  await buscar(page, 'zzz-no-existe');
-  await expect(page.locator('table.ap-table')).toHaveCount(0);
+  await admin.search('zzz-no-existe');
+  await expect(admin.table).toHaveCount(0);
 });
 
 test('proveedores: paginación, numeración y vacío', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/proveedores');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('proveedores');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
-  await esperarNumeracion(page, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
+  await admin.expectRowNumbers(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
 
-  await page.getByLabel('Ir a la página 2').click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
-  await esperarNumeracion(page, ['11', '12', '13', '14', '15']);
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
+  await admin.expectRowNumbers(['11', '12', '13', '14', '15']);
 
-  await buscar(page, 'zzz-no-existe');
-  await expect(page.locator('table.ap-table')).toHaveCount(0);
+  await admin.search('zzz-no-existe');
+  await expect(admin.table).toHaveCount(0);
 });
 
 test('novedades: paginación, número vs ID y vacío', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/novedades');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('novedades');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
-  await esperarNumeracion(page, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
+  await admin.expectRowNumbers(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
   // El ID real se muestra aparte (columna Tipo), no como número de fila.
-  await expect(page.locator('table.ap-table tbody tr').first()).toContainText('ID ');
+  await expect(admin.tableRows.first()).toContainText('ID ');
 
-  await page.getByLabel('Ir a la página 2').click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
-  await esperarNumeracion(page, ['11', '12', '13', '14', '15']);
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
+  await admin.expectRowNumbers(['11', '12', '13', '14', '15']);
 
-  await buscar(page, 'zzz-no-existe');
-  await expect(page.locator('table.ap-table')).toHaveCount(0);
+  await admin.search('zzz-no-existe');
+  await expect(admin.table).toHaveCount(0);
 });
 
 test('técnicos: paginación, numeración y vacío', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/tecnicos');
-  await page.waitForSelector('.ap-grid');
+  const admin = await abrirAdmin(page);
+  await admin.goto('tecnicos');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('.ap-grid-item')).toHaveCount(12);
-  await expect(page.locator('.ap-grid-item').first()).toContainText('#1');
+  await admin.search(PREFIXO);
+  await expect(admin.gridItems).toHaveCount(12);
+  await expect(admin.gridItems.first()).toContainText('#1');
 
-  await page.getByLabel('Ir a la página 2').click();
-  await expect(page.locator('.ap-grid-item')).toHaveCount(1);
-  await expect(page.locator('.ap-grid-item').first()).toContainText('#13');
+  await admin.goToPage(2);
+  await expect(admin.gridItems).toHaveCount(1);
+  await expect(admin.gridItems.first()).toContainText('#13');
 
-  await buscar(page, 'zzz-no-existe');
-  await expect(page.locator('.ap-grid')).toHaveCount(0);
+  await admin.search('zzz-no-existe');
+  await expect(admin.grid).toHaveCount(0);
 });
 
 test('novedades: error de carga muestra reintento, no lista vacía', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.route('**/api/v1/novedades', (route) => route.fulfill({ status: 500, body: '{}' }));
+  const loginPage = new LoginPage(page);
+  await loginPage.login(
+    required('E2E_ADMIN_EMAIL'),
+    required('E2E_ADMIN_PASSWORD'),
+    /\/dashboard\/admin$/,
+  );
+  await page.route(/\/api\/v1\/novedades(\?.*)?$/, (route) =>
+    route.fulfill({ status: 500, body: '{}' }),
+  );
+  // La vista de error no monta la tabla: se navega sin exigirla.
   await page.goto('/admin/novedades');
 
   await expect(page.getByRole('button', { name: /Reintentar/ })).toBeVisible();
@@ -119,63 +109,55 @@ test('novedades: error de carga muestra reintento, no lista vacía', async ({ pa
 
 test.use({ viewport: { width: 390, height: 844 } });
 test('clientes móvil: controles de paginación visibles y utilizables', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/clientes');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('clientes');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
 
-  const pagina2 = page.getByLabel('Ir a la página 2');
-  await expect(pagina2).toBeVisible();
-  await pagina2.click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
+  await admin.expectPage2Visible();
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
 });
 
 test('proveedores móvil: paginación accesible y numeración', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/proveedores');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('proveedores');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
-  await esperarNumeracion(page, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
+  await admin.expectRowNumbers(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
 
-  const pagina2 = page.getByLabel('Ir a la página 2');
-  await expect(pagina2).toBeVisible();
-  await pagina2.click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
-  await esperarNumeracion(page, ['11', '12', '13', '14', '15']);
+  await admin.expectPage2Visible();
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
+  await admin.expectRowNumbers(['11', '12', '13', '14', '15']);
 });
 
 test('novedades móvil: paginación accesible y numeración', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/novedades');
-  await page.waitForSelector('table.ap-table');
+  const admin = await abrirAdmin(page);
+  await admin.goto('novedades');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(10);
-  await esperarNumeracion(page, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+  await admin.search(PREFIXO);
+  await expect(admin.tableRows).toHaveCount(10);
+  await admin.expectRowNumbers(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
 
-  const pagina2 = page.getByLabel('Ir a la página 2');
-  await expect(pagina2).toBeVisible();
-  await pagina2.click();
-  await expect(page.locator('table.ap-table tbody tr')).toHaveCount(5);
-  await esperarNumeracion(page, ['11', '12', '13', '14', '15']);
+  await admin.expectPage2Visible();
+  await admin.goToPage(2);
+  await expect(admin.tableRows).toHaveCount(5);
+  await admin.expectRowNumbers(['11', '12', '13', '14', '15']);
 });
 
 test('técnicos móvil: paginación accesible y numeración', async ({ page }) => {
-  await login(page, required('E2E_ADMIN_EMAIL'), required('E2E_ADMIN_PASSWORD'));
-  await page.goto('/admin/tecnicos');
-  await page.waitForSelector('.ap-grid');
+  const admin = await abrirAdmin(page);
+  await admin.goto('tecnicos');
 
-  await buscar(page, PREFIXO);
-  await expect(page.locator('.ap-grid-item')).toHaveCount(12);
-  await expect(page.locator('.ap-grid-item').first()).toContainText('#1');
+  await admin.search(PREFIXO);
+  await expect(admin.gridItems).toHaveCount(12);
+  await expect(admin.gridItems.first()).toContainText('#1');
 
-  const pagina2 = page.getByLabel('Ir a la página 2');
-  await expect(pagina2).toBeVisible();
-  await pagina2.click();
-  await expect(page.locator('.ap-grid-item')).toHaveCount(1);
-  await expect(page.locator('.ap-grid-item').first()).toContainText('#13');
+  await admin.expectPage2Visible();
+  await admin.goToPage(2);
+  await expect(admin.gridItems).toHaveCount(1);
+  await expect(admin.gridItems.first()).toContainText('#13');
 });

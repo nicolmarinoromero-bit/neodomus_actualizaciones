@@ -529,3 +529,87 @@ MySQL/MinIO reales de pruebas, 4 defectos reales corregidos con regresión
 (H-7…H-10), suites completas verdes y cobertura por encima del piso S6
 (BE 81.87 %, FE 70.31 %), con el trinquete subido a 70/70 y sin tocar la base
 de desarrollo ni producción.
+
+---
+
+### Semana 7 — E2E avanzado, Page Objects y cierre de cobertura FE
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. **Page Objects de Playwright** en `fe/e2e/pages/`:
+   - `LoginPage.ts`, `CartCheckoutPage.ts`, `AdminPaginationPage.ts` y
+     `AdminProductosPage.ts` encapsulan navegación, localizadores y acciones.
+   - Los specs `login.e2e.spec.ts`, `cart-checkout.e2e.spec.ts` y
+     `admin-paginacion.e2e.spec.ts` quedaron refactorizados para usarlos; los
+     flujos conservan sus aserciones de negocio y verificación en BD.
+   - Playwright usa transformación *strip-only*: los Page Objects asignan
+     `page` de forma explícita (sin parameter properties de TypeScript).
+2. **Eliminación de esperas fijas**: se retiraron los 4 `waitForTimeout` de
+   `cart-checkout` y `register`; `fe/e2e/` no contiene ninguna espera fija.
+   La sincronización se hace con `expect`/auto-waiting de Playwright.
+3. **Repetición controlada de E2E** (`E2E_REPEAT_EACH`):
+   - `scripts/e2e_login.py`, `e2e_cart_checkout.py` y `e2e_admin_paginacion.py`
+     aceptan `E2E_REPEAT_EACH` para repetir cada prueba y detectar flakiness.
+   - El verificador de `cart-checkout` exige **un único pedido por cliente**,
+     por lo que ese flujo se ejecuta con repetición 1 y su estabilidad se
+     demuestra con **dos ejecuciones independientes** (no con `repeat-each`).
+4. **Correcciones con regresión**:
+   - **H-11 (Login)** — dos envíos síncronos del formulario podían disparar dos
+     peticiones. Se añade una guarda síncrona con `useRef` (`enviandoRef`) que
+     bloquea el segundo submit antes del `setState`; regresión unitaria en
+     `Login.test.tsx` (8/8).
+   - **H-12 (NuevaNovedadModal)** — si fallaba la subida de evidencia, el aviso
+     de error se sobrescribía con el de éxito. Ahora se conserva y muestra
+     `Novedad creada pero error al subir evidencia` (tipo `err`) sin impedir el
+     cierre; regresión en `NuevaNovedadModal.test.tsx` (11/11).
+5. **Cierre de cobertura FE** — 10 archivos de prueba nuevos, 90 pruebas:
+   - `CampoEmail.test.tsx` (8), `PaymentsTab.test.tsx` (10),
+     `ResetPassword.test.tsx` (8), `VerifyCode.test.tsx` (9),
+     `AdminPerfil.test.tsx` (8), `ClientDashboard.test.tsx` (8),
+     `TecnicoMensajes.test.tsx` (7), `AdminCatalogo.test.tsx` (10),
+     `AdminProveedores.test.tsx` (11) y `NuevaNovedadModal.test.tsx` (11).
+   - Se cubren las 10 pantallas que estaban en 0 %: carga, error, estados
+     vacíos, validaciones, filtros/paginación, persistencia local, roles y
+     llamadas al backend.
+6. **Verificación de tipos de E2E**: `tsc --noEmit` sobre `fe/e2e/pages/*.ts` y
+   `fe/e2e/*.spec.ts` termina con **EXIT 0** tras dos ajustes solo de tipos
+   (`HTMLInputElement.name` en `register` y `new Uint8Array(body)` en
+   `reporte-ventas`), sin cambios de comportamiento.
+
+**Resultados reales (2026-11-14)**
+
+| Suite | Resultado |
+|---|---|
+| E2E login (4 pruebas × 2 repeticiones) | **8 passed** · 4.2 min · EXIT 0 · fixtures 0 |
+| E2E compra (2 pruebas, dos corridas independientes) | **2/2 passed** en cada corrida (3.0 y 3.3 min) · pedidos 6954 y 6955 · EXIT 0 |
+| E2E admin (9 pruebas × 2 repeticiones) | **18 passed** · 14.2 min · EXIT 0 · fixtures 0 |
+| Frontend completo (Vitest + cobertura + thresholds) | **77 archivos / 522 pruebas OK** · líneas **78.23 %** · ramas **77.89 %** · funciones **64.79 %** · statements 78.23 % · EXIT 0 |
+| Pruebas FE nuevas S7 | **90/90 OK** en 10 archivos |
+| TypeScript de E2E | **EXIT 0** en Page Objects y specs |
+
+- Umbrales FE en `fe/vitest.config.ts`: **75 / 76 / 60 / 75**
+  (líneas/ramas/funciones/statements). La primera corrida completa con la
+  cobertura nueva dio 78.23 % y la segunda, ya con el trinquete en 75, terminó
+  **EXIT 0** (427 s y 429 s respectivamente).
+- Umbral BE vigente sin cambios en S7: 70 % (`be/pyproject.toml`), última
+  medición real 81.87 % líneas / 80.30 % ramas (582 passed de S6).
+- Evidencias de la sesión: `s7_login_final.txt` (8 passed),
+  `s7_cart_final1.txt` y `s7_cart_final2.txt` (2/2 cada una),
+  `s7_admin_run3.txt` (18 passed), `s7_fe_cov_run1.txt` (medición 78.23 %) y
+  `s7_fe_cov_run2.txt` (verificación con umbral 75, EXIT 0).
+
+**Notas de aprendizaje registradas**: los Page Objects reducen duplicación pero
+deben evitar parameter properties por el transformador de Playwright; la
+repetición de flujos es útil solo cuando el verificador admite múltiples
+registros (compra exige uno); los avisos de error deben prevalecer sobre el
+mensaje de éxito cuando la operación principal sí se completó; los tests de
+modales con `setTimeout` deben esperar el cierre para no filtrar temporizadores
+entre pruebas; la suite FE completa requiere `--minWorkers=1 --maxWorkers=4`
+para evitar falsos fallos por contención de CPU.
+
+**Estado de aprobación: COMPLETADA.** Tres flujos E2E estables con Page
+Objects y repetición (login 8/8, compra 2/2 × 2, admin 18/18), cero esperas
+fijas, cobertura FE en 78.23 % (piso 75) y BE en 81.87 % (piso 70), H-11 y H-12
+corregidos con regresión, tipos de E2E limpios y sin tocar la base de
+desarrollo ni producción.

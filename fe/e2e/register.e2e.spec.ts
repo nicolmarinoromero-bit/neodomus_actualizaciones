@@ -86,7 +86,7 @@ async function comprobarLayout(page: Page) {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && (rect.left < -1 || rect.right > window.innerWidth + 1);
       })
-      .map((el) => (el as HTMLElement).name || (el as HTMLElement).className || el.tagName);
+      .map((el) => (el as HTMLInputElement).name || (el as HTMLElement).className || el.tagName);
     return { desbordan, fuera };
   });
   expect(resultado.desbordan).toEqual([]);
@@ -204,9 +204,8 @@ test('registro real: error de servidor, recuperación y doble clic sin duplicado
   await submit.dblclick();
   const res = await respuesta;
   expect(res.status()).toBe(200);
-  await page.waitForTimeout(400);
-  expect(posts).toBe(1);
   await expect(page.getByRole('heading', { name: /Verificaci.n de cuenta/i })).toBeVisible();
+  expect(posts).toBe(1);
 
   writeFileSync(requerido('E2E_RESULT_PATH'), JSON.stringify({ email, duplicado }));
 });
