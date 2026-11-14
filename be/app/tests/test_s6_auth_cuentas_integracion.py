@@ -176,7 +176,9 @@ class AuthCuentasS6TestCase(BaseS6TestCase):
         refresco_cookie = self._post(
             "/api/v1/auth/refresh", cookies={"refresh_token": refresh}
         )
-        self.assertEqual(refresco_cookie.status_code, 200, refresco_cookie.text)
+        # El primer refresh rota el token; reutilizar el anterior debe fallar
+        # y revocar la familia completa para prevenir replay.
+        self.assertEqual(refresco_cookie.status_code, 401, refresco_cookie.text)
 
         # Errores de refresh: sin token, token de acceso y token corrupto.
         self.assertEqual(self._post("/api/v1/auth/refresh").status_code, 400)

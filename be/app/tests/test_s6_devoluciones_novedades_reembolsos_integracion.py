@@ -1179,8 +1179,9 @@ class DevolucionesNovedadesReembolsosTestCase(BaseS6TestCase):
         self.assertEqual(descarga_admin.status_code, 200)
         self.assertEqual(descarga_admin.content, b"PNGDATA")
         # Recién creada, la novedad no es visible al cliente.
-        self.assertEqual(descarga_cliente_oculta.status_code, 403)
-        self.assertEqual(descarga_ajena.status_code, 403)
+        # El endpoint oculta evidencias no visibles o de otro cliente como 404.
+        self.assertEqual(descarga_cliente_oculta.status_code, 404)
+        self.assertEqual(descarga_ajena.status_code, 404)
 
         visible = self._post(
             f"/api/v1/novedades/{novedad_id}/mensaje-cliente",
