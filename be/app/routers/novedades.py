@@ -1090,6 +1090,11 @@ def crear_cupon_novedad(
         raise HTTPException(409, "Ya existe un cupón con ese código. Elige otro código.")
 
     from app.services.notificaciones import crear_notificacion
+    fecha_vencimiento = (
+        f"\nVálido hasta: {cupon.fecha_vencimiento}"
+        if cupon.fecha_vencimiento
+        else ""
+    )
     crear_notificacion(
         db,
         id_usuario=None,
@@ -1102,7 +1107,7 @@ def crear_cupon_novedad(
             f"se ha generado un cupón de descuento para tu próxima compra.\n"
             f"Código: {cupon.codigo}\n"
             f"Descuento: {cupon.valor_descuento}{'%' if cupon.tipo_descuento == 'porcentaje' else ' COP'}"
-            f"{f'\nVálido hasta: {cupon.fecha_vencimiento}' if cupon.fecha_vencimiento else ''}"
+            f"{fecha_vencimiento}"
         ),
     )
 
