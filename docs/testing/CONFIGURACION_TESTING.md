@@ -196,3 +196,15 @@ ni `sonarcloud.yml` (archivos ajenos).
   máquina): `yaml.safe_load` sobre el archivo, con 2 jobs y 7/11 pasos.
   Los comandos equivalentes de FE y BE ya se ejecutaron en local con
   **EXIT 0** y cobertura por encima del umbral.
+
+## 9. Documentos de estrategia y trazabilidad (Semana 9)
+
+| Documento | Contenido | Cuándo consultarlo |
+|---|---|---|
+| `docs/testing/ESTRATEGIA_DE_PRUEBAS.md` | Objetivo, alcance, principios, niveles, riesgos, ambientes, criterios de entrada/salida, trinquete, gestión de defectos, CI y mejoras pendientes | Antes de planear una prueba nueva o justificar una exclusión |
+| `docs/testing/MATRIZ_DE_TRAZABILIDAD.md` | 44 HU agrupadas en 35 filas (26 cubiertas, 5 parciales, 1 brecha, 3 N/A), defectos H-1…H-12 y brechas declaradas | Para saber qué prueba cubre cada requisito y qué falta |
+| `docs/MATRIZ_TRAZABILIDAD_REQUISITOS.md` | RTM histórica del equipo (2026-11-12; 291 BE / 108 FE) | Referencia; no se modifica desde el bootcamp |
+
+Regla de mantenimiento: si se renombra o elimina un archivo de prueba citado,
+la matriz debe actualizarse en el mismo cambio. Los conteos de la matriz se
+verifican contra el árbol real antes de cada cierre semanal.

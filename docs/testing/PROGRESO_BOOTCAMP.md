@@ -694,3 +694,63 @@ una segunda corrida completa.
 en 81.86 % combinado (piso 80), 572 pruebas FE y 582 BE sin omitidas,
 workflow de cobertura con artefactos y guardia de 0 skipped, y sin cambios en
 la base de desarrollo ni en los workflows ajenos.
+
+---
+
+### Semana 9 — Estrategia de pruebas y matriz de trazabilidad
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. **`ESTRATEGIA_DE_PRUEBAS.md`** (nuevo): documento de 14 secciones con
+   objetivo y alcance, principios, niveles de prueba, enfoque basado en riesgo,
+   ambientes y datos, criterios de entrada/salida, trinquete de cobertura,
+   gestión de defectos, evidencia, CI, riesgos operativos, mejoras pendientes,
+   roles y referencias. Las cifras de cierre citadas son las mediciones reales
+   de S8 (582 BE / 572 FE).
+2. **`MATRIZ_DE_TRAZABILIDAD.md`** (nuevo): relaciona las 44 HU con pruebas
+   backend, frontend y E2E. Se agruparon por flujos afines en **35 filas**:
+   **26 cubiertas**, **5 parciales**, **1 brecha** (HU-039, respaldos) y
+   **3 no aplicables** (HU-025, HU-040, HU-042: funcionalidad no
+   implementada). Incluye los 12 defectos H-1…H-12 con causa, corrección y
+   prueba de regresión, y una sección de brechas declaradas con riesgo y
+   próximo paso.
+3. **Verificación de exactitud documental**:
+   - Se comprobó que **todos** los archivos de prueba y código citados en la
+     matriz existen en el repositorio (búsqueda recursiva por nombre).
+   - Conteos corregidos contra el árbol real: **47** archivos
+     `be/app/tests/test_*.py`, **84** archivos de prueba FE (69 `.test.tsx` +
+     15 `.test.ts`), **11** specs E2E.
+   - Las cifras semanales de la estrategia coinciden con
+     `MATRIZ_DE_COBERTURA.md` (S1–S8).
+   - No se modificó la RTM histórica `docs/MATRIZ_TRAZABILIDAD_REQUISITOS.md`
+     (2026-11-12; 291 BE / 108 FE): el documento nuevo la complementa.
+4. **Sin cambios de código ni de umbrales**: BE 80 %; FE 80/78/65/80. La
+   verificación de esta semana es documental (existencia de rutas, conteos,
+   coherencia de cifras y `git diff --check`), por lo que rigen las últimas
+   corridas completas reales de S8.
+
+**Resultados reales (2026-11-14)**
+
+| Verificación | Resultado |
+|---|---|
+| Archivos citados en la matriz | Todos existen |
+| Filas/conteo de la matriz | 35 filas · 26 ✅ · 5 ◐ · 1 ○ · 3 N/A |
+| Defectos documentados | H-1…H-12 con regresión |
+| Suite BE (última corrida real, S8) | **582 passed · 0 skipped · EXIT 0** |
+| Suite FE (última corrida real, S8) | **84 archivos / 572 pruebas · EXIT 0** |
+| Umbrales | BE 80 · FE 80/78/65/80 (sin cambios) |
+
+- Evidencias: comprobación de rutas y conteos en la sesión; `git diff --check`
+  sin errores; documentos en UTF-8.
+
+**Notas de aprendizaje registradas**: los conteos en documentación caducan con
+cada semana y deben verificarse contra el árbol antes de publicarse; una matriz
+de trazabilidad solo es útil si apunta a archivos ejecutables y declara las
+brechas en lugar de inflar la cobertura; la RTM histórica se conserva como
+referencia y los documentos del bootcamp se añaden sin sobrescribirla.
+
+**Estado de aprobación: COMPLETADA.** Estrategia y trazabilidad documentadas,
+con 35 filas de requisitos, 12 defectos trazados, brechas declaradas y
+verificación de que todas las referencias existen; sin cambios de código y con
+el trinquete de cobertura intacto.
