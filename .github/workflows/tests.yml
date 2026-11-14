@@ -124,6 +124,7 @@ jobs:
           # requeridas por la suite completa (test_t1_2_minio, foto perfil, facturas PDF...)
           # Versiones fijas alineadas con be/uv.lock (Sonar: dependencias sin lock)
           pip install --only-binary :all: 'httpx==0.28.1' 'pymupdf==1.28.2' 'minio==7.2.20' 'apscheduler==3.11.3' 'tzdata==2026.3'
+          pip install --only-binary :all: 'pytest==8.4.2' 'pytest-cov==6.3.0' 'pytest-mock==3.17.0'
 
       - name: Generate ephemeral JWT secret (backend CI only)
         shell: bash
