@@ -59,6 +59,51 @@ def _url_evidencia_novedad(evidencia_id: int) -> str:
     return f"/novedades/evidencias/{evidencia_id}/archivo"
 
 
+def _url_evidencia_legacy_novedad(novedad_id: int) -> str:
+    return f"/novedades/{novedad_id}/evidencia/archivo"
+
+
+@router.get("/{novedad_id}/evidencia/archivo")
+def descargar_evidencia_legacy_novedad(
+    novedad_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sirve una referencia histórica de novedad al propietario o al equipo autorizado."""
+    novedad = db.query(Novedad).filter(Novedad.id_novedad == novedad_id).first()
+    if not novedad or not novedad.evidencia_url:
+        raise HTTPException(status_code=404, detail="Evidencia no encontrada")
+    if isinstance(current_user, Cliente):
+        id_cliente = (
+            novedad.id_cliente
+            or (novedad.pedido.id_cliente_pe if novedad.pedido else None)
+            or (novedad.cita.id_cliente if novedad.cita else None)
+            or (novedad.devolucion.id_cliente_d if novedad.devolucion else None)
+        )
+        if id_cliente != current_user.id_cliente or not novedad.cliente_visible:
+            raise HTTPException(status_code=404, detail="Evidencia no encontrada")
+    else:
+        role = db.execute(
+            select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
+        ).scalar_one_or_none()
+        if role not in ("admin", "administrador", "support", "soporte"):
+            tecnico = (
+                db.query(Tecnico)
+                .filter(Tecnico.id_usuario_t == current_user.id_usuario)
+                .first()
+            )
+            if not tecnico or novedad.id_tecnico_n != tecnico.id_tecnico:
+                raise HTTPException(
+                    status_code=403,
+                    detail="No tienes permiso para ver esta evidencia",
+                )
+    try:
+        contenido, media = minio_service.leer_archivo(novedad.evidencia_url)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    return Response(content=contenido, media_type=media)
+
+
 @router.get("/evidencias/{evidencia_id}/archivo")
 def descargar_evidencia_novedad(
     evidencia_id: int,
@@ -1151,7 +1196,9 @@ def _serializar_novedades(novedades, db, idioma: Language = "es"):
             "estado_novedad": n.estado_novedad,
             "fecha_reporte": n.fecha_reporte_novedad.isoformat() if n.fecha_reporte_novedad else None,
             "lugar_ocurrencia": n.lugar_ocurrencia,
-            "evidencia_url": n.evidencia_url,
+            "evidencia_url": (
+                _url_evidencia_legacy_novedad(n.id_novedad) if n.evidencia_url else None
+            ),
             "id_pedido": n.id_pedido,
             "id_cita": n.id_cita,
             "id_cliente": (
