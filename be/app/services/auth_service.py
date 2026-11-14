@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -53,7 +54,7 @@ from app.utils.security import (
 )
 
 # Roles válidos para empleados (provenientes de roles_usuario)
-ROLES_EMPLEADOS_VALIDOS = {"admin", "administrador", "tecnico"}
+ROLES_EMPLEADOS_VALIDOS = {"admin", "administrador", "tecnico", "soporte"}
 
 
 def normalizar_rol_empleado(role_name: str | None) -> str | None:
@@ -889,6 +890,12 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
     except Exception:
         raise HTTPException(status_code=401, detail="Token de Google inválido o expirado")
 
+    if idinfo.get("email_verified") is not True:
+        raise HTTPException(
+            status_code=401,
+            detail="Google debe confirmar el correo de la cuenta",
+        )
+
     google_uid = idinfo.get("sub")
     email = (idinfo.get("email") or "").strip().lower()
     given_name = idinfo.get("given_name", "")
@@ -936,25 +943,49 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
             password_reset_required=bool(user.password_reset_required),
         )
 
-    # Buscar si ya existe un cliente con este email o google_id
-    client = _get_client_by_email(db, email)
-    if client is None and google_uid:
-        client = db.execute(
-            select(Cliente).where(Cliente.google_id == google_uid)
-        ).scalar_one_or_none()
+    # El ID de Google es estable aunque cambie el correo asociado a la cuenta.
+    client = db.execute(
+        select(Cliente).where(Cliente.google_id == google_uid)
+    ).scalar_one_or_none()
+    if client is None:
+        client = _get_client_by_email(db, email)
 
     if client:
-        # Cliente existente — actualizar google_id si faltaba
-        if not client.google_id:
-            client.google_id = google_uid
+        # El correo verificado permite vincular la cuenta local sin duplicarla.
+        if client.google_id and client.google_id != google_uid:
+            raise HTTPException(
+                status_code=409,
+                detail="Este correo ya esta vinculado a otra cuenta de Google",
+            )
+        otro_cliente = db.execute(
+            select(Cliente).where(
+                Cliente.google_id == google_uid,
+                Cliente.id_cliente != client.id_cliente,
+            )
+        ).scalar_one_or_none()
+        if otro_cliente:
+            raise HTTPException(
+                status_code=409,
+                detail="Esta cuenta de Google ya esta vinculada a otro cliente",
+            )
+        client.google_id = google_uid
         if client.auth_provider == "local" and client.password_hash is None:
             client.auth_provider = "google"
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="No fue posible vincular esta cuenta de Google",
+            ) from exc
         if not client.is_active:
-            log_login_failed(email, "account_inactive", "client")
-            raise HTTPException(403, "Tu cuenta está inhabilitada")
-        log_login_success(email, "client")
-        respuesta = _create_tokens(db, client.id_cliente, email, "client", rol="cliente")
+            log_login_failed(client.email, "account_inactive", "client")
+            raise HTTPException(status_code=403, detail="Tu cuenta esta inhabilitada")
+        log_login_success(client.email, "client")
+        respuesta = _create_tokens(
+            db, client.id_cliente, client.email, "client", rol="cliente"
+        )
         respuesta.perfil_incompleto = _cliente_perfil_incompleto(client)
         return respuesta
 
@@ -975,10 +1006,46 @@ def google_login(db: Session, credential: str, create_client: bool = True) -> To
         is_active=True,
     )
     db.add(new_client)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        # Otra solicitud pudo crear o vincular la misma identidad en paralelo.
+        client = db.execute(
+            select(Cliente).where(Cliente.google_id == google_uid)
+        ).scalar_one_or_none()
+        if client is None:
+            client = _get_client_by_email(db, email)
+        if client is None:
+            raise HTTPException(
+                status_code=409,
+                detail="La cuenta de Google ya fue registrada; inicia sesion nuevamente",
+            ) from exc
+        if client.google_id and client.google_id != google_uid:
+            raise HTTPException(
+                status_code=409,
+                detail="Este correo ya esta vinculado a otra cuenta de Google",
+            ) from exc
+        client.google_id = google_uid
+        if client.auth_provider == "local" and client.password_hash is None:
+            client.auth_provider = "google"
+        try:
+            db.commit()
+        except IntegrityError as retry_exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="No fue posible vincular esta cuenta de Google",
+            ) from retry_exc
+        new_client = client
     db.refresh(new_client)
-    log_login_success(email, "client")
-    respuesta = _create_tokens(db, new_client.id_cliente, email, "client", rol="cliente")
+    if not new_client.is_active:
+        log_login_failed(new_client.email, "account_inactive", "client")
+        raise HTTPException(status_code=403, detail="Tu cuenta esta inhabilitada")
+    log_login_success(new_client.email, "client")
+    respuesta = _create_tokens(
+        db, new_client.id_cliente, new_client.email, "client", rol="cliente"
+    )
     respuesta.perfil_incompleto = True
     return respuesta
 
