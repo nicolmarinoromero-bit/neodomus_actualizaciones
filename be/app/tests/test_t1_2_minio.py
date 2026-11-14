@@ -7,6 +7,10 @@ No modifica el bucket público desplegado: usa objetos sintéticos desechables.
 import unittest
 import urllib.error
 import urllib.request
+import uuid
+from unittest.mock import patch
+
+from minio import Minio
 
 import app.tests.testdb  # noqa: F401
 
@@ -128,6 +132,65 @@ class PrivacidadMinioTestCase(BaseT1TestCase):
             minio_service.eliminar_objeto_privado("privado:" + clave)
             minio_service.eliminar_objeto("evidencias_entrega/t13_ambos.jpg")
             minio_service.eliminar_objeto("evidencias_entrega/t13_solo_publica.jpg")
+
+    def test_objeto_es_compartido_entre_clientes_de_replicas(self):
+        if not self._minio_disponible():
+            self.skipTest("MinIO no alcanzable; almacenamiento compartido no comprobado")
+
+        cliente_escritor = Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_SECURE,
+        )
+        cliente_lector = Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_SECURE,
+        )
+        clave = f"evidencias_entrega/replica_{uuid.uuid4().hex}.jpg"
+        contenido = b"shared-object-between-api-replicas"
+        try:
+            with patch.object(minio_service, "_client_privado", cliente_escritor):
+                referencia = minio_service.subir_imagen_privada(
+                    "evidencias_entrega", clave.rsplit("/", 1)[1], contenido
+                )
+            self.assertEqual(referencia, f"privado:{clave}")
+
+            propietario = self._crear_cliente("replica-storage")
+            usuario, tecnico = self._crear_tecnico("replica-storage")
+            pedido = Pedido(
+                id_cliente_pe=propietario.id_cliente,
+                estado_pedido="Pagado",
+                estado_entrega="Asignada",
+                id_tecnico_entrega=tecnico.id_tecnico,
+            )
+            self.db.add(pedido)
+            self.db.commit()
+            self.db.refresh(pedido)
+            self._ids_pedido.append(pedido.id_pedido)
+            evidencia = EvidenciaEntrega(
+                id_pedido=pedido.id_pedido,
+                id_tecnico=tecnico.id_tecnico,
+                url_archivo=f"privado:{clave}",
+            )
+            self.db.add(evidencia)
+            self.db.commit()
+            self.db.refresh(evidencia)
+            token = self._token(self._login(usuario.email))
+
+            # A second process/client has independent state but the same bucket.
+            with patch.object(minio_service, "_client_privado", cliente_lector):
+                respuesta = self._get(
+                    f"/api/v1/tecnicos/evidencias/entrega/{evidencia.id}/archivo",
+                    headers=self._bearer(token),
+                )
+
+            self.assertEqual(respuesta.status_code, 200, respuesta.text)
+            self.assertEqual(respuesta.content, contenido)
+        finally:
+            cliente_escritor.remove_object(settings.MINIO_PRIVATE_BUCKET, clave)
 
 
 if __name__ == "__main__":

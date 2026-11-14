@@ -112,6 +112,12 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _validar_buckets_minio(self):
+        if self.MINIO_BUCKET == self.MINIO_PRIVATE_BUCKET:
+            raise ValueError("MINIO_BUCKET y MINIO_PRIVATE_BUCKET deben ser distintos")
+        return self
+
+    @model_validator(mode="after")
     def _validate_production_secrets(self):
         """Fail-fast en producción si quedan secretos de desarrollo."""
         if self.ENVIRONMENT == "production":

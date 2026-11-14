@@ -73,7 +73,9 @@ services:
       # a MinIO (fotos de perfil, imágenes de producto) fallan con 500.
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD requerido}
       MINIO_BUCKET: ${MINIO_BUCKET:-neodomus-media}
+      MINIO_PRIVATE_BUCKET: ${MINIO_PRIVATE_BUCKET:-neodomus-private}
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
     volumes:
       - ./be:/app
       - ./scripts:/app/scripts
