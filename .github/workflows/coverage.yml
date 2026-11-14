@@ -119,6 +119,10 @@ jobs:
             'pytest==8.4.2' 'pytest-cov==6.3.0' 'pytest-mock==3.17.0' \
             'coverage==7.16.2'
 
+      - name: Generate ephemeral JWT secret (backend coverage CI only)
+        shell: bash
+        run: python -c 'import secrets; print("SECRET_KEY=" + secrets.token_hex(32))' >> "$GITHUB_ENV"
+
       - name: Start MinIO (server /data explícito)
         shell: bash
         run: |
