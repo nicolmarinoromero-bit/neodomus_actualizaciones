@@ -71,7 +71,7 @@ def _servir_evidencia_devolucion(db: Session, id_devolucion: int, tipo: str, cur
         role = db.execute(
             select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
         ).scalar_one_or_none()
-        if role not in ("admin", "administrador"):
+        if role not in ("admin", "administrador", "soporte"):
             ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
             if not ficha or devolucion.id_tecnico_recogida != ficha.id_tecnico:
                 raise HTTPException(status_code=403, detail="No tienes permiso para ver esta evidencia")
@@ -108,7 +108,7 @@ def _admin(
     role = db.execute(
         select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
     ).scalar_one_or_none()
-    if role not in ("admin", "administrador"):
+    if role not in ("admin", "administrador", "soporte"):
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
     return current_user
 
@@ -468,6 +468,8 @@ def cambiar_estado_solicitud(
             )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except dv_service.ItemInvalido as e:
+        raise HTTPException(status_code=400, detail=e.mensaje)
 
     # Notificaciones al cliente según el nuevo estado.
     if not solo_observaciones:

@@ -1,6 +1,6 @@
 // Garantiza que Mis pedidos sea solo historial de compras: sin estrellas ni
 // formularios de calificación, conservando productos, valores y devoluciones.
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IdiomaProvider } from '@i18n/IdiomaContext';
@@ -109,5 +109,42 @@ describe('Mis pedidos · separación con reseñas', () => {
 
     expect(await screen.findByText('Solicitar devolución')).toBeTruthy();
     expect(descargarFactura).not.toHaveBeenCalled();
+  });
+
+  it('muestra el motivo del backend cuando el pedido ya venció el plazo de devolución', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/pedidos/mis-pedidos') return { data: [pedidoEntregado] } as never;
+      if (url === '/novedades/cliente/novedades') return { data: [] } as never;
+      if (url === '/devoluciones/mis-solicitudes') return { data: [] } as never;
+      if (url === '/devoluciones/elegibilidad/12') {
+        return {
+          data: {
+            elegible: false,
+            razon: 'El plazo de devolución es de 30 días desde la entrega o instalación.',
+            productos: [],
+            motivos: [],
+          },
+        } as never;
+      }
+      return { data: [] } as never;
+    });
+
+    render(
+      <MemoryRouter>
+        <IdiomaProvider>
+          <OrdersTab notify={notify} />
+        </IdiomaProvider>
+      </MemoryRouter>,
+    );
+
+    await abrirDetalle();
+    fireEvent.click(await screen.findByRole('button', { name: /Solicitar devolución/ }));
+
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(
+        'El plazo de devolución es de 30 días desde la entrega o instalación.',
+        'error',
+      );
+    });
   });
 });
