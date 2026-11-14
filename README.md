@@ -231,6 +231,7 @@ Variables de móvil (`movil/.env.example`): `EXPO_PUBLIC_API_URL` (sin el prefij
 - **Matriz de trazabilidad de requisitos (RTM)**: [docs/MATRIZ_TRAZABILIDAD_REQUISITOS.md](docs/MATRIZ_TRAZABILIDAD_REQUISITOS.md)
 - **Funciones críticas documentadas**: [docs/documentacion-funciones-criticas.md](docs/documentacion-funciones-criticas.md)
 - **Guías de instalación**: [con Docker](docs/setup/con-docker.md) · [sin Docker](docs/setup/sin-docker.md)
+- **Despliegue de producción**: [puesta en marcha, verificación y rollback](docs/deploy/puesta-en-marcha-produccion.md)
 - **Referencia técnica**: [arquitectura](docs/referencia-tecnica/architecture.md) · [endpoints](docs/referencia-tecnica/api-endpoints.md) · [esquema de BD](docs/referencia-tecnica/database-schema.md) · [diccionario de datos](docs/referencia-tecnica/diccionario-de-datos.md)
 - **Manuales**: [usuario](docs/manuales/usuario/MANUAL_DE_USUARIO.md) · [técnico](docs/manuales/tecnico/MANUAL_TECNICO.md)
 - **Requisitos**: [HUs](docs/requisitos/HUs/) · [RFs](docs/requisitos/RFs/) · [RNFs](docs/requisitos/RNs/) · [restricciones](docs/requisitos/restricciones.md)
