@@ -77,6 +77,8 @@ $Flows = [ordered]@{
     'admin-paginacion' = 'e2e_admin_paginacion.py'
     'foto-tecnico'     = 'e2e_foto_tecnico.py'
     'reporte-ventas'   = 'e2e_reporte_ventas.py'
+    'tecnico-novedades' = 'e2e_tecnico_novedades.py'
+    'admin-instalaciones' = 'e2e_admin_instalaciones.py'
 }
 
 $ManualFlows = [ordered]@{

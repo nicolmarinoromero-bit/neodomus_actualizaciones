@@ -47,7 +47,7 @@ dev = [
 #   anterior, que ya supera el 50 %).
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]
-addopts = "--cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=50"
+addopts = "--cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=60"
 
 [tool.coverage.run]
 source = ["app"]

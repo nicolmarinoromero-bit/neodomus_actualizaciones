@@ -12,7 +12,7 @@
 | 2 | Unitarias AAA + CI con umbral 30 % | pytest añadido, unitarias de reglas de negocio reales, umbral 30 % en CI | ✅ COMPLETADA |
 | 3 | Componentes React | user-event, formularios críticos (Login/Registro/Checkout), estados no felices | ✅ COMPLETADA |
 | 4 | Pruebas de API | Contrato HTTP de routers sin cubrir (productos, reports, devoluciones, novedades, consultas, tarifas, solicitudes, users) + escenarios negativos | ✅ COMPLETADA |
-| 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ⚪ PENDIENTE |
+| 5 | Dobles de prueba | Inventario de dependencias externas; dobles para MinIO/SMTP/reloj/pagos; MSW en FE | ✅ COMPLETADA |
 | 6 | Integración BD real | Servicio MySQL de pruebas en compose, semillas, ciclo de limpieza documentado, pruebas de repositorios | ⚪ PENDIENTE |
 | 7 | Playwright avanzado | 3 flujos críticos estables, Page Objects, HTML report, doble envío/red lenta, `--repeat-each` | ⚪ PENDIENTE |
 | 8 | CI completo y calidad | Cobertura+umbral en CI, artefactos, job de calidad, 0 omitidas justificadas | ⚪ PENDIENTE |
@@ -309,3 +309,99 @@ manipulan con `fireEvent.change` y las ausencias con `waitFor` por
 **Estado de aprobación: COMPLETADA.** 43 pruebas BE nuevas (contrato + H-4) y
 59 FE nuevas (6 áreas), con estados felices, negativos y de permisos; suite
 completa verde y umbrales aplicados (BE 50 combinado; FE 52/74/54/52).
+
+### Semana 5 — Dobles de prueba
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. **Inventario de dependencias externas y estrategia de dobles**
+   (`docs/testing/CONFIGURACION_TESTING.md`): MinIO, SMTP, Gmail API, reloj,
+   pasarela de pagos, scheduler y recomendación de técnicos. Backend: dobles
+   explícitos y restauración de las implementaciones reales por prueba.
+   Frontend: MSW 2.11.3 (`msw/node`) como doble de red + `vi.mock` para
+   componentes con efectos externos.
+2. **Backend — 8 archivos S5 (85 funciones, 131 casos al expandir
+   parametrizaciones)**:
+   - `test_s5_minio_dobles.py` (13): almacenamiento con el MinIO dedicado de
+     pruebas, buckets público/privado, URLs públicas, borrado y errores.
+   - `test_s5_email_dobles.py` (9) y `test_s5_gmail_api_dobles.py` (6):
+     transporte SMTP y Gmail API sustituidos; se verifica el mensaje generado
+     sin enviar correo real.
+   - `test_s5_pagos_reloj.py` (11): pasarela simulada y reloj controlado;
+     tarjeta aprobada/rechazada, vencimientos y estados de pago.
+   - `test_s5_scheduler_tareas.py` (11): tareas programadas ejecutadas de
+     forma determinista (recordatorios, limpiezas y cierres).
+   - `test_s5_notificaciones_plantillas.py` (14): plantillas, idioma,
+     marcadores y renderizado de mensajes.
+   - `test_s5_recomendacion_tecnicos.py` (9): ranking por especialidad,
+     disponibilidad y carga de trabajo.
+   - `test_s5_calificaciones_especializaciones_http.py` (12): contrato HTTP de
+     calificaciones y especializaciones (permisos, validaciones y 404).
+   - `testdb.py` conserva las implementaciones originales de correo, adjuntos
+     y scheduler (`_send_email_sync_original`, `_send_email_original`,
+     `_adjunto_original`, `_iniciar_scheduler_original`,
+     `_detener_scheduler_original`) y las restaura durante cada caso, de modo
+     que los dobles no contaminan el resto de la suite.
+3. **Defecto real corregido (H-6)**: en `pagos_service._pagar_tarjeta` el
+   selector por defecto `"aprobado"` pisaba el rechazo documentado de las
+   tarjetas terminadas en `...0001`. Ahora `por_defecto=estado`; la regresión
+   queda fijada por `test_s5_pagos_reloj.py`.
+4. **Frontend — 6 pantallas críticas (61 pruebas nuevas)**, todas con red
+   simulada por MSW/`vi.mock`:
+   - `TechnicianEntregas.test.tsx` (9): entregas asignadas, estados,
+     evidencias y ubicación.
+   - `ClienteNovedades.test.tsx` (9): listado, cupones, filtros, detalle y
+     errores.
+   - `TecnicoDevoluciones.test.tsx` (10): recogidas/cambios, evidencias,
+     búsqueda, detalle y reintento.
+   - `TecnicoCitas.test.tsx` (8): estadísticas, filtros, paginación y
+     reagendamiento (éxito, error, domingo y cancelación).
+   - `AdminInstalaciones.test.tsx` (12): citas, tarifas, filtros, estados,
+     reasignación, comisiones, cancelación con reembolso y aplazamiento.
+   - `TecnicoNovedades.test.tsx` (13): listado/filtros, detalle con historial,
+     mensaje/solución al cliente y formulario por pasos con validaciones.
+   - MSW se declara en `fe/package.json`/`pnpm-lock.yaml`; `pnpm-workspace.yaml`
+     contiene `allowBuilds: {msw: true, esbuild: true}` porque pnpm 11 ignora
+     `pnpm.onlyBuiltDependencies` y falla con `ERR_PNPM_IGNORED_BUILDS`.
+5. **E2E nuevos con `page.route`** (sin fixtures ni escrituras en la BD):
+   - `fe/e2e/semana5-tecnico.e2e.spec.ts` (2 recorridos): consulta, filtros,
+     detalle y reporte de novedad con evidencia.
+   - `fe/e2e/semana5-admin.e2e.spec.ts` (2 recorridos): filtros, cancelación
+     con reembolso, edición de tarifa, cambio de estado y reasignación.
+   - Orquestadores `scripts/e2e_tecnico_novedades.py`,
+     `scripts/e2e_admin_instalaciones.py` y la base común
+     `scripts/e2e_semana5_lib.py`; registrados en `tests/run_e2e_tests.ps1`.
+     La sesión se restaura con tokens por pestaña y `/auth/session` +
+     `/users/me` interceptados; ningún recorrido escribe en `neodomus`.
+
+**Resultados reales (2026-11-13)**
+
+| Suite | Resultado |
+|---|---|
+| Backend (pytest + cobertura + umbral 60) | **517 passed, 0 skipped** · líneas **60.64 %** · ramas 36.25 % · Cover **60.64 %** · 365 s |
+| Frontend (Vitest + cobertura + thresholds) | **61 archivos / 379 pruebas OK** · líneas **64.84 %** · ramas **75.24 %** · funciones **58.73 %** · statements 64.84 % |
+| E2E técnico (page.route) | **2/2 passed** (`scripts/e2e_tecnico_novedades.py`) |
+| E2E admin (page.route) | **2/2 passed** (`scripts/e2e_admin_instalaciones.py`) |
+
+- Umbrales FE en `fe/vitest.config.ts`: **60 / 74 / 58 / 60**
+  (líneas/ramas/funciones/statements). La corrida completa con cobertura
+  termina **EXIT OK**.
+- Umbral BE en `be/pyproject.toml`: `--cov-fail-under=60`; la suite reporta
+  `Required test coverage of 60% reached`.
+- Evidencias: `be_pytest_s5_final.txt`, `fe_cov_s5_run1.txt`,
+  `e2e_s5_tecnico_run3.txt`, `e2e_s5_admin_run5.txt` (carpeta de evidencias
+  del entorno de ejecución).
+
+**Notas de aprendizaje registradas**: los dobles deben restaurar la
+implementación real dentro del propio caso (los parches globales de
+`testdb.py` afectan a toda la suite); MSW exige `allowBuilds` en pnpm 11; en
+FE los textos con acentos pueden llegar doble-codificados al DOM, por lo que
+las aserciones usan prefijos ASCII o regex tolerantes; los componentes con
+iconos junto al texto requieren `getAllByText` o acotar con `within`.
+
+**Estado de aprobación: COMPLETADA.** Dependencias externas aisladas en ambas
+capas, un defecto real de pagos corregido con regresión, 131 casos BE y 61 FE
+nuevos, 4 recorridos E2E con red interceptada, suites completas verdes y
+cobertura por encima del piso S5 (BE 60.64 %, FE 64.84 %), sin bajar el
+trinquete.

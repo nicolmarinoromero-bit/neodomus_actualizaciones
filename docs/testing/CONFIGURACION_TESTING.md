@@ -12,6 +12,8 @@
 | Unitarias/integración backend | `unittest` (heredada) + `pytest` (nueva, Semana 2) | `be/.coveragerc` | `coverage` (líneas + ramas, `source=app`) |
 | Unitarias/componentes frontend | Vitest 2 + Testing Library | `fe/vitest.config.ts` | `@vitest/coverage-v8` (líneas/ramas/funciones) |
 | E2E | Playwright 1.48 + orquestadores Python | `fe/playwright.config.ts` | — (no aplica) |
+| Dobles de red frontend | MSW 2.11.3 (`msw/node`) + `vi.mock` | `fe/vitest.config.ts` (setup) | — (no aplica) |
+| Dobles backend | `unittest.mock` + restauración por prueba | `be/app/tests/testdb.py` | — (no aplica) |
 | BD de pruebas | MySQL 8 (`neodomus_test`) | `TEST_DATABASE_URL` + guardas de `testdb.py` | — |
 | Archivos de pruebas | MinIO dedicado (`neodomus_minio_test`, 9100) | `docker-compose.test.yml` + `TEST_MINIO_*` | — |
 | CI | GitHub Actions | `.github/workflows/tests.yml` | Semana 2+ |
@@ -51,6 +53,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_e2e_tests.ps1 -Lis
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_e2e_tests.ps1 -Name login
 # Un flujo suelto:
 python scripts\e2e_login.py
+# Flujos S5 (red interceptada con page.route; no escriben en la BD):
+python scripts\e2e_tecnico_novedades.py
+python scripts\e2e_admin_instalaciones.py
 # Reporte HTML del último run:
 cd fe; pnpm exec playwright show-report
 ```
@@ -107,3 +112,30 @@ cd fe; pnpm exec playwright show-report
 - El servidor dev (`uvicorn --reload` del contenedor `api`) recarga al editar
   código de `be/app`; es indiferente para la base de pruebas pero puede
   añadir segundos de latencia la primera vez tras un cambio.
+
+## 7. Inventario de dependencias externas y dobles (Semana 5)
+
+| Dependencia | Capa | Doble aplicado | Archivo de pruebas |
+|---|---|---|---|
+| MinIO (S3) | BE | Cliente real contra MinIO dedicado de pruebas, sustituido por `mock` cuando se prueba el fallo | `be/app/tests/test_s5_minio_dobles.py` |
+| SMTP | BE | `_send_email_sync` / `_send_email` sustituidos; restauración en el propio caso | `be/app/tests/test_s5_email_dobles.py` |
+| Gmail API | BE | `gmail_api` sustituido; se valida el mensaje construido sin llamada externa | `be/app/tests/test_s5_gmail_api_dobles.py` |
+| Reloj | BE | `datetime`/zona horaria controlados con `freezegun`-estilo manual | `be/app/tests/test_s5_pagos_reloj.py` |
+| Pasarela de pagos | BE | Tarjeta simulada por terminación (`...0001` rechaza) | `be/app/tests/test_s5_pagos_reloj.py` |
+| Scheduler | BE | Tareas invocadas directamente, sin hilos ni esperas reales | `be/app/tests/test_s5_scheduler_tareas.py` |
+| Recomendación de técnicos | BE | Ranking determinista con datos de prueba acotados | `be/app/tests/test_s5_recomendacion_tecnicos.py` |
+| Red HTTP | FE | MSW 2.11.3 (`msw/node`) + `vi.mock` para módulos con efectos | `*.test.tsx` de S5 |
+| Sesión E2E | E2E | `page.route` para `/auth/session`, `/users/me` y endpoints de datos | `fe/e2e/semana5-*.e2e.spec.ts` |
+
+Reglas de aislamiento:
+
+- `be/app/tests/testdb.py` guarda las implementaciones reales de correo,
+  adjuntos y scheduler (`_send_email_sync_original`, `_send_email_original`,
+  `_adjunto_original`, `_iniciar_scheduler_original`,
+  `_detener_scheduler_original`) y las restaura dentro de cada caso: un parche
+  global contaminaría el resto de la suite.
+- `fe/pnpm-workspace.yaml` declara `allowBuilds: {msw: true, esbuild: true}`
+  porque pnpm 11 ignora `pnpm.onlyBuiltDependencies` y falla con
+  `ERR_PNPM_IGNORED_BUILDS` al instalar MSW.
+- Los E2E S5 levantan Vite contra el backend real solo para servir la SPA; las
+  rutas de datos se interceptan y ningún recorrido escribe en `neodomus`.

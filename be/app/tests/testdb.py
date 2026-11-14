@@ -165,6 +165,10 @@ async def _adjunto_sin_transporte(*_args, **_kwargs):
 # el transporte SMTP y necesitan construir el mensaje MIME con su adjunto.
 if not hasattr(_email, "_adjunto_original"):
     _email._adjunto_original = _email.send_email_with_attachment
+if not hasattr(_email, "_send_email_sync_original"):
+    _email._send_email_sync_original = _email._send_email_sync
+if not hasattr(_email, "_send_email_original"):
+    _email._send_email_original = _email.send_email
 _email._send_email_sync = _correo_sin_transporte
 _email.send_email_with_attachment = _adjunto_sin_transporte
 
@@ -174,6 +178,13 @@ _email.send_email_with_attachment = _adjunto_sin_transporte
 # plano sobre la base de pruebas. Se hace a nivel de módulo para que la
 # desactivación sea efectiva desde antes de importar/correr la aplicación.
 from app.services import scheduler as _scheduler
+
+# Se conservan las implementaciones reales para las pruebas unitarias del
+# scheduler, que las restauran solo durante su propio caso.
+if not hasattr(_scheduler, "_iniciar_scheduler_original"):
+    _scheduler._iniciar_scheduler_original = _scheduler.iniciar_scheduler
+if not hasattr(_scheduler, "_detener_scheduler_original"):
+    _scheduler._detener_scheduler_original = _scheduler.detener_scheduler
 
 _scheduler.iniciar_scheduler = lambda: None
 _scheduler.detener_scheduler = lambda: None

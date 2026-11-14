@@ -12,7 +12,7 @@
 | S2 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | **50** (combinado, trinquete) | **30.01 % / 72.77 % / 42.92 %** | **30 / 72 / 42** |
 | S3 | 56.09 % líneas / 31.20 % ramas (Cover 50.53 %) | 50 (piso semanal 40) | **40.92 % / 74.20 % / 50.00 %** | **40 / 74 / 50** |
 | S4 | **59.91 % líneas / 36.25 % ramas** (Cover combinado 54.51 %) | 50 (combinado, piso semanal 50) | **52.75 % / 74.01 % / 54.61 %** | **52 / 74 / 54** |
-| S5 | — | 60 % | — | 60 % |
+| S5 | **60.64 % líneas / 36.25 % ramas** (Cover combinado 60.64 %) | **60** (combinado, piso semanal 60) | **64.84 % / 75.24 % / 58.73 %** | **60 / 74 / 58 / 60** |
 | S6 | — | 70 % | — | 70 % |
 | S7 | — | 75 % | — | 75 % |
 | S8–S10 | — | 80 % | — | 80 % |
@@ -88,6 +88,10 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-13 | FE cobertura S4 | 316/316 OK (55 archivos) | 52.75 % líneas / 74.01 % ramas / 54.61 % funciones | `pnpm test --coverage` |
 | 2026-11-13 | FE trinquete S4 en rojo (verificación) | 55 archivos, 316 OK, cobertura de ramas 73.12 % < 74 % → ERROR | — | `pnpm test --coverage` |
 | 2026-11-13 | FE trinquete S4 en verde | 316/316 OK, ramas 74.01 % | 52.75 % líneas | `pnpm test --coverage` |
+| 2026-11-13 | BE pytest S5 (dobles + contrato) | **517 passed · 0 skipped** | **60.64 % líneas / 36.25 % ramas / 60.64 % combinado** (umbral 60 ✓) | `pytest app/tests -q` (contenedor) |
+| 2026-11-13 | FE cobertura S5 | **379/379 OK (61 archivos)** | **64.84 % líneas / 75.24 % ramas / 58.73 % funciones** | `pnpm test --coverage` |
+| 2026-11-13 | E2E S5 técnico (page.route) | **2/2 passed** | — | `python scripts/e2e_tecnico_novedades.py` |
+| 2026-11-13 | E2E S5 admin (page.route) | **2/2 passed** | — | `python scripts/e2e_admin_instalaciones.py` |
 
 ## Semanas siguientes (plantilla de registro)
 

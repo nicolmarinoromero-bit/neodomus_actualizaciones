@@ -182,7 +182,9 @@ def _pagar_tarjeta(datos: dict) -> dict:
         raise HTTPException(status_code=400, detail="El CVV no es válido")
 
     # Selector de simulación (entorno de prueba): permite forzar el resultado.
-    forzado = _resultado_simulacion(datos, ("aprobado", "rechazado"))
+    # Si no viene el selector, se CONSERVA el estado de la tarjeta de prueba
+    # (antes el valor por defecto "aprobado" pisaba el rechazo de ...0001).
+    forzado = _resultado_simulacion(datos, ("aprobado", "rechazado"), por_defecto=estado)
     if forzado != estado:
         estado = forzado
 
