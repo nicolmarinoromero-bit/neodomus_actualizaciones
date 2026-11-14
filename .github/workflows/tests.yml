@@ -127,7 +127,10 @@ jobs:
 
       - name: Generate ephemeral JWT secret (backend CI only)
         shell: bash
-        run: python -c 'import secrets; print("SECRET_KEY=" + secrets.token_hex(32))' >> "$GITHUB_ENV"
+        run: |
+          secret="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$secret"
+          echo "SECRET_KEY=$secret" >> "$GITHUB_ENV"
 
       # MinIO de pruebas: los service containers de GitHub Actions no admiten
       # campo 'command' y la imagen arrancada sin 'server /data' imprime su
@@ -205,6 +208,9 @@ jobs:
       - name: Run backend tests (runner existente via pwsh)
         shell: pwsh
         env:
+          # URL sentinela distinta de TEST_DATABASE_URL para permitir imports
+          # de la app sin dirigir accidentalmente la suite a otra base.
+          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4
           TEST_DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
           TEST_MINIO_ENDPOINT: localhost:9000
           TEST_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
@@ -290,7 +296,10 @@ jobs:
 
       - name: Generate ephemeral JWT secret (E2E CI only)
         shell: bash
-        run: python -c 'import secrets; print("SECRET_KEY=" + secrets.token_hex(32))' >> "$GITHUB_ENV"
+        run: |
+          secret="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$secret"
+          echo "SECRET_KEY=$secret" >> "$GITHUB_ENV"
 
       # Misma solución que el job backend: paso controlado con 'server /data'
       # explícito (los service containers no admiten campo 'command').
