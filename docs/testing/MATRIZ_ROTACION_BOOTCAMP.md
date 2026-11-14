@@ -14,7 +14,7 @@
 | S5 | Dobles de prueba | Inventario de dependencias + dobles (MinIO/SMTP/Gmail/reloj/pagos/scheduler/MSW) | **60.64 %** líneas (36.25 % ramas; Cover 60.64 %) | **64.84 %** líneas (75.24 % ramas; 58.73 % funciones) | BE 60 (combinado) / FE 60 |
 | S6 | Integración BD | MySQL de pruebas en compose + pruebas de repositorios | **81.87 %** líneas (80.30 % ramas; Cover 82 %) | **70.31 %** líneas (76.50 % ramas; 60.85 % funciones) | BE 70 / FE 70 |
 | S7 | E2E avanzado | 3 flujos críticos estables + Page Objects + HTML report | **81.87 %** líneas (80.30 % ramas; sin cambios BE en S7) | **78.23 %** líneas (77.89 % ramas; 64.79 % funciones) | BE 70 / FE 75 |
-| S8 | CI completo | Cobertura y artefactos en CI, 0 omitidas justificadas | — | — | 80 % |
+| S8 | CI completo | Workflow `coverage.yml` con artefactos FE/BE + guardia de 0 omitidas | **81.86 %** combinado (líneas 85.95 %; ramas 68.00 %; 582 passed, 0 skipped) | **80.94 %** líneas (78.82 % ramas; 66.26 % funciones) | BE 80 / FE 80 |
 | S9 | Integrador | Estrategia de pruebas + matrices | — | — | ≥80 % |
 | S10 | TDD | Historia nueva con ciclos RED→GREEN→REFACTOR | — | — | ≥80 % |
 

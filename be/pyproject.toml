@@ -43,11 +43,11 @@ dev = [
 # ── Configuración de pytest (Semana 2 del bootcamp) ─────────────────────────
 # - testpaths: la suite vive en app/tests (convención del proyecto).
 # - addopts: cobertura por defecto (líneas+ramas) con umbral que sube por
-#   semana (Semana 6: 70 % de piso; el trinquete lo fija a la cobertura real
+#   semana (Semana 8: 80 % de piso; el trinquete lo fija a la cobertura real
 #   anterior, que ya supera el 81 %).
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]
-addopts = "--cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=70"
+addopts = "--cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
 
 [tool.coverage.run]
 source = ["app"]
@@ -55,9 +55,9 @@ omit = ["app/tests/*"]
 branch = true
 
 [tool.coverage.report]
-# Piso vigente (Semana 6: 70 %; medición real de líneas 81.87 %). Sube cada
-# semana por PR; nunca baja respecto a la medición real anterior.
-fail_under = 70
+# Piso vigente (Semana 8: 80 %; última medición real combinada 81.86 %). Sube
+# cada semana por PR; nunca baja respecto a la medición real anterior.
+fail_under = 80
 show_missing = true
 
 [tool.hatch.build.targets.wheel]

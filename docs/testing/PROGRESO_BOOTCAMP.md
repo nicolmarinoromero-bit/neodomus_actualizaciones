@@ -613,3 +613,84 @@ Objects y repetición (login 8/8, compra 2/2 × 2, admin 18/18), cero esperas
 fijas, cobertura FE en 78.23 % (piso 75) y BE en 81.87 % (piso 70), H-11 y H-12
 corregidos con regresión, tipos de E2E limpios y sin tocar la base de
 desarrollo ni producción.
+
+---
+
+### Semana 8 — CI de cobertura, trinquete 80 % y cierre de la brecha FE
+**Estado: COMPLETADA**
+
+**Actividades realizadas**
+
+1. **Cierre de la brecha de cobertura FE** (78.23 % → 80.94 %): se añadieron
+   7 archivos de prueba con 50 pruebas nuevas, sin tocar código de producción:
+   - `LegalPages.test.tsx` (3): política de privacidad, términos de uso y las
+     variantes de `LegalPage` (secciones numeradas, listas y tarjetas).
+   - `ForgotPassword.test.tsx` (10): validación del correo, normalización,
+     estado de envío, timeout, 429, errores con y sin detalle, fallo de red y
+     vuelta al login.
+   - `CambioPasswordObligatorio.test.tsx` (8): requisitos, coincidencia,
+     reutilización de la temporal, éxito por rol, error del backend y logout.
+   - `ProductosPublicos.test.tsx` (8): carga, error, paginación, tamaño de
+     página, filtros por búsqueda/categoría, limpieza y refresco por foco.
+   - `AdminFacturas.test.tsx` (7): carga, error, vacío, tabla de pedidos y
+     citas, búsqueda por cinco campos, descarga de PDF y fallo de descarga.
+   - `TechniciansTab.test.tsx` (7): favoritos, foto/iniciales, certificación,
+     calificación, enlaces `tel:`/WhatsApp y persistencia al quitar favoritos.
+   - `MessagesTab.test.tsx` (7): listado, contador, filtro de no leídos,
+     detalle, marcado individual y masivo, persistencia y estados vacíos.
+2. **Trinquete FE a 80 %** en `fe/vitest.config.ts`: líneas 80, ramas 78,
+   funciones 65, statements 80. La suite completa quedó en **84 archivos /
+   572 pruebas**, con **80.94 % líneas / 78.82 % ramas / 66.26 % funciones**
+   y **EXIT 0** en dos corridas (medición y verificación con el umbral nuevo).
+3. **Trinquete BE a 80 %** en `be/pyproject.toml` (`addopts` y
+   `[tool.coverage.report] fail_under`). La suite completa se ejecutó contra
+   MySQL/MinIO de pruebas con **582 passed, 0 skipped, EXIT 0** y **81.86 %**
+   de cobertura combinada (TOTAL de pytest-cov).
+   - La primera corrida omitió 15 pruebas de MinIO porque el registro local
+     apuntaba a `localhost:9100`, inalcanzable desde el contenedor `api`. Se
+     repitió con `TEST_MINIO_ENDPOINT=neodomus-minio-test:9000` (alias de la
+     red `neodomus_tests_net`) y se obtuvo 0 omitidas.
+4. **Workflow de cobertura independiente** `.github/workflows/coverage.yml`:
+   - Job `frontend-coverage`: Node 22 + pnpm 11.4.0, `pnpm install
+     --frozen-lockfile`, Vitest con cobertura y umbral del config; publica
+     `lcov.info`, `coverage-summary.json` e `index.html`.
+   - Job `backend-coverage`: MySQL 8 efímero (base `neodomus_test`) + MinIO
+     efímero con `server /data`, migraciones Alembic, pytest con cobertura
+     (umbral 80), reporte JUnit y verificación explícita de **0 pruebas
+     omitidas**; publica `coverage.xml`, `htmlcov`, JUnit y la salida de
+     pytest.
+   - Credenciales **dummy** exclusivas de CI; no se usan secretos de
+     desarrollo. El YAML se validó con `yaml.safe_load` (2 jobs, 7 y 11 pasos).
+   - `tests.yml` y `sonarcloud.yml` quedaron intactos (cambio ajeno).
+
+**Resultados reales (2026-11-14)**
+
+| Suite | Resultado |
+|---|---|
+| Frontend completo (Vitest + cobertura, medición) | **84 archivos / 572 pruebas OK** · 80.94 % líneas · 78.82 % ramas · 66.26 % funciones · EXIT 0 |
+| Frontend completo (verificación con umbral 80/78/65/80) | **84 archivos / 572 pruebas OK** · EXIT 0 · 452.75 s |
+| Backend completo (pytest + cobertura, umbral 80) | **582 passed · 0 skipped · EXIT 0** · 81.86 % combinado · 489.74 s |
+| Pruebas FE nuevas S8 | **50/50 OK** en 7 archivos |
+| Workflow `coverage.yml` | YAML válido · 2 jobs · artefactos FE/BE · guardia de 0 omitidas |
+
+- Evidencias de la sesión: `s8_unit_batch1.txt` / `s8_unit_batch1b.txt`
+  (29 pruebas de los primeros 4 archivos), `s8_unit_batch2.txt` y
+  `s8_adminfacturas.txt` (21 pruebas restantes), `s8_fe_cov_run1.txt`
+  (medición 80.94 %) y `s8_fe_cov_run2.txt` (umbral 80, EXIT 0),
+  `s8_be_cov.txt` (corrida con 15 omitidas por endpoint incorrecto),
+  `s8_be_cov2.txt` (582 passed, 0 skipped, EXIT 0).
+
+**Notas de aprendizaje registradas**: el endpoint de MinIO que funciona en el
+host (`localhost:9100`) no resuelve dentro del contenedor `api`; debe usarse
+el alias de red `neodomus-minio-test:9000`. Los componentes que muestran
+toasts localizados necesitan `IdiomaProvider` en la prueba, aunque la pantalla
+no use `t()` directamente. En formularios con `input type="email"` la
+validación nativa del navegador puede impedir el `submit`; para probar la
+validación propia se envía el formulario con `fireEvent.submit`. Los umbrales
+de cobertura deben subirse solo después de una medición real y verificarse con
+una segunda corrida completa.
+
+**Estado de aprobación: COMPLETADA.** Cobertura FE en 80.94 % (piso 80) y BE
+en 81.86 % combinado (piso 80), 572 pruebas FE y 582 BE sin omitidas,
+workflow de cobertura con artefactos y guardia de 0 skipped, y sin cambios en
+la base de desarrollo ni en los workflows ajenos.

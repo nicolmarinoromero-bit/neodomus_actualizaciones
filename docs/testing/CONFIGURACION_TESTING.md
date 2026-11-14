@@ -16,7 +16,7 @@
 | Dobles backend | `unittest.mock` + restauración por prueba | `be/app/tests/testdb.py` | — (no aplica) |
 | BD de pruebas | MySQL 8 (`neodomus_test`) | `TEST_DATABASE_URL` + guardas de `testdb.py` | — |
 | Archivos de pruebas | MinIO dedicado (`neodomus_minio_test`, 9100) | `docker-compose.test.yml` + `TEST_MINIO_*` | — |
-| CI | GitHub Actions | `.github/workflows/tests.yml` | Semana 2+ |
+| CI | GitHub Actions | `.github/workflows/tests.yml` (suite) + `.github/workflows/coverage.yml` (cobertura, S8) | Semana 2+ |
 
 ## 2. Comandos exactos (esta máquina)
 
@@ -29,7 +29,8 @@ $env:TEST_DATABASE_URL = "mysql+pymysql://neodomus:$env:MYSQL_PASSWORD@localhost
 ```
 
 Backend (contenedor `api`, base de pruebas migrada a head —la suite actual
-tiene 582 pruebas, incluidas las 65 de integración de S6):
+tiene 582 pruebas, incluidas las 65 de integración de S6— y umbral de
+cobertura 80 desde S8):
 
 ```powershell
 # Suite completa con cobertura y umbral vigente (pytest, S2+)
@@ -49,7 +50,7 @@ docker compose exec -T -e TEST_DATABASE_URL=$url `
 tras reiniciar Docker Desktop. Las pruebas S6 crean y limpian sus propias
 fixtures en `neodomus_test`; nunca se ejecutan dos suites a la vez.
 
-Frontend (host; suite actual: 77 archivos / 522 pruebas):
+Frontend (host; suite actual: 84 archivos / 572 pruebas; umbral vigente 80/78/65/80):
 
 ```powershell
 cd fe
@@ -174,3 +175,24 @@ Reglas de aislamiento:
   `ERR_PNPM_IGNORED_BUILDS` al instalar MSW.
 - Los E2E S5 levantan Vite contra el backend real solo para servir la SPA; las
   rutas de datos se interceptan y ningún recorrido escribe en `neodomus`.
+
+## 8. CI de cobertura (Semana 8)
+
+Workflow propio `.github/workflows/coverage.yml`; **no modifica** `tests.yml`
+ni `sonarcloud.yml` (archivos ajenos).
+
+| Job | Servicios | Qué ejecuta | Artefactos |
+|---|---|---|---|
+| `frontend-coverage` | Node 22 + pnpm 11.4.0 | `pnpm exec vitest run --coverage --minWorkers=1 --maxWorkers=2 --testTimeout=60000` con umbrales 80/78/65/80 | `fe/coverage/lcov.info`, `coverage-summary.json`, `index.html` |
+| `backend-coverage` | MySQL 8 (`neodomus_test`) + MinIO efímero (`server /data`) | Alembic head + `pytest app/tests -q -rs` con `--cov=app --cov-branch --cov-fail-under=80`, HTML y JUnit | `be/coverage.xml`, `be/htmlcov`, `be/backend-junit.xml`, `be/backend-pytest.txt` |
+
+- Credenciales de CI **dummy** creadas y destruidas con cada job
+  (`neodomus_ci_user`, `ci_minio_user`); nunca se usan las de desarrollo.
+- El job backend incluye una guardia que lee `backend-junit.xml` y falla si
+  `skipped > 0`. La medición local de S8 cerró con **582 passed, 0 skipped**.
+- En local el endpoint de MinIO para pruebas dentro del contenedor es
+  `neodomus-minio-test:9000`; `localhost:9100` solo sirve desde el host.
+- Validación local del YAML (sin poder ejecutar GitHub Actions desde esta
+  máquina): `yaml.safe_load` sobre el archivo, con 2 jobs y 7/11 pasos.
+  Los comandos equivalentes de FE y BE ya se ejecutaron en local con
+  **EXIT 0** y cobertura por encima del umbral.

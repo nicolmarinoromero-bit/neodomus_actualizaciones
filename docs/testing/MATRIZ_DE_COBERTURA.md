@@ -15,7 +15,8 @@
 | S5 | **60.64 % líneas / 36.25 % ramas** (Cover combinado 60.64 %) | **60** (combinado, piso semanal 60) | **64.84 % / 75.24 % / 58.73 %** | **60 / 74 / 58 / 60** |
 | S6 | **81.87 % líneas / 80.30 % ramas** (Cover combinado 82 %) | **70** (piso semanal 70) | **70.31 % / 76.50 % / 60.85 %** | **70 / 76 / 60 / 70** |
 | S7 | **81.87 % líneas / 80.30 % ramas** (sin cambios BE en S7) | 70 | **78.23 % / 77.89 % / 64.79 %** | **75 / 76 / 60 / 75** |
-| S8–S10 | — | 80 % | — | 80 % |
+| S8 | **81.86 % combinado** (líneas 85.95 % / ramas 68.00 % según `coverage json`) | **80** | **80.94 % / 78.82 % / 66.26 %** | **80 / 78 / 65 / 80** |
+| S9–S10 | — | 80 % | — | 80 % |
 
 > La métrica "Cover" de `coverage report` (con `branch=True`) combina líneas y
 > ramas; los pisos del bootcamp se aplican sobre **líneas** y se registra la
@@ -99,6 +100,10 @@ Módulos con menor cobertura (objetivos S2–S8):
 | 2026-11-14 | E2E S7 admin (9 × 2 repeticiones) | **18 passed · EXIT 0** | — | `python scripts/e2e_admin_paginacion.py` con `E2E_REPEAT_EACH=2` |
 | 2026-11-14 | FE cobertura S7 (medición) | **522/522 OK (77 archivos)** | **78.23 % líneas / 77.89 % ramas / 64.79 % funciones** | `pnpm exec vitest run --coverage --minWorkers=1 --maxWorkers=4` |
 | 2026-11-14 | FE cobertura S7 (trinquete 75) | **522/522 OK · EXIT 0** | 78.23 % líneas / 77.89 % ramas / 64.79 % funciones | misma corrida con thresholds 75/76/60/75 |
+| 2026-11-14 | FE cobertura S8 (medición) | **572/572 OK (84 archivos)** | **80.94 % líneas / 78.82 % ramas / 66.26 % funciones** | `pnpm exec vitest run --coverage --minWorkers=1 --maxWorkers=4` |
+| 2026-11-14 | FE cobertura S8 (trinquete 80) | **572/572 OK · EXIT 0** | 80.94 % líneas / 78.82 % ramas / 66.26 % funciones | misma corrida con thresholds 80/78/65/80 |
+| 2026-11-14 | BE pytest S8 (umbral 80, endpoint MinIO corregido) | **582 passed · 0 skipped · EXIT 0** | **81.86 % combinado** (líneas 85.95 % / ramas 68.00 %) | `pytest app/tests -q -rs` (contenedor, `neodomus_test`) |
+| 2026-11-14 | Workflow `coverage.yml` | YAML válido · 2 jobs · guardia 0 skipped | — | `yaml.safe_load` sobre el archivo |
 
 ## Semanas siguientes (plantilla de registro)
 
