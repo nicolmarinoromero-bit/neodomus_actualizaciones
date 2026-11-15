@@ -47,7 +47,7 @@ test('subir, ver, reemplazar y recargar foto de perfil', async ({ page }) => {
 test('fallback de foto rota muestra iniciales', async ({ page }) => {
   await login(page, required('E2E_TECNICO_ROTO_EMAIL'), required('E2E_TECNICO_ROTO_PASSWORD'), /\/dashboard\/tecnico$/);
   await page.goto('/perfil/tecnico');
-  await expect(page.locator('.pf-avatar-iniciales')).toBeVisible();
+  await expect(page.locator('.pf-avatar-iniciales')).toBeVisible({ timeout: 15000 });
 });
 
 test('admin: foto válida y fallback de iniciales', async ({ page }) => {

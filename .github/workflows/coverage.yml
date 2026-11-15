@@ -85,7 +85,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Start ephemeral MySQL (random CI password)
+      - name: Start ephemeral MySQL (runtime secret files)
         shell: bash
         run: |
           root_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
@@ -94,14 +94,17 @@ jobs:
           echo "::add-mask::$root_pw"
           echo "::add-mask::$app_pw"
           echo "::add-mask::$minio_pw"
+          umask 077
+          printf '%s' "$root_pw" > "$RUNNER_TEMP/mysql_root_secret"
+          printf '%s' "$app_pw" > "$RUNNER_TEMP/mysql_app_secret"
+          printf '%s' "$minio_pw" > "$RUNNER_TEMP/minio_root_secret"
+          chmod 644 "$RUNNER_TEMP/minio_root_secret"
           {
-            echo "MYSQL_PASSWORD=$app_pw"
             echo "MINIO_ROOT_USER=ci_minio_user"
-            echo "MINIO_ROOT_PASSWORD=$minio_pw"
             echo "TEST_MINIO_ENDPOINT=localhost:9000"
             echo "TEST_MINIO_PUBLIC_ENDPOINT=http://localhost:9000"
             echo "TEST_MINIO_ACCESS_KEY=ci_minio_user"
-            echo "TEST_MINIO_SECRET_KEY=$minio_pw"
+            echo "TEST_MINIO_SECRET_KEY=$(cat "$RUNNER_TEMP/minio_root_secret")"
             echo "TEST_MINIO_BUCKET=neodomus-test-media"
             echo "TEST_MINIO_PRIVATE_BUCKET=neodomus-test-private"
             echo "DISABLE_SCHEDULER=1"
@@ -109,10 +112,12 @@ jobs:
             echo "TEST_DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_test?charset=utf8mb4"
           } >> "$GITHUB_ENV"
           docker run -d --name mysql-test \
-            -e MYSQL_ROOT_PASSWORD="$root_pw" \
+            --mount type=bind,src="$RUNNER_TEMP/mysql_root_secret",dst=/run/secrets/mysql_root,readonly \
+            --mount type=bind,src="$RUNNER_TEMP/mysql_app_secret",dst=/run/secrets/mysql_app,readonly \
+            -e MYSQL_ROOT_PASSWORD_FILE=/run/secrets/mysql_root \
             -e MYSQL_DATABASE=neodomus_test \
             -e MYSQL_USER=neodomus_ci_user \
-            -e MYSQL_PASSWORD="$app_pw" \
+            -e MYSQL_PASSWORD_FILE=/run/secrets/mysql_app \
             -p 3306:3306 \
             mysql:8.0
 
@@ -127,7 +132,9 @@ jobs:
         shell: bash
         run: |
           python -m pip install --only-binary :all: 'uv==0.13.5'
-          uv sync --locked --group dev --system --inexact --no-build --no-install-project --directory be
+          uv sync --locked --group dev --inexact --no-build --no-install-project --directory be
+          echo "$GITHUB_WORKSPACE/be/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/be/.venv" >> "$GITHUB_ENV"
 
       - name: Generate ephemeral JWT secret (backend coverage CI only)
         shell: bash
@@ -141,9 +148,10 @@ jobs:
         run: |
           docker run -d --name minio-test \
             -p 9000:9000 \
+            --mount type=bind,src="$RUNNER_TEMP/minio_root_secret",dst=/run/secrets/minio_root,readonly \
             -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
-            -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
-            --health-cmd 'mc alias set ci http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && (mc ready ci || mc ls ci >/dev/null)' \
+            -e MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root \
+            --health-cmd 'mc alias set ci http://localhost:9000 "$MINIO_ROOT_USER" "$(cat /run/secrets/minio_root)" >/dev/null 2>&1 && (mc ready ci || mc ls ci >/dev/null)' \
             --health-interval 5s --health-timeout 5s --health-retries 12 --health-start-period 5s \
             coollabsio/minio:RELEASE.2025-10-15T17-29-55Z \
             server /data --console-address ":9101"
@@ -153,10 +161,13 @@ jobs:
         run: |
           python - <<'EOF'
           import os, time, pymysql
+          from urllib.parse import unquote, urlparse
+          u = urlparse(os.environ['TEST_DATABASE_URL'])
           for i in range(60):
               try:
-                  pymysql.connect(host='127.0.0.1', port=3306, user='neodomus_ci_user',
-                                  password=os.environ['MYSQL_PASSWORD'], connect_timeout=3)
+                  pymysql.connect(host=u.hostname, port=u.port or 3306,
+                                  user=unquote(u.username), password=unquote(u.password),
+                                  connect_timeout=3)
                   print('MySQL listo')
                   break
               except Exception:
