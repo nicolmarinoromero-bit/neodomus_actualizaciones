@@ -862,23 +862,28 @@ async def subir_evidencia_recogida(
         if cliente is not None
         else "Cliente"
     )
-    producto_nombre = (
-        db.query(Producto).filter(Producto.id_producto == devolucion.id_producto_d).first()
-    )
     producto_txt = (
         producto_devuelto.nombre_producto
         if producto_devuelto
         else f"Producto #{devolucion.id_producto_d or '?'}"
     )
-    admins_activos = (
-        db.query(UserModel)
-        .filter(UserModel.id_rol_u == 1, UserModel.is_active == True)  # noqa: E712
+    admins_activos_ids = (
+        db.execute(
+            select(UserModel.id_usuario).where(
+                UserModel.id_rol_u == 1,
+                UserModel.is_active.is_(True),
+            )
+        )
+        .scalars()
         .all()
     )
-    for adm in admins_activos:
+    # crear_notificacion hace commit y expira los objetos ORM asociados a la
+    # sesión. Mantener solo IDs escalares evita recargar usuarios que puedan
+    # haber sido eliminados mientras se procesan las notificaciones.
+    for id_admin in admins_activos_ids:
         crear_notificacion(
             db,
-            id_usuario=adm.id_usuario,
+            id_usuario=id_admin,
             id_cliente=None,
             tipo="recogida",
             titulo="Devolución recogida por técnico",

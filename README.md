@@ -29,7 +29,7 @@ Plataforma web y móvil para consultar productos de domótica, gestionar compras
 
 | Componente | Ubicación | Tecnologías confirmadas en configuración |
 |---|---|---|
-| API | `be/` | Python (rango `>=3.10`; contenedor Python 3.12), FastAPI 0.115.0, Uvicorn 0.30.0, SQLAlchemy 2.0.30 |
+| API | `be/` | Python (rango `>=3.11`; contenedor Python 3.12), FastAPI 0.115.0, Uvicorn 0.30.0, SQLAlchemy 2.0.30 |
 | Web | `fe/` | React 18.3.1, TypeScript 5.9.3, Vite 5.4.21 |
 | Móvil | `movil/` | Expo 57.0.22, React Native 0.86.3, React 19.2.3, Expo Router 57.0.21 |
 | Datos | Docker Compose / `be/alembic/` | MySQL 8.0, Alembic 1.13.2 |
@@ -61,7 +61,7 @@ Implementadas en el código actual (backend `be/app/routers/`, web `fe/src/`, m�
 |---|---|---|
 | Git | reciente | Clonar el repositorio |
 | Docker Desktop (Windows/macOS) o Docker Engine + Compose | reciente | Ejecutar el stack completo (modo recomendado) |
-| Python | 3.12 en contenedor; código compatible con `>=3.10` | Solo necesario si ejecutas el backend sin Docker (`be/.python-version`) |
+| Python | 3.12 en contenedor; backend compatible con `>=3.11` | Solo necesario si ejecutas el backend sin Docker (`be/.python-version`) |
 | `uv` | ≥ 0.4 recomendado | Gestor de dependencias del backend (`be/uv.lock`) |
 | Node.js | ≥ 20 LTS | Frontend web y móvil |
 | `pnpm` | ≥ 9 | Gestor de paquetes de `fe/` y `movil/` (`pnpm-workspace.yaml`) |

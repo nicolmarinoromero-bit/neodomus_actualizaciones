@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from threading import Barrier
 from unittest.mock import patch
+from uuid import uuid4
 
 import app.tests.testdb  # noqa: F401
 
@@ -44,11 +45,13 @@ class CitasReembolsosAdminTestCase(BaseT1TestCase):
         self.db.commit()
         super().tearDown()
 
-    def _crear_cita_pagada(self, cliente, estado="Pendiente", transaccion="TX-ADMIN-REPRO"):
+    def _crear_cita_pagada(
+        self, cliente, estado="Pendiente", transaccion="TX-ADMIN-REPRO", fecha=None
+    ):
         cita = Cita(
             id_cliente=cliente.id_cliente,
             tipo_servicio="mantenimiento",
-            fecha=date.today() + timedelta(days=20),
+            fecha=fecha or date.today() + timedelta(days=20),
             hora="08:00",
             direccion="Calle de prueba 123",
             estado=estado,
@@ -190,16 +193,28 @@ class CitasReembolsosAdminTestCase(BaseT1TestCase):
         admin = self._crear_admin()
         token = self._token(self._login(admin.email))
         headers = self._bearer(token)
+        # Aísla el agregado de las demás citas de la base, incluidos datos
+        # sembrados o remanentes de otras pruebas.
+        fecha_cita = date.today() + timedelta(
+            days=20 + int(uuid4().hex[:8], 16) % 10_000
+        )
+        params = {
+            "fecha_inicio": fecha_cita.isoformat(),
+            "fecha_fin": fecha_cita.isoformat(),
+        }
 
-        antes = self._get("/api/v1/reports/resumen", headers=headers)
+        antes = self._get("/api/v1/reports/resumen", headers=headers, params=params)
         self.assertEqual(antes.status_code, 200, antes.text)
         base_total = antes.json()["citas_total"]
         base_pendientes = antes.json()["citas_por_estado"]["Pendiente"]
 
         cliente = self._crear_cliente("resumen")
-        self._crear_cita_pagada(cliente, transaccion="TX-RESUMEN")
+        self._crear_cita_pagada(
+            cliente, transaccion="TX-RESUMEN", fecha=fecha_cita
+        )
+        self._resincronizar()
 
-        despues = self._get("/api/v1/reports/resumen", headers=headers)
+        despues = self._get("/api/v1/reports/resumen", headers=headers, params=params)
         self.assertEqual(despues.status_code, 200, despues.text)
         datos = despues.json()
         self.assertEqual(datos["citas_total"], base_total + 1)

@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 from typing import Optional, Dict, Any, Union
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
@@ -81,7 +81,7 @@ def create_refresh_token(
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:

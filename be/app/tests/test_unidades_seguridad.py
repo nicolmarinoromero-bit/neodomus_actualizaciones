@@ -10,7 +10,7 @@ FIRST: rápidas (sin red/BD), independientes, repetibles, autoverificables.
 """
 import pytest
 from fastapi import HTTPException
-from jose import jwt
+import jwt
 
 from app.config import settings
 from app.schemas.auth import _validate_password_strength
@@ -153,7 +153,10 @@ def test_token_alterado_se_rechaza():
 
 def test_decode_token_rechaza_firma_de_otra_clave():
     # Arrange: token firmado con una clave distinta a settings.SECRET_KEY.
-    ajeno = jwt.encode({"sub": "x", "type": "access"}, "clave-falsa-de-prueba",
-                       algorithm=settings.ALGORITHM)
+    ajeno = jwt.encode(
+        {"sub": "x", "type": "access"},
+        "clave-falsa-de-prueba-con-32-bytes!",
+        algorithm=settings.ALGORITHM,
+    )
     # Act / Assert
     assert decode_token(ajeno) is None

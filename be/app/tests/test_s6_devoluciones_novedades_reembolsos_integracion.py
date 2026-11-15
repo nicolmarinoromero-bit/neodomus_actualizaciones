@@ -90,7 +90,10 @@ class DevolucionesNovedadesReembolsosTestCase(BaseS6TestCase):
     def _pedido_entregado(self, producto, *, cantidad=2, precio=10000, metros=None):
         unidades_facturadas = metros if metros is not None else cantidad
         pedido = self._crear_pedido_bd(
-            self.cliente, total=unidades_facturadas * precio, estado_entrega="Entregado"
+            self.cliente,
+            total=unidades_facturadas * precio,
+            estado_entrega="Entregado",
+            fecha_entrega=date.today(),
         )
         self._agregar_detalle(
             pedido,
@@ -128,7 +131,12 @@ class DevolucionesNovedadesReembolsosTestCase(BaseS6TestCase):
         metro = self._crear_producto(nombre="Metro S6", stock=30, precio=4000)
         metro.venta_por_metros = 1
         self.db.commit()
-        pedido = self._crear_pedido_bd(self.cliente, total=30000, estado_entrega="Entregado")
+        pedido = self._crear_pedido_bd(
+            self.cliente,
+            total=30000,
+            estado_entrega="Entregado",
+            fecha_entrega=date.today(),
+        )
         self._agregar_detalle(pedido, unidad, cantidad=3, precio_unitario=10000, subtotal=30000)
         self._agregar_detalle(
             pedido,
@@ -251,7 +259,12 @@ class DevolucionesNovedadesReembolsosTestCase(BaseS6TestCase):
             400,
         )
 
-        pedido = self._crear_pedido_bd(self.cliente, total=24000, estado_entrega="Entregado")
+        pedido = self._crear_pedido_bd(
+            self.cliente,
+            total=24000,
+            estado_entrega="Entregado",
+            fecha_entrega=date.today(),
+        )
         self._agregar_detalle(pedido, producto, cantidad=2, precio_unitario=12000, subtotal=24000)
 
         def solicitar(items, motivo="defectuoso", comentario=None):

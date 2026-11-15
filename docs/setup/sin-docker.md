@@ -4,7 +4,7 @@ Guía basada en el layout actual `be/`, `fe/` y `movil/`. Requiere disponer de M
 
 ## Requisitos indicados por el repositorio
 
-- Python 3.10 o superior según `be/pyproject.toml`; `be/Dockerfile` usa Python 3.12.
+- Python 3.11 o superior según `be/pyproject.toml`; `be/Dockerfile` usa Python 3.12.
 - Node.js 22 según `fe/Dockerfile` y el frontend configurado.
 - MySQL 8.0 para alinearse con `docker-compose.yml`.
 - `uv` para dependencias Python y pnpm para la app móvil. El frontend tiene `pnpm-lock.yaml` y `package-lock.json`; no hay versión de pnpm declarada como campo `packageManager`, por lo que utiliza la versión disponible compatible con sus lockfiles. El Dockerfile web prepara pnpm 10.

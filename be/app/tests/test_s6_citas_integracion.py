@@ -530,9 +530,12 @@ class CitasIntegracionTestCase(BaseS6TestCase):
             hora="10:00",
             id_tecnico=self.tecnico.id_tecnico,
         )
+        fecha_oferta = cita.fecha - timedelta(days=2)
+        if fecha_oferta.weekday() == 6:
+            fecha_oferta -= timedelta(days=1)
         oferta = OfertaHorario(
             id_cliente=self.otro_cliente.id_cliente,
-            fecha=cita.fecha - timedelta(days=2),
+            fecha=fecha_oferta,
             hora="08:00",
             tipo_servicio=tipo,
             id_tecnico=self.tecnico.id_tecnico,

@@ -8,7 +8,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from jose import jwt as jose_jwt
+import jwt as jose_jwt
 
 import app.tests.testdb  # noqa: F401
 
