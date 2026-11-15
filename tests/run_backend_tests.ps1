@@ -95,10 +95,16 @@ function Test-DockerReady {
 
 function Invoke-Py {
     param([string[]]$PyArgs)
-    $output = & python @PyArgs 2>&1
-    $rc = $LASTEXITCODE
-    if ($output) { $output | ForEach-Object { Write-Host $_ } }
-    return [int]$rc
+    $prevErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & python @PyArgs 2>&1
+        $rc = $LASTEXITCODE
+        if ($output) { $output | ForEach-Object { Write-Host $_ } }
+        return [int]$rc
+    } finally {
+        $ErrorActionPreference = $prevErrorAction
+    }
 }
 
 # ---------------------------------------------------------------- main ----
