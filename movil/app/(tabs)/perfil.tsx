@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // Mi perfil — flujo (replicando el comportamiento de la WEB como
 // referencia; cambios SOLO en móvil):
 //   Ver datos → [Editar perfil] → confirmación

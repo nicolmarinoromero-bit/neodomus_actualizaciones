@@ -1,4 +1,4 @@
-﻿tabla	filas	max_id
+tabla	filas	max_id
 PEDIDOS	13	13
 DETALLES	15	15
 id_detalle	id_pedido_d	id_producto_d	cantidad_detalle	cantidad_metros	subtotal_detalle

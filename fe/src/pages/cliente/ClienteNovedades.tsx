@@ -1,4 +1,4 @@
-﻿import LocalizedNotificationText from '@components/common/LocalizedNotificationText';
+import LocalizedNotificationText from '@components/common/LocalizedNotificationText';
 // Pantalla ClienteNovedades de Neodomus. ReÃºne el estado y las acciones de su vista.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';

@@ -1,4 +1,4 @@
-﻿// Pantalla Login de Neodomus. Reúne el estado y las acciones de su vista.
+// Pantalla Login de Neodomus. Reúne el estado y las acciones de su vista.
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCircleExclamation } from 'react-icons/fa6';

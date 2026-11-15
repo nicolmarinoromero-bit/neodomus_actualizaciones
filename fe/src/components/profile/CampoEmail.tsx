@@ -1,4 +1,4 @@
-﻿// Campo de correo con controles de edición y verificación del perfil.
+// Campo de correo con controles de edición y verificación del perfil.
 import { useEffect, useState } from 'react';
 import {
   FaEnvelopeCircleCheck,

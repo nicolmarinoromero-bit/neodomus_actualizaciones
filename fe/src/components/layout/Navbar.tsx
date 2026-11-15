@@ -1,4 +1,4 @@
-﻿// Componente de navegaciÃ³n y estructura visual: Navbar. Se reutiliza en las pantallas de su Ã¡rea.
+// Componente de navegaciÃ³n y estructura visual: Navbar. Se reutiliza en las pantallas de su Ã¡rea.
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@contexts/AuthContext";
 import { useAuthModal } from "@contexts/AuthModalContext";

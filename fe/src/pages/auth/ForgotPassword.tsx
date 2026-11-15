@@ -1,4 +1,4 @@
-﻿// Pantalla ForgotPassword de Neodomus. Reúne el estado y las acciones de su vista.
+// Pantalla ForgotPassword de Neodomus. Reúne el estado y las acciones de su vista.
 
 import "../../styles/forgot-password.css";
 import { useState } from 'react';

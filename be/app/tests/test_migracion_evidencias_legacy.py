@@ -1,5 +1,7 @@
 """Pruebas puras de idempotencia y verificación de objetos migrados."""
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +13,8 @@ from scripts.migrate_legacy_evidence import (
     _copy_verified,
     _counts,
     _storage_inventory,
+    _write_report,
+    main,
     private_target_key,
 )
 
@@ -92,6 +96,52 @@ class MigracionEvidenciasLegacyTestCase(unittest.TestCase):
 
         self.assertTrue(creada)
         subir.assert_called_once_with("evidencias_migradas/aa", "file.jpg", b"expected bytes")
+
+
+class MigracionEvidenciasRutasTestCase(unittest.TestCase):
+    def test_reporte_dentro_del_directorio_permitido(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
+        ):
+            target = Path(tmp) / "report.json"
+
+            _write_report(target, {"ok": True})
+
+            self.assertEqual(json.loads(target.read_text(encoding="utf-8")), {"ok": True})
+
+    def test_rechaza_reporte_con_travesia(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
+        ):
+            target = Path(tmp) / ".." / f"escape-{Path(tmp).name}.json"
+
+            with self.assertRaisesRegex(ValueError, "fuera del directorio"):
+                _write_report(target, {})
+
+            self.assertFalse(target.resolve().exists())
+
+    def test_rechaza_reporte_absoluto_fuera_del_directorio(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
+        ):
+            target = Path(tmp).parent / f"outside-{Path(tmp).name}.json"
+
+            with self.assertRaisesRegex(ValueError, "fuera del directorio"):
+                _write_report(target, {})
+
+            self.assertFalse(target.exists())
+
+    def test_main_rechaza_manifiesto_fuera_del_directorio_antes_de_conectar(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
+        ), patch("scripts.migrate_legacy_evidence._storage_inventory") as inventory:
+            manifest = Path(tmp).parent / f"manifest-{Path(tmp).name}.json"
+            report = Path(tmp) / "report.json"
+
+            codigo = main(["--rollback", str(manifest), "--report", str(report)])
+
+            self.assertEqual(codigo, 2)
+            inventory.assert_not_called()
 
 
 if __name__ == "__main__":

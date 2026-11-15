@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // Login — adaptación móvil del Login.tsx de la WEB, presentado
 // como MODAL sobre la pantalla pública actual.
 // Mismos mensajes (401 fijo, 403 por substring inhabilitada/

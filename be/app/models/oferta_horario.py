@@ -1,4 +1,4 @@
-﻿"""Ofertas de horarios liberados por cancelaciones.
+"""Ofertas de horarios liberados por cancelaciones.
 
 Cuando una cita se cancela, su franja se OFRECE a los clientes que tienen
 una cita futura con el mismo tÃ©cnico, ordenados por lealtad (compras +

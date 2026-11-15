@@ -1,4 +1,4 @@
-﻿python.exe : test_engine_apunta_a_base_de_pruebas 
+python.exe : test_engine_apunta_a_base_de_pruebas 
 (test_aislamiento.AislamientoConexionesTestCase.test_engine_apunta_a_base_de_pruebas) ... ok
 En línea: 1 Carácter: 245
 + ... ULER = "1"; & .\.venv\Scripts\python.exe -m unittest discover -s app\ ...

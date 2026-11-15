@@ -34,10 +34,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
 
@@ -50,7 +50,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload frontend coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-coverage-report
           path: |
@@ -80,28 +80,33 @@ jobs:
   backend-coverage:
     name: Backend - cobertura 80 y 0 omitidas
     runs-on: ubuntu-24.04
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: noop_ci_dummy_pass_change_me
-          MYSQL_DATABASE: neodomus_test
-          MYSQL_USER: neodomus_ci_user
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Start ephemeral MySQL (random CI password)
+        shell: bash
+        run: |
+          root_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          app_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$root_pw"
+          echo "::add-mask::$app_pw"
+          {
+            echo "MYSQL_PASSWORD=$app_pw"
+            echo "DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4"
+            echo "TEST_DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_test?charset=utf8mb4"
+          } >> "$GITHUB_ENV"
+          docker run -d --name mysql-test \
+            -e MYSQL_ROOT_PASSWORD="$root_pw" \
+            -e MYSQL_DATABASE=neodomus_test \
+            -e MYSQL_USER=neodomus_ci_user \
+            -e MYSQL_PASSWORD="$app_pw" \
+            -p 3306:3306 \
+            mysql:8.0
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
           cache: pip
@@ -140,8 +145,6 @@ jobs:
 
       - name: Wait for MySQL
         shell: bash
-        env:
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
         run: |
           python - <<'EOF'
           import os, time, pymysql
@@ -188,10 +191,7 @@ jobs:
       - name: Run backend migrations (Alembic head)
         shell: bash
         working-directory: be
-        env:
-          MINIO_DB_USER: neodomus_ci_user
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
-        run: python -m alembic upgrade head
+        run: DATABASE_URL="$TEST_DATABASE_URL" python -m alembic upgrade head
 
       - name: Run pytest with coverage and JUnit report
         shell: bash
@@ -199,8 +199,6 @@ jobs:
         env:
           # URL sentinela distinta de TEST_DATABASE_URL; app.database exige
           # DATABASE_URL al importar, y testdb verifica que no apunten igual.
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4
-          TEST_DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
           TEST_MINIO_ENDPOINT: localhost:9000
           TEST_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
           TEST_MINIO_ACCESS_KEY: ci_minio_user
@@ -232,7 +230,7 @@ jobs:
 
       - name: Upload backend coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-coverage-report
           path: |

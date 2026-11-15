@@ -1,4 +1,4 @@
-﻿import LocalizedNotificationText from '@components/common/LocalizedNotificationText';
+import LocalizedNotificationText from '@components/common/LocalizedNotificationText';
 // Pantalla AdminNovedades de Neodomus. ReÃºne el estado y las acciones de su vista.
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

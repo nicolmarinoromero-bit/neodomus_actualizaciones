@@ -1,4 +1,4 @@
-﻿node.exe : $ vitest run
+node.exe : $ vitest run
 En C:\Users\valet\AppData\Roaming\npm\pnpm.ps1: 24 Carácter: 5
 +     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.mjs" $args
 +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

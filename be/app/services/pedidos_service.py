@@ -1,4 +1,4 @@
-﻿"""
+"""
 Módulo: services/pedidos_service.py
 Lógica de negocio para pedidos / checkout en NEODOMUS.
 

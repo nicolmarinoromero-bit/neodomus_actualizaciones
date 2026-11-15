@@ -1,4 +1,4 @@
-﻿"""Semana 10 del bootcamp - TDD: cancelar una solicitud de baja pendiente.
+"""Semana 10 del bootcamp - TDD: cancelar una solicitud de baja pendiente.
 
 Historia: como cliente quiero retirar mi solicitud de inhabilitacion mientras
 el administrador aun no la ha resuelto, sin perder el rastro de auditoria.

@@ -95,3 +95,6 @@ movil/.expo_emulador_ok.png
 # Archivos privados de despliegue
 deploy/.env.prod
 respaldos/
+
+# Reportes de migraciones (pueden contener rutas internas)
+/reports/

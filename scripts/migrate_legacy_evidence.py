@@ -3,12 +3,16 @@
 Dry-run is the default. Applying updates copies and verifies each object before
 conditionally changing its database reference. Original public objects are never
 deleted by this command.
+
+Reports and rollback manifests must live inside NEODOMUS_EVIDENCE_REPORT_DIR
+(default: <repository>/reports) so user-supplied paths cannot escape it.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import os
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -21,6 +25,7 @@ from sqlalchemy import MetaData, Table, inspect, select
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = PROJECT_ROOT / "be"
+DEFAULT_REPORT_ROOT = PROJECT_ROOT / "reports"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
@@ -248,7 +253,27 @@ def _run_rollback(manifest: dict[str, Any], report: dict[str, Any]) -> None:
             report["entries"].append(_entry(ref, "conflict", error=str(exc)))
 
 
+def _report_root() -> Path:
+    configured = os.environ.get("NEODOMUS_EVIDENCE_REPORT_DIR")
+    root = Path(configured).expanduser() if configured else DEFAULT_REPORT_ROOT
+    return root.resolve()
+
+
+def _restricted_report_path(path: Path) -> Path:
+    """Resolve a user-supplied path and keep it inside the approved directory."""
+    root = _report_root()
+    candidate = path.expanduser().resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(
+            f"Ruta fuera del directorio permitido para reportes: {root}"
+        ) from exc
+    return candidate
+
+
 def _write_report(path: Path, report: dict[str, Any]) -> None:
+    path = _restricted_report_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -273,9 +298,13 @@ def main(argv: list[str] | None = None) -> int:
         "errors": 0,
     }
     try:
+        report_path = _restricted_report_path(args.report)
+        manifest_path = _restricted_report_path(args.rollback) if args.rollback else None
+        if manifest_path is not None and not manifest_path.is_file():
+            raise ValueError(f"Manifiesto no encontrado: {manifest_path}")
         report["inventory"] = _storage_inventory()
-        if args.rollback:
-            manifest = json.loads(args.rollback.read_text(encoding="utf-8"))
+        if manifest_path is not None:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             _run_rollback(manifest, report)
         else:
             refs = _fetch_refs()
@@ -284,13 +313,13 @@ def main(argv: list[str] | None = None) -> int:
                 _run_apply(report, refs)
             else:
                 _run_dry_run(report, refs)
-        _write_report(args.report, report)
+        _write_report(report_path, report)
     except Exception as exc:
         print(f"Migración detenida: {exc}", file=sys.stderr)
         return 2
     print(
         f"Modo={mode}; referencias={report['counts'].get('referencias', 0)}; "
-        f"errores={report['errors']}; reporte={args.report}"
+        f"errores={report['errors']}; reporte={report_path}"
     )
     return 1 if report["errors"] else 0
 

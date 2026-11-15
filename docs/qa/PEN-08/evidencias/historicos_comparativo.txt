@@ -1,4 +1,4 @@
-﻿COMPARATIVO HISTORICOS detalle_pedido (filas 1-15) antes vs después de todas las pruebas PEN-08
+COMPARATIVO HISTORICOS detalle_pedido (filas 1-15) antes vs después de todas las pruebas PEN-08
 Filas antes=15 filas después=15
 IDÉNTICAS: True
 

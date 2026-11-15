@@ -17,7 +17,8 @@
 4. Desde la raíz del repositorio, ejecutar un dry-run con un reporte nuevo:
 
    ```powershell
-   $report = 'D:\ruta-restringida\n30d-77-dry-run.json' # Sustituir por una ruta aprobada fuera del repositorio
+   $env:NEODOMUS_EVIDENCE_REPORT_DIR = 'D:\ruta-restringida' # Directorio permitido (fuera del repositorio)
+   $report = 'D:\ruta-restringida\n30d-77-dry-run.json' # Sustituir por una ruta aprobada dentro del directorio permitido
    python -m scripts.migrate_legacy_evidence --report $report
    ```
 
@@ -25,6 +26,7 @@
 6. Ejecutar con un nuevo reporte:
 
    ```powershell
+   $env:NEODOMUS_EVIDENCE_REPORT_DIR = 'D:\ruta-restringida'
    $report = 'D:\ruta-restringida\n30d-77-apply.json' # Usar un archivo nuevo
    python -m scripts.migrate_legacy_evidence --apply --report $report
    ```
@@ -39,10 +41,13 @@ El reporte JSON registra conteos de referencias y fuentes únicas, conteo y tama
 Mientras las fuentes originales sigan presentes, restaurar las referencias desde el manifiesto de aplicación:
 
 ```powershell
+$env:NEODOMUS_EVIDENCE_REPORT_DIR = 'D:\ruta-restringida'
 $manifest = 'D:\ruta-restringida\n30d-77-apply.json'
 $report = 'D:\ruta-restringida\n30d-77-rollback.json'
 python -m scripts.migrate_legacy_evidence --rollback $manifest --report $report
 ```
+
+El script rechaza `--report` y `--rollback` fuera de `NEODOMUS_EVIDENCE_REPORT_DIR` (por defecto `reports/` en la raíz del repositorio). La validación ocurre antes de leer el manifiesto o conectar con MySQL/MinIO.
 
 La reversión compara la referencia actual con la anterior/nueva y registra conflictos sin sobrescribirlos. Conserva los objetos privados copiados. Después de purgar las fuentes públicas, no se debe ejecutar rollback a referencias públicas; se requiere restaurar desde el respaldo aprobado o mantener las referencias privadas.
 
