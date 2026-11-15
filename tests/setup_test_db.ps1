@@ -66,6 +66,15 @@ $BeDir       = Join-Path $Root 'be'
 $VersionsDir = Join-Path $BeDir 'alembic\versions'
 $Stopwatch   = [System.Diagnostics.Stopwatch]::StartNew()
 
+# Alembic importa app.config, que valida SECRET_KEY. No reutiliza ni persiste
+# una clave local: crea una efimera para la migracion aislada de pruebas.
+if ([string]::IsNullOrWhiteSpace($env:SECRET_KEY)) {
+    $secretBytes = [byte[]]::new(32)
+    $secretGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $secretGenerator.GetBytes($secretBytes) } finally { $secretGenerator.Dispose() }
+    $env:SECRET_KEY = [BitConverter]::ToString($secretBytes).Replace('-', '').ToLowerInvariant()
+}
+
 # ── Helpers de salida ────────────────────────────────────────────────────
 function Write-Rule { param([string]$Text = '=') Write-Host ($Text * 78) -ForegroundColor Cyan }
 function Write-Sec  {
@@ -422,7 +431,7 @@ print("OK: CREATE DATABASE " + db)
                 $urlDocker = 'mysql+pymysql://{0}:{1}@host.docker.internal:{2}/{3}{4}' -f $DbUser, $DbPass, $DbPort, $DbName, $DbQs
             }
             Write-Av ("Se ejecutaran las migraciones del REPO (be/ montado en solo-lectura) con la imagen '{0}'." -f $Image)
-            & docker run --rm $netArgs -v "$($BeDir):/src:ro" -e ("DATABASE_URL={0}" -f $urlDocker) --entrypoint sh $Image -c 'cp -r /src/alembic /src/app /src/alembic.ini /app/ && cd /app && ./.venv/bin/alembic upgrade head'
+            & docker run --rm $netArgs -v "$($BeDir):/src:ro" -e ("DATABASE_URL={0}" -f $urlDocker) -e SECRET_KEY --entrypoint sh $Image -c 'cp -r /src/alembic /src/app /src/alembic.ini /app/ && cd /app && ./.venv/bin/alembic upgrade head'
             if ($LASTEXITCODE -ne 0) { Write-Er ("Alembic (imagen-docker) fallo con codigo {0}." -f $LASTEXITCODE); exit 1 }
         }
         default { Write-Er 'Ruta no soportada.'; exit 2 }

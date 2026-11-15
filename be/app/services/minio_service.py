@@ -55,11 +55,22 @@ _client_privado: Minio | None = None
 PRIVATE_PREFIX = "privado:"
 
 
-def _asegurar_bucket_privado(client: Minio) -> None:
-    bucket = settings.MINIO_PRIVATE_BUCKET
+def _crear_bucket_si_falta(client: Minio, bucket: str) -> None:
     try:
         if not client.bucket_exists(bucket):
             client.make_bucket(bucket)
+    except S3Error as exc:
+        if getattr(exc, "code", None) not in (
+            "BucketAlreadyExists",
+            "BucketAlreadyOwnedByYou",
+        ) or not client.bucket_exists(bucket):
+            raise
+
+
+def _asegurar_bucket_privado(client: Minio) -> None:
+    bucket = settings.MINIO_PRIVATE_BUCKET
+    try:
+        _crear_bucket_si_falta(client, bucket)
         # Intencionalmente SIN set_bucket_policy: bucket privado por defecto.
     except S3Error as e:
         raise RuntimeError(
@@ -181,8 +192,7 @@ def leer_archivo(url_archivo: str) -> tuple[bytes, str]:
 def _asegurar_bucket(client: Minio) -> None:
     bucket = settings.MINIO_BUCKET
     try:
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
+        _crear_bucket_si_falta(client, bucket)
         politica = {
             "Version": "2012-10-17",
             "Statement": [

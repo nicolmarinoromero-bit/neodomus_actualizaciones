@@ -25,16 +25,19 @@ Corrida: ``python -m unittest app.tests.test_auth_service_complemento``
 import unittest
 from uuid import uuid4
 
+from unittest.mock import patch
 import app.tests.testdb  # noqa: F401  (configura la base de pruebas y bloquea si falta)
 
 from fastapi import HTTPException
+from app.config import settings
 
 from app.database import SessionLocal
 from app.models.cliente import Cliente
 from app.models.roles_usuario import RolesUsuario
 from app.models.user import User
 from app.schemas.auth import UserLogin
-from app.services.auth_service import login
+from app.services.auth_service import google_login, login, normalizar_rol_empleado
+from app.models.refresh_token import RefreshToken
 from app.utils.security import decode_token, hash_password
 from sqlalchemy import select
 
@@ -60,6 +63,10 @@ class LoginGrupoATestCase(unittest.TestCase):
                     self.db.query(User).filter(User.id_usuario == u.id_usuario).delete(synchronize_session=False)
             for c in self._clientes:
                 if c.id_cliente:
+                    self.db.query(RefreshToken).filter(
+                        RefreshToken.user_id == c.id_cliente,
+                        RefreshToken.user_type == "client",
+                    ).delete(synchronize_session=False)
                     self.db.query(Cliente).filter(Cliente.id_cliente == c.id_cliente).delete(synchronize_session=False)
             self.db.commit()
         finally:
@@ -196,6 +203,110 @@ class LoginGrupoATestCase(unittest.TestCase):
                 self.assertEqual(ctx.exception.status_code, 401)
                 self.assertEqual(ctx.exception.detail, "Credenciales inválidas")
 
+    def test_rol_soporte_es_valido_para_autenticacion_de_empleados(self):
+        self.assertEqual(normalizar_rol_empleado("Soporte"), "soporte")
+
+    def test_login_google_verifica_audiencia_y_crea_cliente_con_sesion(self):
+        email = _email_unico("google")
+        credential = "id-token-sintetico"
+        claims = {
+            "sub": f"google-{uuid4().hex}",
+            "email": email,
+            "email_verified": True,
+            "given_name": "Cliente",
+            "family_name": "Google",
+        }
+
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value=claims,
+        ) as verify_token:
+            respuesta = google_login(self.db, credential)
+
+        self.assertEqual(respuesta.user_type, "client")
+        self.assertEqual(respuesta.rol, "cliente")
+        self.assertTrue(respuesta.access_token)
+        self.assertTrue(respuesta.refresh_token)
+        self.assertEqual(verify_token.call_args.args[0], credential)
+        self.assertEqual(verify_token.call_args.args[2], settings.GOOGLE_SIGNIN_CLIENT_ID)
+
+        cliente = self.db.execute(
+            select(Cliente).where(Cliente.email == email)
+        ).scalar_one()
+        self._clientes.append(cliente)
+        self.assertEqual(cliente.auth_provider, "google")
+        self.assertEqual(cliente.google_id, claims["sub"])
+        access = decode_token(respuesta.access_token)
+        self.assertEqual(access["uid"], str(cliente.id_cliente))
+        self.assertEqual(access["user_type"], "client")
+
+        # Repetir el acceso con el mismo subject reutiliza la misma cuenta.
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value=claims,
+        ):
+            segunda_respuesta = google_login(self.db, credential)
+        self.assertEqual(
+            decode_token(segunda_respuesta.access_token)["uid"],
+            str(cliente.id_cliente),
+        )
+        self.assertEqual(self.db.query(Cliente).filter(Cliente.email == email).count(), 1)
+
+    def test_login_google_rechaza_correo_no_verificado(self):
+        email = _email_unico("google-no-verificado")
+        claims = {
+            "sub": f"google-{uuid4().hex}",
+            "email": email,
+            "email_verified": False,
+        }
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value=claims,
+        ):
+            with self.assertRaises(HTTPException) as ctx:
+                google_login(self.db, "id-token-sintetico")
+
+        self.assertEqual(ctx.exception.status_code, 401)
+        self.assertIsNone(
+            self.db.execute(select(Cliente).where(Cliente.email == email)).scalar_one_or_none()
+        )
+
+    def test_login_google_vincula_cliente_existente_con_contrasena(self):
+        email = _email_unico("google-vincula-local")
+        cliente = Cliente(
+            first_name="Cliente",
+            last_name="Tradicional",
+            email=email,
+            password_hash=hash_password("ClaveA1x"),
+            auth_provider="local",
+            is_active=True,
+        )
+        self.db.add(cliente)
+        self.db.commit()
+        self._clientes.append(cliente)
+        google_uid = f"google-{uuid4().hex}"
+        claims = {
+            "sub": google_uid,
+            "email": email.upper(),
+            "email_verified": True,
+        }
+
+        with patch(
+            "google.oauth2.id_token.verify_oauth2_token",
+            return_value=claims,
+        ):
+            respuesta = google_login(self.db, "id-token-sintetico")
+
+        self.assertEqual(respuesta.user_type, "client")
+        self.assertEqual(respuesta.rol, "cliente")
+        self.assertEqual(respuesta.perfil_incompleto, True)
+        self.assertEqual(cliente.google_id, google_uid)
+        self.assertEqual(cliente.auth_provider, "local")
+        self.assertEqual(
+            decode_token(respuesta.access_token)["uid"],
+            str(cliente.id_cliente),
+        )
+        self.assertEqual(self.db.query(Cliente).filter(Cliente.email == email).count(), 1)
 
 if __name__ == "__main__":
     unittest.main()

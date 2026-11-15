@@ -17,7 +17,7 @@ vinculada a su solicitud vía ``id_solicitud_dv``.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Optional
 
@@ -31,6 +31,7 @@ from app.models.pedido import DetallePedido, Pedido
 from app.models.producto import Producto
 from app.models.solicitud_devolucion import SolicitudDevolucion
 from app.models.user import User
+from app.utils.fechas import fecha_bogota
 
 # ── Estados del pipeline ────────────────────────────────────────────
 EST_SOLICITADA = "Solicitada"
@@ -47,6 +48,7 @@ ESTADOS_ACTIVOS = (
     EST_APROBADA,
     EST_EN_DEVOLUCION,
 )
+PLAZO_DEVOLUCION_DIAS = 30
 
 # Transiciones válidas del pipeline (forward-only).
 TRANSICIONES = {
@@ -284,13 +286,34 @@ def elegibilidad_pedido(db: Session, client: Cliente, id_pedido: int) -> dict:
     from app.services.pedidos_service import pedido_completado
 
     completado = pedido_completado(db, pedido)
-    elegible = completado and alguna_disponible and bool(lineas)
+    fecha_completado = None
+    if pedido.estado_entrega == "Entregado":
+        fecha_completado = (
+            pedido.entrega_actualizada_en.date()
+            if pedido.entrega_actualizada_en
+            else pedido.fecha_entrega
+        )
+    elif completado:
+        from app.services.pedidos_service import cita_de_pedido
+
+        cita = cita_de_pedido(db, pedido.id_pedido)
+        fecha_completado = cita.fecha if cita else None
+
+    plazo_verificable = fecha_completado is not None
+    dentro_plazo = plazo_verificable and fecha_bogota().date() <= (
+        fecha_completado + timedelta(days=PLAZO_DEVOLUCION_DIAS)
+    )
+    elegible = completado and dentro_plazo and alguna_disponible and bool(lineas)
     razon = None
     if not completado:
         razon = (
             "El pedido debe estar entregado (o con la instalación finalizada) "
             "para poder solicitar una devolución."
         )
+    elif not plazo_verificable:
+        razon = "No fue posible verificar la fecha de finalización del pedido."
+    elif not dentro_plazo:
+        razon = f"El plazo de devolución es de {PLAZO_DEVOLUCION_DIAS} días desde la entrega o instalación."
     elif not lineas:
         razon = "Este pedido no contiene productos registrados."
     elif not alguna_disponible:

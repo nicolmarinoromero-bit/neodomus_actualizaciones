@@ -8,7 +8,7 @@ import asyncio
 import threading
 import time
 import unittest
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -819,6 +819,7 @@ class DevolucionMetrosTestCase(BaseT2):
         )
         self._ids_pedido.append(pedido.id_pedido)
         pedido.estado_entrega = "Entregado"
+        pedido.entrega_actualizada_en = datetime.now()
         self.db.commit()
 
         info = devoluciones_service.elegibilidad_pedido(self.db, self.cliente, pedido.id_pedido)

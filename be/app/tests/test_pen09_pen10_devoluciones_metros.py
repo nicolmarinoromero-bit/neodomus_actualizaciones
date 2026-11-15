@@ -25,6 +25,7 @@ import io
 import threading
 import time
 import unittest
+from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -41,6 +42,7 @@ from app.models.producto_variante import ProductoVariante
 from app.models.solicitud_devolucion import SolicitudDevolucion
 from app.models.tecnico import Tecnico
 from app.models.user import User
+from app.models.roles_usuario import RolesUsuario
 from app.services import devoluciones_service as dv_service
 from app.tests.test_t1_identidad import BaseT1TestCase, PASSWORD
 
@@ -162,6 +164,7 @@ class BasePen0910(BaseT1TestCase):
             id_cliente_pe=cliente.id_cliente,
             estado_pedido="Pagado",
             estado_entrega="Entregado",
+            entrega_actualizada_en=datetime.now(),
             total_pedido=subtotal,
         )
         db = self.db
@@ -319,6 +322,7 @@ class SolicitudCorteCompletoTestCase(BasePen0910):
             id_cliente_pe=cliente.id_cliente,
             estado_pedido="Pagado",
             estado_entrega="Entregado",
+            entrega_actualizada_en=datetime.now(),
             total_pedido=15000.0,
         )
         self.db.add(pedido)
@@ -693,18 +697,13 @@ class ReposicionInventarioTestCase(BasePen0910):
             finally:
                 db.close()
 
-        # unittest.mock.patch NO es thread-safe: si dos hilos hacen enter/exit
-        # intercalados, el último en salir restaura el valor que capturó el
-        # OTRO hilo (su propio mock) y el mock queda "pegado" para el resto de
-        # la suite (provocó NoSuchKey/404 en los tests reales de MinIO en CI).
-        # El parche se aplica y restaura SOLO en el hilo principal, alrededor
-        # del lanzamiento de los hilos: ambas llamadas concurrentes leen el
-        # atributo del módulo ya parcheado, con el mismo comportamiento.
+        hilos = [threading.Thread(target=intentar) for _ in range(2)]
+        # Un solo parche abarca ambos hilos: patch() modifica un atributo
+        # global y dos contextos concurrentes pueden restaurarlo fuera de orden.
         with patch(
             "app.services.minio_service.subir_imagen_privada",
             return_value="recogidas/test.jpg",
         ):
-            hilos = [threading.Thread(target=intentar) for _ in range(2)]
             for h in hilos:
                 h.start()
             for h in hilos:
@@ -793,6 +792,51 @@ class PermisosYRevisionHTTPTestCase(BasePen0910):
         # El backend normalizó la solicitud al corte completo.
         self.assertEqual(Decimal(str(datos["monto_total"])), Decimal("50000.00"))
         self.assertEqual(Decimal(str(datos["items"][0]["metros"])), Decimal("2.5"))
+
+    def test_pedido_fuera_del_plazo_de_30_dias_no_admite_devolucion(self):
+        p, cliente, pedido = self._preparar(metros="2.50")
+        pedido.entrega_actualizada_en = datetime.now() - timedelta(days=31)
+        self.db.commit()
+        token = self._token(self._login(cliente.email))
+
+        elegibilidad = self._get(
+            f"/api/v1/devoluciones/elegibilidad/{pedido.id_pedido}",
+            headers=self._bearer(token),
+        )
+        self.assertEqual(elegibilidad.status_code, 200, elegibilidad.text)
+        self.assertFalse(elegibilidad.json()["elegible"])
+        self.assertIn("30 días", elegibilidad.json()["razon"])
+
+        solicitud = self._post(
+            "/api/v1/devoluciones/solicitudes",
+            headers=self._bearer(token),
+            json={
+                "id_pedido": pedido.id_pedido,
+                "items": [{"id_producto": p.id_producto, "cantidad": 1, "metros": 2.5}],
+                "motivo_tipo": "defectuoso",
+            },
+        )
+        self.assertEqual(solicitud.status_code, 400, solicitud.text)
+        self.assertIn("30 días", solicitud.json()["detail"])
+
+    def test_rol_soporte_puede_gestionar_solicitudes(self):
+        rol = RolesUsuario(nombre_rol="soporte")
+        self.db.add(rol)
+        self.db.flush()
+        usuario = self._crear_usuario("soporte", rol.id_rol)
+        self.db.commit()
+        token = self._token(self._login(usuario.email))
+
+        respuesta = self._get(
+            "/api/v1/devoluciones/admin/solicitudes",
+            headers=self._bearer(token),
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.db.delete(usuario)
+        self.db.flush()
+        self._ids_usuario.remove(usuario.id_usuario)
+        self.db.query(RolesUsuario).filter(RolesUsuario.id_rol == rol.id_rol).delete()
+        self.db.commit()
 
     def test_cliente_devolucion_parcial_rechazada_http(self):
         """El backend rechaza la manipulación manual de la solicitud HTTP."""

@@ -10,6 +10,27 @@ from app.tests.test_t1_identidad import BaseT1TestCase, PASSWORD
 
 
 class RotacionRefreshTokenTestCase(BaseT1TestCase):
+    def test_schema_refresh_tokens_coincide_con_el_modelo(self):
+        from sqlalchemy import inspect
+
+        from app.database import engine
+        from app.models.refresh_token import RefreshToken
+
+        inspector = inspect(engine)
+        self.assertTrue(inspector.has_table("refresh_tokens"))
+        columnas_reales = {
+            columna["name"] for columna in inspector.get_columns("refresh_tokens")
+        }
+        columnas_modelo = set(RefreshToken.__table__.columns.keys())
+        self.assertTrue(columnas_modelo.issubset(columnas_reales))
+
+        indices_reales = {
+            indice["name"] for indice in inspector.get_indexes("refresh_tokens")
+        }
+        indices_modelo = {
+            indice.name for indice in RefreshToken.__table__.indexes
+        }
+        self.assertTrue(indices_modelo.issubset(indices_reales))
     def _refresh(self, refresh_token):
         return self._post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
 
