@@ -66,7 +66,7 @@ sudo ufw status numbered
 ## Puerta 3 — Base de datos de mínimo privilegio
 
 1. Generar cuentas `MYSQL_APP_*`, `MYSQL_OWNER_*`, `MYSQL_BACKUP_*` con secretos únicos. No cambiar la contraseña root de un volumen existente durante este corte.
-2. En volumen nuevo, Compose ejecuta el SQL/bootstrap en orden. En volumen existente, seguir la migración sin pérdida de datos de §7.4 de [`plan-implantacion-s06.md`](../plan-implantacion.md); nunca borrar el volumen para forzar init.
+2. En volumen nuevo, Compose ejecuta el SQL/bootstrap en orden. En volumen existente, seguir la migración sin pérdida de datos de §7.4 de [`plan-implantacion.md`](../plan-implantacion.md); nunca borrar el volumen para forzar init.
 3. Tomar respaldo antes de migraciones, ejecutar el job `migrate`, desplegar API y verificar:
 
 ```bash

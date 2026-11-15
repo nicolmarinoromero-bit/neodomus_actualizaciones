@@ -112,7 +112,7 @@ El repositorio de Neodomus **no usa Node.js/Express como backend ni MongoDB como
 | Generación de Excel | openpyxl | 3.1.5 | API / Reporting | MIT | Exportación de reportes |
 | Tareas programadas | APScheduler | 3.11.3 | API / Scheduler | MIT | Recordatorios y cierres automáticos |
 | Rate limiting | SlowAPI | 0.1.9 | API / Seguridad | MIT | Protección de endpoints sensibles |
-| JWT | python-jose | 3.3.0 | API / Seguridad | MIT | Firma y verificación de tokens |
+| JWT | PyJWT | 2.15.1 | API / Seguridad | MIT | Firma y verificación de tokens |
 | Hash de contraseñas | passlib | 1.7.4 | API / Seguridad | BSD-3-Clause | Esquema de hashing |
 | Backend de hashing | bcrypt (Python) | 4.0.1 | API / Seguridad | Apache-2.0 | Implementación bcrypt |
 | Tipografías web | Inter / Montserrat | Servidas desde Google Fonts | Activo web | SIL OFL-1.1 | Conservar aviso OFL si se autoalojan |
