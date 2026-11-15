@@ -103,9 +103,10 @@ class MigracionEvidenciasRutasTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
         ):
-            target = Path(tmp) / "report.json"
+            filename = "report.json"
+            target = Path(tmp) / filename
 
-            _write_report(target, {"ok": True})
+            _write_report(filename, {"ok": True})
 
             self.assertEqual(json.loads(target.read_text(encoding="utf-8")), {"ok": True})
 
@@ -113,10 +114,11 @@ class MigracionEvidenciasRutasTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
         ):
-            target = Path(tmp) / ".." / f"escape-{Path(tmp).name}.json"
+            filename = f"../escape-{Path(tmp).name}.json"
+            target = Path(tmp).parent / f"escape-{Path(tmp).name}.json"
 
-            with self.assertRaisesRegex(ValueError, "fuera del directorio"):
-                _write_report(target, {})
+            with self.assertRaisesRegex(ValueError, "sin directorios"):
+                _write_report(filename, {})
 
             self.assertFalse(target.resolve().exists())
 
@@ -126,8 +128,8 @@ class MigracionEvidenciasRutasTestCase(unittest.TestCase):
         ):
             target = Path(tmp).parent / f"outside-{Path(tmp).name}.json"
 
-            with self.assertRaisesRegex(ValueError, "fuera del directorio"):
-                _write_report(target, {})
+            with self.assertRaisesRegex(ValueError, "sin directorios"):
+                _write_report(str(target), {})
 
             self.assertFalse(target.exists())
 
@@ -135,10 +137,10 @@ class MigracionEvidenciasRutasTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             "os.environ", {"NEODOMUS_EVIDENCE_REPORT_DIR": tmp}
         ), patch("scripts.migrate_legacy_evidence._storage_inventory") as inventory:
-            manifest = Path(tmp).parent / f"manifest-{Path(tmp).name}.json"
-            report = Path(tmp) / "report.json"
+            manifest = f"../manifest-{Path(tmp).name}.json"
+            report = "report.json"
 
-            codigo = main(["--rollback", str(manifest), "--report", str(report)])
+            codigo = main(["--rollback", manifest, "--report", report])
 
             self.assertEqual(codigo, 2)
             inventory.assert_not_called()

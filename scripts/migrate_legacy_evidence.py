@@ -13,7 +13,9 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +28,7 @@ from sqlalchemy import MetaData, Table, inspect, select
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = PROJECT_ROOT / "be"
 DEFAULT_REPORT_ROOT = PROJECT_ROOT / "reports"
+REPORT_FILENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}\.json$")
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
@@ -259,33 +262,47 @@ def _report_root() -> Path:
     return root.resolve()
 
 
-def _restricted_report_path(path: Path) -> Path:
-    """Resolve a user-supplied path and keep it inside the approved directory."""
-    root = _report_root()
-    candidate = path.expanduser().resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(
-            f"Ruta fuera del directorio permitido para reportes: {root}"
-        ) from exc
-    return candidate
+def _report_filename(value: str) -> str:
+    """Accept a JSON basename only; CLI input can never supply directories."""
+    filename = os.path.basename(value)
+    if filename != value or not REPORT_FILENAME_PATTERN.fullmatch(filename):
+        raise ValueError("El reporte/manifiesto debe ser un nombre .json sin directorios")
+    return filename
 
 
-def _write_report(path: Path, report: dict[str, Any]) -> None:
-    path = _restricted_report_path(path)
+def _report_path(filename: str) -> Path:
+    """Build a path under the configured report directory from a safe basename."""
+    path = _report_root() / _report_filename(filename)
+    if path.is_symlink():
+        raise ValueError("No se permiten reportes o manifiestos que sean enlaces simbólicos")
+    return path
+
+
+def _write_report(filename: str, report: dict[str, Any]) -> None:
+    path = _report_path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-    temporary.replace(path)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".migrate-report-", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(report, indent=2, ensure_ascii=False))
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--apply", action="store_true", help="Copia archivos y actualiza referencias")
-    action.add_argument("--rollback", type=Path, help="Restaura referencias desde un manifiesto de apply")
-    parser.add_argument("--report", required=True, type=Path, help="Ruta restringida para el reporte JSON")
+    action.add_argument("--rollback", help="Nombre del manifiesto de apply dentro del directorio de reportes")
+    parser.add_argument(
+        "--report",
+        required=True,
+        help="Nombre del reporte JSON dentro del directorio de reportes",
+    )
     args = parser.parse_args(argv)
     mode = "rollback" if args.rollback else "apply" if args.apply else "dry-run"
     report: dict[str, Any] = {
@@ -298,8 +315,8 @@ def main(argv: list[str] | None = None) -> int:
         "errors": 0,
     }
     try:
-        report_path = _restricted_report_path(args.report)
-        manifest_path = _restricted_report_path(args.rollback) if args.rollback else None
+        report_path = _report_path(args.report)
+        manifest_path = _report_path(args.rollback) if args.rollback else None
         if manifest_path is not None and not manifest_path.is_file():
             raise ValueError(f"Manifiesto no encontrado: {manifest_path}")
         report["inventory"] = _storage_inventory()
@@ -313,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
                 _run_apply(report, refs)
             else:
                 _run_dry_run(report, refs)
-        _write_report(report_path, report)
+        _write_report(args.report, report)
     except Exception as exc:
         print(f"Migración detenida: {exc}", file=sys.stderr)
         return 2
