@@ -24,7 +24,7 @@ El repositorio local y remoto no cuentan como medios independientes si comparten
 
 ### 3.2 Script, configuración y programación
 
-Script: [`scripts/backup-restic.sh`](../scripts/backup-restic.sh). El proceso usa `mysqldump --single-transaction`, comprime el dump temporal, valida gzip, calcula SHA-256, crea snapshot Restic y aplica `keep-daily 7`, `keep-weekly 4`, `keep-monthly 12`. `RESTIC_OFFSITE_REPOSITORY` activa `restic copy` al repositorio remoto. Restic cifra antes de persistir el contenido.
+Script: [`scripts/backup-restic.sh`](../../scripts/backup-restic.sh). El proceso usa `mysqldump --single-transaction`, comprime el dump temporal, valida gzip, calcula SHA-256, crea snapshot Restic y aplica `keep-daily 7`, `keep-weekly 4`, `keep-monthly 12`. `RESTIC_OFFSITE_REPOSITORY` activa `restic copy` al repositorio remoto. Restic cifra antes de persistir el contenido.
 
 Instalar dependencias (`restic`, cliente compatible `mysqldump`, `gzip`, `sha256sum`) y crear secretos en archivos protegidos:
 
@@ -124,21 +124,21 @@ Completar durante un ejercicio real, adjuntando logs redactados de secretos y da
 
 La matriz de referencia: `sysadmin` administra servicios seleccionados; `deployer` realiza despliegues aprobados; `appuser` ejecuta la aplicación sin login interactivo en producción; `sysdevs` accede a logs de API. Una persona por cuenta, llaves SSH individuales y membresía revisada trimestralmente. No compartir cuentas ni añadir al grupo `docker` (equivale a root).
 
-[`deploy/security/provision-users.sh`](../deploy/security/provision-users.sh) crea los grupos y el usuario de servicio `appuser` (shell `nologin`) y aplica sudoers. Para personas, crear una identidad por integrante —no una cuenta compartida— con [`deploy/security/add-team-member.sh`](../deploy/security/add-team-member.sh): `sudo bash deploy/security/add-team-member.sh <usuario_individual> <sysadmin|deployer|sysdevs> <llave_ed25519.pub>`. Confirmar el fingerprint con la persona por un canal independiente. Nunca instalar llaves privadas en el servidor.
+[`deploy/security/provision-users.sh`](../../deploy/security/provision-users.sh) crea los grupos y el usuario de servicio `appuser` (shell `nologin`) y aplica sudoers. Para personas, crear una identidad por integrante —no una cuenta compartida— con [`deploy/security/add-team-member.sh`](../../deploy/security/add-team-member.sh): `sudo bash deploy/security/add-team-member.sh <usuario_individual> <sysadmin|deployer|sysdevs> <llave_ed25519.pub>`. Confirmar el fingerprint con la persona por un canal independiente. Nunca instalar llaves privadas en el servidor.
 
 ### 7.2 Sudo de mínimo privilegio
 
-[`deploy/security/sudoers.d/neodomus`](../deploy/security/sudoers.d/neodomus) limita sudo a comandos concretos de systemd/journalctl. Instalar en `/etc/sudoers.d/neodomus`, propietario `root:root`, modo `0440`, validar con `visudo -cf`. Los comodines `neodomus*` se limitan a unidades nombradas y deben revisarse si se añaden servicios. No conceder `NOPASSWD`, shell, editor, intérprete ni comodines de argumentos.
+[`deploy/security/sudoers.d/neodomus`](../../deploy/security/sudoers.d/neodomus) limita sudo a comandos concretos de systemd/journalctl. Instalar en `/etc/sudoers.d/neodomus`, propietario `root:root`, modo `0440`, validar con `visudo -cf`. Los comodines `neodomus*` se limitan a unidades nombradas y deben revisarse si se añaden servicios. No conceder `NOPASSWD`, shell, editor, intérprete ni comodines de argumentos.
 
 ### 7.3 SSH y firewall
 
-Instalar [`deploy/security/sshd_config.d/60-neodomus.conf`](../deploy/security/sshd_config.d/60-neodomus.conf) en `/etc/ssh/sshd_config.d/`, validar `sshd -t`, probar sesión nueva con llave Ed25519 y luego recargar `systemctl reload ssh`. Antes de activarlo, incorporar la cuenta administrativa existente a uno de los grupos permitidos; mantener sesión actual y acceso fuera de banda hasta verificar. Desactiva root remoto y autenticación por contraseña; solo llaves públicas Ed25519. Para SFTP, verificar primero la huella del host por canal independiente y conectar con `sftp -i <RUTA_LLAVE_PRIVADA_LOCAL> <usuario_individual>@<HOST>`; la llave privada permanece en el equipo del integrante.
+Instalar [`deploy/security/sshd_config.d/60-neodomus.conf`](../../deploy/security/sshd_config.d/60-neodomus.conf) en `/etc/ssh/sshd_config.d/`, validar `sshd -t`, probar sesión nueva con llave Ed25519 y luego recargar `systemctl reload ssh`. Antes de activarlo, incorporar la cuenta administrativa existente a uno de los grupos permitidos; mantener sesión actual y acceso fuera de banda hasta verificar. Desactiva root remoto y autenticación por contraseña; solo llaves públicas Ed25519. Para SFTP, verificar primero la huella del host por canal independiente y conectar con `sftp -i <RUTA_LLAVE_PRIVADA_LOCAL> <usuario_individual>@<HOST>`; la llave privada permanece en el equipo del integrante.
 
-Aplicar [`deploy/security/ufw-neodomus.sh`](../deploy/security/ufw-neodomus.sh) desde consola o tras confirmar SSH operativo, definiendo `SSH_ADMIN_CIDR` a la VPN/red administrativa autorizada: política entrante deny, saliente allow, permitir SSH solo desde ese CIDR, 80/443 y denegar 5432/3306/3307. UFW en Ubuntu no controla necesariamente puertos publicados directamente por Docker; por ello producción no publica DB, y el firewall del proveedor/VPC debe bloquear también acceso público. Usar TLS por 443 y permitir 80 solo para redirección/ACME.
+Aplicar [`deploy/security/ufw-neodomus.sh`](../../deploy/security/ufw-neodomus.sh) desde consola o tras confirmar SSH operativo, definiendo `SSH_ADMIN_CIDR` a la VPN/red administrativa autorizada: política entrante deny, saliente allow, permitir SSH solo desde ese CIDR, 80/443 y denegar 5432/3306/3307. UFW en Ubuntu no controla necesariamente puertos publicados directamente por Docker; por ello producción no publica DB, y el firewall del proveedor/VPC debe bloquear también acceso público. Usar TLS por 443 y permitir 80 solo para redirección/ACME.
 
 ### 7.4 Roles y separación de BD
 
-Scripts [`deploy/scripts/01_init_db_roles.sql`](../deploy/scripts/01_init_db_roles.sql) y [`deploy/scripts/02_create_db_users.sh`](../deploy/scripts/02_create_db_users.sh), ejecutados automáticamente al inicializar un volumen MySQL vacío en producción, crean roles y cuentas independientes:
+Scripts [`deploy/scripts/01_init_db_roles.sql`](../../deploy/scripts/01_init_db_roles.sql) y [`deploy/scripts/02_create_db_users.sh`](../../deploy/scripts/02_create_db_users.sh), ejecutados automáticamente al inicializar un volumen MySQL vacío en producción, crean roles y cuentas independientes:
 
 | Rol | Uso | Permisos |
 |---|---|---|
@@ -153,7 +153,7 @@ La API productiva no corre Alembic al arrancar. Después de un respaldo aprobado
 
 Para una base existente, conservar la credencial root actual al cambiar el archivo de entorno, desplegar primero solo `db`, aplicar `01_init_db_roles.sql` y ejecutar el bootstrap de cuentas dentro del contenedor (el healthcheck puede fallar hasta crear la cuenta app). Confirmar login con las cuentas nuevas; después correr el job `migrate` y levantar API/web. Los scripts de init no modifican ni eliminan datos, pero deben ejecutarse solo tras copia válida. Desde la raíz del repositorio: `docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot "$MYSQL_DATABASE"' < deploy/scripts/01_init_db_roles.sql` y luego `docker compose --env-file deploy/.env.prod -f deploy/compose.prod.yaml exec db bash /docker-entrypoint-initdb.d/02_create_db_users.sh`.
 
-La prueba repetible [`deploy/scripts/verify_db_app_privileges.sh`](../deploy/scripts/verify_db_app_privileges.sh) crea una tabla temporal aleatoria con owner, verifica `SELECT/INSERT/UPDATE/DELETE` con la cuenta API y confirma que `ALTER` y `DROP` se rechazan por permisos; luego elimina la tabla de prueba. Ejecutar solo contra un entorno aprobado, exportando credenciales desde un gestor seguro. Guardar la salida redactada y fecha en evidencia; no afirmar ejecución hasta que la realice el operador.
+La prueba repetible [`deploy/scripts/verify_db_app_privileges.sh`](../../deploy/scripts/verify_db_app_privileges.sh) crea una tabla temporal aleatoria con owner, verifica `SELECT/INSERT/UPDATE/DELETE` con la cuenta API y confirma que `ALTER` y `DROP` se rechazan por permisos; luego elimina la tabla de prueba. Ejecutar solo contra un entorno aprobado, exportando credenciales desde un gestor seguro. Guardar la salida redactada y fecha en evidencia; no afirmar ejecución hasta que la realice el operador.
 
 ### 7.5 Inventario de secretos y protección de archivos
 
@@ -180,14 +180,14 @@ Para instalación manual requerida: `chown root:root /opt/neodomus/.env && chmod
 
 ## Referencias de implementación
 
-- Usuarios: [`deploy/security/provision-users.sh`](../deploy/security/provision-users.sh)
-- SSH: [`deploy/security/sshd_config.d/60-neodomus.conf`](../deploy/security/sshd_config.d/60-neodomus.conf)
-- Sudoers: [`deploy/security/sudoers.d/neodomus`](../deploy/security/sudoers.d/neodomus)
-- Firewall: [`deploy/security/ufw-neodomus.sh`](../deploy/security/ufw-neodomus.sh)
-- Roles MySQL: [`deploy/scripts/01_init_db_roles.sql`](../deploy/scripts/01_init_db_roles.sql)
-- Respaldo cifrado: [`scripts/backup-restic.sh`](../scripts/backup-restic.sh)
-- Prueba de mínimo privilegio MySQL: [`deploy/scripts/verify_db_app_privileges.sh`](../deploy/scripts/verify_db_app_privileges.sh)
-- Alta de llave individual: [`deploy/security/add-team-member.sh`](../deploy/security/add-team-member.sh)
+- Usuarios: [`deploy/security/provision-users.sh`](../../deploy/security/provision-users.sh)
+- SSH: [`deploy/security/sshd_config.d/60-neodomus.conf`](../../deploy/security/sshd_config.d/60-neodomus.conf)
+- Sudoers: [`deploy/security/sudoers.d/neodomus`](../../deploy/security/sudoers.d/neodomus)
+- Firewall: [`deploy/security/ufw-neodomus.sh`](../../deploy/security/ufw-neodomus.sh)
+- Roles MySQL: [`deploy/scripts/01_init_db_roles.sql`](../../deploy/scripts/01_init_db_roles.sql)
+- Respaldo cifrado: [`scripts/backup-restic.sh`](../../scripts/backup-restic.sh)
+- Prueba de mínimo privilegio MySQL: [`deploy/scripts/verify_db_app_privileges.sh`](../../deploy/scripts/verify_db_app_privileges.sh)
+- Alta de llave individual: [`deploy/security/add-team-member.sh`](../../deploy/security/add-team-member.sh)
 
 ### 7.7 Evidencia operativa requerida para aceptar
 
