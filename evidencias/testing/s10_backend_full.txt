@@ -1,0 +1,1678 @@
+......................................................F..F.............. [ 12%]
+........................................................................ [ 24%]
+................F....................................................... [ 36%]
+.....F.................................................................. [ 49%]
+........................................................................ [ 61%]
+........................................................................ [ 73%]
+........................................................................ [ 85%]
+........................................................................ [ 98%]
+...........                                                              [100%]
+=================================== FAILURES ===================================
+______ AuditoriaIntegradaTestCase.test_e2_reposicion_exacta_con_variante _______
+  + Exception Group Traceback (most recent call last):
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 77, in collapse_excgroups
+  |     yield
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 186, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/app/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 58, in testPartExecutor
+    |     yield
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 634, in run
+    |     self._callTestMethod(testMethod)
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 589, in _callTestMethod
+    |     if method() is not None:
+    |        ^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 377, in test_e2_reposicion_exacta_con_variante
+    |     recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 243, in _recoger
+    |     return self._http(
+    |            ^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 155, in _http
+    |     return _run(request())
+    |            ^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_t2_pago_pendiente.py", line 34, in _run
+    |     return asyncio.run(coro)
+    |            ^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+    |     return runner.run(main)
+    |            ^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+    |     return self._loop.run_until_complete(task)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    |     return future.result()
+    |            ^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 153, in request
+    |     return await client.request(method, path, json=json, files=files,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    |     return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    |     response = await self._send_handling_auth(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    |     response = await self._send_handling_redirects(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    |     response = await self._send_single_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    |     response = await transport.handle_async_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py", line 170, in handle_async_request
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    |     with collapse_excgroups():
+    |          ^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    |     raise app_exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    |     id_usuario=adm.id_usuario,
+    |                ^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    |     return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    |     value = self._fire_loader_callables(state, key, passive)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    |     return state._load_expired(state, passive)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    |     self.manager.expired_attribute_loader(self, toload, passive)
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    |     raise orm_exc.ObjectDeletedError(state)
+    | sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725324644ce0>' has been deleted, or its row is otherwise not present.
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 377, in test_e2_reposicion_exacta_con_variante
+    recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 243, in _recoger
+    return self._http(
+           ^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 155, in _http
+    return _run(request())
+           ^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_t2_pago_pendiente.py", line 34, in _run
+    return asyncio.run(coro)
+           ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 153, in request
+    return await client.request(method, path, json=json, files=files,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py", line 170, in handle_async_request
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    raise app_exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725324644ce0>' has been deleted, or its row is otherwise not present.
+
+During handling of the above exception, another exception occurred:
+
+self = <app.tests.test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase testMethod=test_e2_reposicion_exacta_con_variante>
+
+    def test_e2_reposicion_exacta_con_variante(self):
+        # Compra CON variante (color) para validar el ciclo completo
+        # descuento ÔåÆ reposici├│n en producto y variante.
+        id_pedido = self._comprar_y_entregar(metros='2.50', con_variante=True)
+        solicitud = self._solicitar_devolucion(id_pedido, 2.5)
+        id_solicitud = solicitud.json()['id_solicitud']
+        self._ids_solicitud.append(id_solicitud)
+    
+        stock_antes = self._stock(self.producto.id_producto, self.variante.id)
+    
+        # Aprobaci├│n con resoluci├│n CAMBIO: la reposici├│n no genera reembolso.
+        headers_admin = self._token_admin()
+        aprobacion = self._http(
+            'PUT', f'/api/v1/devoluciones/admin/solicitudes/{id_solicitud}/estado',
+            headers=headers_admin, json={'estado': 'Aprobada', 'resolucion': 'Cambio'})
+        self.assertEqual(aprobacion.status_code, 200, aprobacion.text)
+        self.assertEqual(aprobacion.json()['resolucion'], 'Cambio')
+    
+        # La aprobaci├│n NO toca el inventario (exige recepci├│n f├¡sica).
+        stock_tras_aprobar = self._stock(self.producto.id_producto, self.variante.id)
+        self.assertEqual(stock_tras_aprobar, stock_antes)
+    
+        # Recogida f├¡sica con evidencia (t├®cnico real, foto real).
+        linea = self._linea_de(id_solicitud)
+        headers_tecnico = self._tecnico_asignado(linea)
+>       recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/tests/test_auditoria_integrada_pen08_09_10.py:377: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/tests/test_auditoria_integrada_pen08_09_10.py:243: in _recoger
+    return self._http(
+app/tests/test_auditoria_integrada_pen08_09_10.py:155: in _http
+    return _run(request())
+           ^^^^^^^^^^^^^^^
+app/tests/test_t2_pago_pendiente.py:34: in _run
+    return asyncio.run(coro)
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/tests/test_auditoria_integrada_pen08_09_10.py:153: in request
+    return await client.request(method, path, json=json, files=files,
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:185: in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.12/site-packages/starlette/_utils.py:83: in collapse_excgroups
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:187: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/middleware/security_headers.py:14: in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:163: in call_next
+    raise app_exc
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:149: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+.venv/lib/python3.12/site-packages/starlette/middleware/cors.py:85: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:62: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:62: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:212: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routers/devoluciones.py:879: in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:566: in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1086: in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1116: in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py:796: in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mapper = <Mapper at 0x72532dcbc9b0; User>
+state = <sqlalchemy.orm.state.InstanceState object at 0x7253247fbcb0>
+attribute_names = {'created_at', 'desactivado_hasta', 'documento_usuario', 'email', 'first_name', 'foto_url', ...}
+passive = symbol('PASSIVE_OFF')
+
+    def load_scalar_attributes(mapper, state, attribute_names, passive):
+        """initiate a column-based attribute refresh operation."""
+    
+        # assert mapper is _state_mapper(state)
+        session = state.session
+        if not session:
+            raise orm_exc.DetachedInstanceError(
+                "Instance %s is not bound to a Session; "
+                "attribute refresh operation cannot proceed" % (state_str(state))
+            )
+    
+        no_autoflush = bool(passive & attributes.NO_AUTOFLUSH)
+    
+        # in the case of inheritance, particularly concrete and abstract
+        # concrete inheritance, the class manager might have some keys
+        # of attributes on the superclass that we didn't actually map.
+        # These could be mapped as "concrete, don't load" or could be completely
+        # excluded from the mapping and we know nothing about them.  Filter them
+        # here to prevent them from coming through.
+        if attribute_names:
+            attribute_names = attribute_names.intersection(mapper.attrs.keys())
+    
+        if mapper.inherits and not mapper.concrete:
+            # load based on committed attributes in the object, formed into
+            # a truncated SELECT that only includes relevant tables.  does not
+            # currently use state.key
+            statement = mapper._optimized_get_statement(state, attribute_names)
+            if statement is not None:
+                # undefer() isn't needed here because statement has the
+                # columns needed already, this implicitly undefers that column
+                stmt = FromStatement(mapper, statement)
+    
+                return load_on_ident(
+                    session,
+                    stmt,
+                    None,
+                    only_load_props=attribute_names,
+                    refresh_state=state,
+                    no_autoflush=no_autoflush,
+                )
+    
+        # normal load, use state.key as the identity to SELECT
+        has_key = bool(state.key)
+    
+        if has_key:
+            identity_key = state.key
+        else:
+            # this codepath is rare - only valid when inside a flush, and the
+            # object is becoming persistent but hasn't yet been assigned
+            # an identity_key.
+            # check here to ensure we have the attrs we need.
+            pk_attrs = [
+                mapper._columntoproperty[col].key for col in mapper.primary_key
+            ]
+            if state.expired_attributes.intersection(pk_attrs):
+                raise sa_exc.InvalidRequestError(
+                    "Instance %s cannot be refreshed - it's not "
+                    " persistent and does not "
+                    "contain a full primary key." % state_str(state)
+                )
+            identity_key = mapper._identity_key_from_state(state)
+    
+        if (
+            _none_set.issubset(identity_key) and not mapper.allow_partial_pks
+        ) or _none_set.issuperset(identity_key):
+            util.warn_limited(
+                "Instance %s to be refreshed doesn't "
+                "contain a full primary key - can't be refreshed "
+                "(and shouldn't be expired, either).",
+                state_str(state),
+            )
+            return
+    
+        result = load_on_ident(
+            session,
+            select(mapper).set_label_style(LABEL_STYLE_TABLENAME_PLUS_COL),
+            identity_key,
+            refresh_state=state,
+            only_load_props=attribute_names,
+            no_autoflush=no_autoflush,
+        )
+    
+        # if instance is pending, a refresh operation
+        # may not complete (even if PK attributes are assigned)
+        if has_key and result is None:
+>           raise orm_exc.ObjectDeletedError(state)
+E           sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725324644ce0>' has been deleted, or its row is otherwise not present.
+
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py:1682: ObjectDeletedError
+------------------------------ Captured log call -------------------------------
+ERROR    root:main.py:136 Unhandled exception
+  + Exception Group Traceback (most recent call last):
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 77, in collapse_excgroups
+  |     yield
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 186, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/app/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    |     with collapse_excgroups():
+    |          ^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    |     raise app_exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    |     id_usuario=adm.id_usuario,
+    |                ^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    |     return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    |     value = self._fire_loader_callables(state, key, passive)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    |     return state._load_expired(state, passive)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    |     self.manager.expired_attribute_loader(self, toload, passive)
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    |     raise orm_exc.ObjectDeletedError(state)
+    | sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725324644ce0>' has been deleted, or its row is otherwise not present.
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    raise app_exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725324644ce0>' has been deleted, or its row is otherwise not present.
+_ AuditoriaIntegradaTestCase.test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera _
+  + Exception Group Traceback (most recent call last):
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 77, in collapse_excgroups
+  |     yield
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 186, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/app/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 58, in testPartExecutor
+    |     yield
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 634, in run
+    |     self._callTestMethod(testMethod)
+    |   File "/usr/local/lib/python3.12/unittest/case.py", line 589, in _callTestMethod
+    |     if method() is not None:
+    |        ^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 533, in test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera
+    |     recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 243, in _recoger
+    |     return self._http(
+    |            ^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 155, in _http
+    |     return _run(request())
+    |            ^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_t2_pago_pendiente.py", line 34, in _run
+    |     return asyncio.run(coro)
+    |            ^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+    |     return runner.run(main)
+    |            ^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+    |     return self._loop.run_until_complete(task)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    |     return future.result()
+    |            ^^^^^^^^^^^^^^^
+    |   File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 153, in request
+    |     return await client.request(method, path, json=json, files=files,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    |     return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    |     response = await self._send_handling_auth(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    |     response = await self._send_handling_redirects(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    |     response = await self._send_single_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    |     response = await transport.handle_async_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py", line 170, in handle_async_request
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    |     with collapse_excgroups():
+    |          ^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    |     raise app_exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    |     id_usuario=adm.id_usuario,
+    |                ^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    |     return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    |     value = self._fire_loader_callables(state, key, passive)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    |     return state._load_expired(state, passive)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    |     self.manager.expired_attribute_loader(self, toload, passive)
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    |     raise orm_exc.ObjectDeletedError(state)
+    | sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x7253241bc860>' has been deleted, or its row is otherwise not present.
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 533, in test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera
+    recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 243, in _recoger
+    return self._http(
+           ^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 155, in _http
+    return _run(request())
+           ^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_t2_pago_pendiente.py", line 34, in _run
+    return asyncio.run(coro)
+           ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/app/app/tests/test_auditoria_integrada_pen08_09_10.py", line 153, in request
+    return await client.request(method, path, json=json, files=files,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py", line 170, in handle_async_request
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    raise app_exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x7253241bc860>' has been deleted, or its row is otherwise not present.
+
+During handling of the above exception, another exception occurred:
+
+self = <app.tests.test_auditoria_integrada_pen08_09_10.AuditoriaIntegradaTestCase testMethod=test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera>
+
+    def test_e4b_fallo_pasarela_no_marca_exitoso_y_reintento_recupera(self):
+        id_pedido = self._comprar_y_entregar(metros='2.50')
+        solicitud = self._solicitar_devolucion(id_pedido, 2.5)
+        id_solicitud = solicitud.json()['id_solicitud']
+        self._ids_solicitud.append(id_solicitud)
+    
+        headers_admin = self._token_admin()
+        # La pasarela FALLA en el primer intento.
+        with patch('app.services.pagos_service.procesar_reembolso',
+                   side_effect=RuntimeError('pasarela no disponible')):
+            aprobacion = self._http(
+                'PUT', f'/api/v1/devoluciones/admin/solicitudes/{id_solicitud}/estado',
+                headers=headers_admin, json={'estado': 'Aprobada', 'resolucion': 'Reembolso'})
+        self.assertEqual(aprobacion.status_code, 200, aprobacion.text)
+        self.assertIsNotNone(aprobacion.json().get('id_reembolso'))
+    
+        datos = _leer(lambda db: {
+            'solicitud': db.get(SolicitudDevolucion, id_solicitud),
+            'reembolso': db.query(Reembolso).filter(
+                Reembolso.id_solicitud_origen == id_solicitud).one(),
+        })
+        # NO se marca como exitoso: reembolso Rechazado, pipeline NO avanzado.
+        self.assertEqual(datos['reembolso'].estado, 'Rechazado')
+        self.assertEqual(datos['solicitud'].estado, dv_service.EST_APROBADA)
+        id_reembolso = datos['reembolso'].id_reembolso
+    
+        # Reintento administrativo (pasarela real de vuelta): se recupera
+        # SIN crear un segundo reembolso.
+        reintento = self._http('POST', f'/api/v1/reembolsos/{id_reembolso}/procesar',
+                               headers=headers_admin, json={'porcentaje_cliente': 100})
+        self.assertEqual(reintento.status_code, 200, reintento.text)
+        self.assertEqual(reintento.json()['estado'], 'Reembolsado')
+        self.assertEqual(_leer(lambda db: db.query(Reembolso).filter(
+            Reembolso.id_solicitud_origen == id_solicitud).count()), 1)
+    
+        # La recogida f├¡sica avanza el pipeline y cierra con el reembolso.
+        linea = self._linea_de(id_solicitud)
+        headers_tecnico = self._tecnico_asignado(linea)
+>       recogida = self._recoger(headers_tecnico, linea.id_devolucion)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/tests/test_auditoria_integrada_pen08_09_10.py:533: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/tests/test_auditoria_integrada_pen08_09_10.py:243: in _recoger
+    return self._http(
+app/tests/test_auditoria_integrada_pen08_09_10.py:155: in _http
+    return _run(request())
+           ^^^^^^^^^^^^^^^
+app/tests/test_t2_pago_pendiente.py:34: in _run
+    return asyncio.run(coro)
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/tests/test_auditoria_integrada_pen08_09_10.py:153: in request
+    return await client.request(method, path, json=json, files=files,
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:187: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:185: in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.12/site-packages/starlette/_utils.py:83: in collapse_excgroups
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:187: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/middleware/security_headers.py:14: in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:163: in call_next
+    raise app_exc
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:149: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+.venv/lib/python3.12/site-packages/starlette/middleware/cors.py:85: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:62: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/starlette/routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:735: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:288: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:62: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/starlette/routing.py:73: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:301: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:212: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routers/devoluciones.py:879: in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:566: in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1086: in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1116: in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py:796: in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mapper = <Mapper at 0x72532dcbc9b0; User>
+state = <sqlalchemy.orm.state.InstanceState object at 0x7253241fbcb0>
+attribute_names = {'created_at', 'desactivado_hasta', 'documento_usuario', 'email', 'first_name', 'foto_url', ...}
+passive = symbol('PASSIVE_OFF')
+
+    def load_scalar_attributes(mapper, state, attribute_names, passive):
+        """initiate a column-based attribute refresh operation."""
+    
+        # assert mapper is _state_mapper(state)
+        session = state.session
+        if not session:
+            raise orm_exc.DetachedInstanceError(
+                "Instance %s is not bound to a Session; "
+                "attribute refresh operation cannot proceed" % (state_str(state))
+            )
+    
+        no_autoflush = bool(passive & attributes.NO_AUTOFLUSH)
+    
+        # in the case of inheritance, particularly concrete and abstract
+        # concrete inheritance, the class manager might have some keys
+        # of attributes on the superclass that we didn't actually map.
+        # These could be mapped as "concrete, don't load" or could be completely
+        # excluded from the mapping and we know nothing about them.  Filter them
+        # here to prevent them from coming through.
+        if attribute_names:
+            attribute_names = attribute_names.intersection(mapper.attrs.keys())
+    
+        if mapper.inherits and not mapper.concrete:
+            # load based on committed attributes in the object, formed into
+            # a truncated SELECT that only includes relevant tables.  does not
+            # currently use state.key
+            statement = mapper._optimized_get_statement(state, attribute_names)
+            if statement is not None:
+                # undefer() isn't needed here because statement has the
+                # columns needed already, this implicitly undefers that column
+                stmt = FromStatement(mapper, statement)
+    
+                return load_on_ident(
+                    session,
+                    stmt,
+                    None,
+                    only_load_props=attribute_names,
+                    refresh_state=state,
+                    no_autoflush=no_autoflush,
+                )
+    
+        # normal load, use state.key as the identity to SELECT
+        has_key = bool(state.key)
+    
+        if has_key:
+            identity_key = state.key
+        else:
+            # this codepath is rare - only valid when inside a flush, and the
+            # object is becoming persistent but hasn't yet been assigned
+            # an identity_key.
+            # check here to ensure we have the attrs we need.
+            pk_attrs = [
+                mapper._columntoproperty[col].key for col in mapper.primary_key
+            ]
+            if state.expired_attributes.intersection(pk_attrs):
+                raise sa_exc.InvalidRequestError(
+                    "Instance %s cannot be refreshed - it's not "
+                    " persistent and does not "
+                    "contain a full primary key." % state_str(state)
+                )
+            identity_key = mapper._identity_key_from_state(state)
+    
+        if (
+            _none_set.issubset(identity_key) and not mapper.allow_partial_pks
+        ) or _none_set.issuperset(identity_key):
+            util.warn_limited(
+                "Instance %s to be refreshed doesn't "
+                "contain a full primary key - can't be refreshed "
+                "(and shouldn't be expired, either).",
+                state_str(state),
+            )
+            return
+    
+        result = load_on_ident(
+            session,
+            select(mapper).set_label_style(LABEL_STYLE_TABLENAME_PLUS_COL),
+            identity_key,
+            refresh_state=state,
+            only_load_props=attribute_names,
+            no_autoflush=no_autoflush,
+        )
+    
+        # if instance is pending, a refresh operation
+        # may not complete (even if PK attributes are assigned)
+        if has_key and result is None:
+>           raise orm_exc.ObjectDeletedError(state)
+E           sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x7253241bc860>' has been deleted, or its row is otherwise not present.
+
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py:1682: ObjectDeletedError
+----------------------------- Captured stdout call -----------------------------
+Error procesando reembolso #821: pasarela no disponible
+------------------------------ Captured log call -------------------------------
+ERROR    root:main.py:136 Unhandled exception
+  + Exception Group Traceback (most recent call last):
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 77, in collapse_excgroups
+  |     yield
+  |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 186, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/app/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 815, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    |     with collapse_excgroups():
+    |          ^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    |     raise app_exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    |     raise exc
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    |     id_usuario=adm.id_usuario,
+    |                ^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    |     return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    |     value = self._fire_loader_callables(state, key, passive)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    |     return state._load_expired(state, passive)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    |     self.manager.expired_attribute_loader(self, toload, passive)
+    |   File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    |     raise orm_exc.ObjectDeletedError(state)
+    | sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x7253241bc860>' has been deleted, or its row is otherwise not present.
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 185, in __call__
+    with collapse_excgroups():
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 83, in collapse_excgroups
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 187, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/middleware/security_headers.py", line 14, in _add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 163, in call_next
+    raise app_exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/app/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/app/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/routers/devoluciones.py", line 879, in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1116, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py", line 796, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "/app/.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 1682, in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x7253241bc860>' has been deleted, or its row is otherwise not present.
+______ CitasReembolsosAdminTestCase.test_resumen_incluye_citas_pendientes ______
+
+self = <app.tests.test_citas_reembolsos_admin.CitasReembolsosAdminTestCase testMethod=test_resumen_incluye_citas_pendientes>
+
+    def test_resumen_incluye_citas_pendientes(self):
+        admin = self._crear_admin()
+        token = self._token(self._login(admin.email))
+        headers = self._bearer(token)
+    
+        antes = self._get("/api/v1/reports/resumen", headers=headers)
+        self.assertEqual(antes.status_code, 200, antes.text)
+        base_total = antes.json()["citas_total"]
+        base_pendientes = antes.json()["citas_por_estado"]["Pendiente"]
+    
+        cliente = self._crear_cliente("resumen")
+        self._crear_cita_pagada(cliente, transaccion="TX-RESUMEN")
+    
+        despues = self._get("/api/v1/reports/resumen", headers=headers)
+        self.assertEqual(despues.status_code, 200, despues.text)
+        datos = despues.json()
+>       self.assertEqual(datos["citas_total"], base_total + 1)
+E       AssertionError: 1 != 2
+
+app/tests/test_citas_reembolsos_admin.py:205: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[AUDIT] {"timestamp": "2026-11-14T18:22:45.923142+00:00", "event": "LOGIN_SUCCESS", "email": "t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+------------------------------ Captured log call -------------------------------
+WARNING  security.audit:audit_log.py:49 {"timestamp": "2026-11-14T18:22:45.923142+00:00", "event": "LOGIN_SUCCESS", "email": "t1***************************@neodomus.com", "user_type": "employee", "ip": null}
+_____ ReposicionInventarioTestCase.test_reposicion_registra_metros_exactos _____
+
+self = <app.tests.test_pen09_pen10_devoluciones_metros.ReposicionInventarioTestCase testMethod=test_reposicion_registra_metros_exactos>
+
+    def test_reposicion_registra_metros_exactos(self):
+        """Corte de 2,5 m devuelto ÔåÆ inventario +2,5 m (no 2 ni 3)."""
+        p, _variante, cliente, pedido, solicitud, linea, usuario = self._preparar(
+            stock=Decimal("10.00"), metros="2.50"
+        )
+        stock_antes = self._stock(p.id_producto)
+    
+>       resultado = self._subir_evidencia(linea.id_devolucion, usuario)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/tests/test_pen09_pen10_devoluciones_metros.py:605: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/tests/test_pen09_pen10_devoluciones_metros.py:589: in _subir_evidencia
+    return _run(
+app/tests/test_pen09_pen10_devoluciones_metros.py:59: in _run
+    return asyncio.run(coro)
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/routers/devoluciones.py:879: in subir_evidencia_recogida
+    id_usuario=adm.id_usuario,
+               ^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:566: in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1086: in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py:1116: in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/state.py:796: in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mapper = <Mapper at 0x72532dcbc9b0; User>
+state = <sqlalchemy.orm.state.InstanceState object at 0x72531747daf0>
+attribute_names = {'created_at', 'desactivado_hasta', 'documento_usuario', 'email', 'first_name', 'foto_url', ...}
+passive = symbol('PASSIVE_OFF')
+
+    def load_scalar_attributes(mapper, state, attribute_names, passive):
+        """initiate a column-based attribute refresh operation."""
+    
+        # assert mapper is _state_mapper(state)
+        session = state.session
+        if not session:
+            raise orm_exc.DetachedInstanceError(
+                "Instance %s is not bound to a Session; "
+                "attribute refresh operation cannot proceed" % (state_str(state))
+            )
+    
+        no_autoflush = bool(passive & attributes.NO_AUTOFLUSH)
+    
+        # in the case of inheritance, particularly concrete and abstract
+        # concrete inheritance, the class manager might have some keys
+        # of attributes on the superclass that we didn't actually map.
+        # These could be mapped as "concrete, don't load" or could be completely
+        # excluded from the mapping and we know nothing about them.  Filter them
+        # here to prevent them from coming through.
+        if attribute_names:
+            attribute_names = attribute_names.intersection(mapper.attrs.keys())
+    
+        if mapper.inherits and not mapper.concrete:
+            # load based on committed attributes in the object, formed into
+            # a truncated SELECT that only includes relevant tables.  does not
+            # currently use state.key
+            statement = mapper._optimized_get_statement(state, attribute_names)
+            if statement is not None:
+                # undefer() isn't needed here because statement has the
+                # columns needed already, this implicitly undefers that column
+                stmt = FromStatement(mapper, statement)
+    
+                return load_on_ident(
+                    session,
+                    stmt,
+                    None,
+                    only_load_props=attribute_names,
+                    refresh_state=state,
+                    no_autoflush=no_autoflush,
+                )
+    
+        # normal load, use state.key as the identity to SELECT
+        has_key = bool(state.key)
+    
+        if has_key:
+            identity_key = state.key
+        else:
+            # this codepath is rare - only valid when inside a flush, and the
+            # object is becoming persistent but hasn't yet been assigned
+            # an identity_key.
+            # check here to ensure we have the attrs we need.
+            pk_attrs = [
+                mapper._columntoproperty[col].key for col in mapper.primary_key
+            ]
+            if state.expired_attributes.intersection(pk_attrs):
+                raise sa_exc.InvalidRequestError(
+                    "Instance %s cannot be refreshed - it's not "
+                    " persistent and does not "
+                    "contain a full primary key." % state_str(state)
+                )
+            identity_key = mapper._identity_key_from_state(state)
+    
+        if (
+            _none_set.issubset(identity_key) and not mapper.allow_partial_pks
+        ) or _none_set.issuperset(identity_key):
+            util.warn_limited(
+                "Instance %s to be refreshed doesn't "
+                "contain a full primary key - can't be refreshed "
+                "(and shouldn't be expired, either).",
+                state_str(state),
+            )
+            return
+    
+        result = load_on_ident(
+            session,
+            select(mapper).set_label_style(LABEL_STYLE_TABLENAME_PLUS_COL),
+            identity_key,
+            refresh_state=state,
+            only_load_props=attribute_names,
+            no_autoflush=no_autoflush,
+        )
+    
+        # if instance is pending, a refresh operation
+        # may not complete (even if PK attributes are assigned)
+        if has_key and result is None:
+>           raise orm_exc.ObjectDeletedError(state)
+E           sqlalchemy.orm.exc.ObjectDeletedError: Instance '<User at 0x725317445c70>' has been deleted, or its row is otherwise not present.
+
+.venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py:1682: ObjectDeletedError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /app/.venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+.venv/lib/python3.12/site-packages/reportlab/lib/rl_safe_eval.py:11
+  /app/.venv/lib/python3.12/site-packages/reportlab/lib/rl_safe_eval.py:11: DeprecationWarning: ast.NameConstant is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    haveNameConstant = hasattr(ast,'NameConstant')
+
+app/routers/reports.py:398
+  /app/app/routers/reports.py:398: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+
+app/routers/reports.py:498
+  /app/app/routers/reports.py:498: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+
+app/routers/reports.py:580
+  /app/app/routers/reports.py:580: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+
+app/routers/reports.py:890
+  /app/app/routers/reports.py:890: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+
+app/routers/reports.py:919
+  /app/app/routers/reports.py:919: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+
+app/routers/reports.py:1165
+  /app/app/routers/reports.py:1165: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    periodo: str = Query("mes", regex="^(semana|mes|anio)$"),
+
+app/tests/test_api_contrato.py: 27 warnings
+app/tests/test_api_novedades_reports.py: 18 warnings
+app/tests/test_api_productos_admin.py: 17 warnings
+app/tests/test_auditoria_integrada_pen08_09_10.py: 52 warnings
+app/tests/test_auth_service_complemento.py: 4 warnings
+app/tests/test_auth_session.py: 7 warnings
+app/tests/test_checkout_metros_http.py: 30 warnings
+app/tests/test_citas_reembolsos_admin.py: 14 warnings
+app/tests/test_disponibilidad_productos.py: 7 warnings
+app/tests/test_factura_descarga_http.py: 3 warnings
+app/tests/test_foto_perfil_tecnico.py: 17 warnings
+app/tests/test_pen09_pen10_devoluciones_metros.py: 10 warnings
+app/tests/test_reportes_ventas.py: 15 warnings
+app/tests/test_s10_cancelar_solicitud_cuenta.py: 4 warnings
+app/tests/test_s5_calificaciones_especializaciones_http.py: 47 warnings
+app/tests/test_s6_auth_cuentas_integracion.py: 25 warnings
+app/tests/test_s6_citas_integracion.py: 61 warnings
+app/tests/test_s6_devoluciones_novedades_reembolsos_integracion.py: 165 warnings
+app/tests/test_s6_pedidos_instalacion_integracion.py: 36 warnings
+app/tests/test_s6_reportes_integracion.py: 30 warnings
+app/tests/test_s6_tecnicos_entregas_integracion.py: 69 warnings
+app/tests/test_t1_1_archivos.py: 11 warnings
+app/tests/test_t1_1_cuentas.py: 5 warnings
+app/tests/test_t1_2_minio.py: 1 warning
+app/tests/test_t1_3_permisos.py: 23 warnings
+app/tests/test_t1_identidad.py: 12 warnings
+app/tests/test_unidades_seguridad.py: 6 warnings
+  /app/.venv/lib/python3.12/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+app/tests/test_api_contrato.py::SolicitudesCuentaTestCase::test_aprobar_habilitacion_activa_la_cuenta_y_resuelve
+app/tests/test_api_contrato.py::SolicitudesCuentaTestCase::test_rechazar_inhabilitacion_deja_la_cuenta_activa
+  /app/app/routers/solicitudes.py:230: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(solicitud.id_cliente)
+
+app/tests/test_api_contrato.py::SolicitudesCuentaTestCase::test_habilitar_cuenta_directa_y_doble_habilitacion_400
+app/tests/test_api_contrato.py::SolicitudesCuentaTestCase::test_habilitar_cuenta_directa_y_doble_habilitacion_400
+  /app/app/routers/solicitudes.py:259: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(solicitud.id_cliente)
+
+app/tests/test_api_contrato.py::SolicitudesCuentaTestCase::test_solicitud_empleado_aprobada_activa_al_tecnico
+  /app/app/routers/solicitudes.py:364: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    usuario = db.query(User).get(solicitud.id_usuario)
+
+app/tests/test_api_productos_admin.py: 61 warnings
+app/tests/test_disponibilidad_productos.py: 223 warnings
+  /app/.venv/lib/python3.12/site-packages/pydantic/main.py:1051: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.7/migration/
+    warnings.warn('The `dict` method is deprecated; use `model_dump` instead.', category=PydanticDeprecatedSince20)
+
+app/tests/test_s5_email_dobles.py::test_plantillas_de_verificacion_incluyen_codigo_y_asunto
+  /usr/local/lib/python3.12/asyncio/events.py:36: RuntimeWarning: coroutine 'to_thread' was never awaited
+    def __init__(self, callback, args, loop, context=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+app/tests/test_s6_auth_cuentas_integracion.py::AuthCuentasS6TestCase::test_login_sesion_refresh_logout_y_cuentas_inactivas
+app/tests/test_s6_auth_cuentas_integracion.py::AuthCuentasS6TestCase::test_login_sesion_refresh_logout_y_cuentas_inactivas
+  /app/app/tests/test_t1_identidad.py:76: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return await ac.request(method, url, **kw)
+
+app/tests/test_s6_pedidos_instalacion_integracion.py::PedidosInstalacionIntegracionTestCase::test_cliente_consulta_pedido_seguimiento_y_factura
+  /app/app/routers/pedidos.py:1003: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(pedido.id_cliente_pe)
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1587: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(c.id_cliente) if c.id_cliente else None
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1621: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(p.id_cliente_pe) if p.id_cliente_pe else None
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1629: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    prod = db.query(Producto).get(d.id_producto_d) if d.id_producto_d else None
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1654: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    cliente = db.query(Cliente).get(d.id_cliente_d) if d.id_cliente_d else None
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1655: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    producto = db.query(Producto).get(d.id_producto_d) if d.id_producto_d else None
+
+app/tests/test_s6_tecnicos_entregas_integracion.py::TecnicosEntregasIntegracionTestCase::test_historial_completo_del_tecnico
+  /app/app/routers/tecnicos.py:1656: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    pedido = db.query(PedidoModel).get(d.id_pedido_d) if d.id_pedido_d else None
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.16-final-0 _______________
+
+Name                                            Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------------
+app/__init__.py                                     4      0      0      0   100%
+app/config.py                                      66      9     12      3    77%   97, 104, 115-125
+app/database.py                                    13      0      0      0   100%
+app/main.py                                        57     12      6      1    73%   14-26, 126, 130, 144-146
+app/middleware/__init__.py                          3      0      0      0   100%
+app/middleware/cors.py                             16      5      6      2    59%   11, 30-39
+app/middleware/rate_limit.py                        7      0      0      0   100%
+app/middleware/security_headers.py                 10      0      0      0   100%
+app/models/__init__.py                             27      0      0      0   100%
+app/models/calificacion.py                         13      0      0      0   100%
+app/models/calificacion_producto.py                14      0      0      0   100%
+app/models/categoria.py                             7      0      0      0   100%
+app/models/cita.py                                 32      0      0      0   100%
+app/models/cita_producto.py                        14      0      0      0   100%
+app/models/cliente.py                              23      0      0      0   100%
+app/models/contacto.py                             17      0      0      0   100%
+app/models/devolucion.py                           28      0      0      0   100%
+app/models/email_verification_token.py             14      0      0      0   100%
+app/models/especializacion.py                      37      0      0      0   100%
+app/models/evidencia.py                            19      0      0      0   100%
+app/models/factura.py                              19      0      0      0   100%
+app/models/notificacion.py                         14      0      0      0   100%
+app/models/novedad.py                              70      0      0      0   100%
+app/models/oferta_horario.py                       18      0      0      0   100%
+app/models/otros.py                                11      0      0      0   100%
+app/models/pago.py                                 23      0      0      0   100%
+app/models/password_reset_token.py                 15      0      0      0   100%
+app/models/pedido.py                               40      0      0      0   100%
+app/models/pending_registration.py                 17      0      0      0   100%
+app/models/producto.py                             35      0      0      0   100%
+app/models/producto_variante.py                    16      0      0      0   100%
+app/models/proveedor.py                            10      0      0      0   100%
+app/models/roles_usuario.py                         7      0      0      0   100%
+app/models/solicitud_cuenta.py                     14      0      0      0   100%
+app/models/solicitud_devolucion.py                 24      0      0      0   100%
+app/models/solicitud_habilitacion_empleado.py      12      0      0      0   100%
+app/models/tarifa_servicio.py                      10      0      0      0   100%
+app/models/tecnico.py                              11      0      0      0   100%
+app/models/ubicacion_tecnico.py                    11      0      0      0   100%
+app/models/user.py                                 21      0      0      0   100%
+app/routers/__init__.py                            17      0      0      0   100%
+app/routers/auth.py                               138      6      8      2    95%   193, 241, 252-253, 257-258
+app/routers/calificaciones.py                     168      2     42      3    98%   91->105, 101-103, 184->189, 247->250
+app/routers/citas.py                              859    165    352     85    75%   15-16, 26, 90-114, 119-121, 161-162, 164, 178-182, 187-253, 318, 321, 334, 359, 394, 397, 421, 493, 501, 508, 546->549, 580, 636, 656, 665->681, 682, 701, 761->765, 770-771, 825-827, 837-841, 842->858, 844->858, 846->851, 849-850, 852, 854, 868-925, 987-988, 1040-1050, 1052, 1071, 1075-1076, 1090, 1102, 1109-1115, 1121, 1127-1128, 1136, 1140, 1186->1209, 1353, 1372, 1416, 1466->1469, 1517, 1529->1528, 1544-1545, 1585, 1599, 1610, 1629-1630, 1632-1633, 1642->1646, 1646->1655, 1651, 1655->1709, 1671-1674, 1676, 1683-1685, 1726->1744, 1732, 1786->1809, 1806-1808, 1814, 1835, 1837, 1843-1852, 1858->1868, 1875->1877, 1901, 1921->1989, 1962->1948, 2064, 2148, 2187->2200, 2249, 2262, 2315, 2320-2325, 2330-2332, 2358, 2363-2368
+app/routers/clientes.py                           181    117     44      2    31%   79, 91-97, 107-132, 167-180, 191-204, 215-249, 259-295, 305-345, 358-364, 366, 384-417
+app/routers/consultas.py                          167     49     66     14    63%   96->100, 99, 134, 136, 152, 154, 180-185, 186->188, 193-208, 211->234, 224-226, 244, 257->255, 278-280, 298-336
+app/routers/devoluciones.py                       433     35    138     31    88%   62, 65, 80-81, 201, 211, 224->241, 274, 304, 395-402, 446, 486->517, 589, 731, 737, 739, 765->796, 801->837, 807->837, 811->837, 821->837, 838->856, 944, 947, 950, 952, 959-960, 970->982, 1071->1095, 1083->1095, 1132, 1146->1148, 1155, 1157, 1214-1255, 1282
+app/routers/especializaciones.py                   85      0     24      3    97%   143->158, 158->160, 160->162
+app/routers/notificaciones.py                      41      2      4      1    93%   31, 38
+app/routers/novedades.py                          438     48    176     41    84%   71, 80-82, 85-86, 108, 111, 174->173, 191->190, 195, 199->209, 359->362, 381->384, 390->393, 393->397, 398-403, 427->430, 462, 467, 475, 477, 528, 535, 601, 610-613, 641->639, 716-717, 720->737, 734-735, 807, 840->857, 842->857, 886->902, 888->902, 929-930, 935->950, 951-953, 1012, 1015, 1017, 1019, 1041-1043, 1080->1084, 1082->1084, 1135, 1202->1214, 1234-1235, 1247-1248
+app/routers/pedidos.py                            360     30     94     20    88%   78, 81-82, 203->213, 236-246, 257, 509-513, 516->521, 519, 584->600, 597-598, 634, 666->671, 684->704, 724->743, 743->770, 761->770, 794-799, 804->817, 818->821, 870->878, 879->894, 885->894, 976-977, 1001, 1009, 1021-1022
+app/routers/productos.py                          497    164    144     25    63%   56, 211, 213, 244-245, 302-305, 312-328, 354, 373-387, 404, 410, 441, 444, 453->446, 483, 492, 494, 496, 523-525, 537, 547-565, 576-598, 609-706, 724, 747, 761, 764, 791-811, 843-861, 907, 914->916, 917, 995, 998-999, 1007, 1022, 1060-1064, 1068-1071
+app/routers/reembolsos.py                         206     31     80     19    80%   54, 116, 120->126, 123, 127, 130, 147-148, 153-169, 215, 237, 321, 351-363, 395-396, 399, 417, 475, 481->502, 490->497, 497->502, 499->502, 507
+app/routers/reports.py                            390     33    130     19    89%   122, 136, 168-174, 216, 237, 242, 526->528, 613->615, 696->701, 705-741, 763-769, 788, 802, 845, 850->852, 874, 899, 901, 952, 955, 972->974
+app/routers/solicitudes.py                        174     27     36      9    81%   29-30, 60-61, 77-80, 84-85, 91, 229, 232, 261, 329-345, 361, 363, 366, 371->375, 405
+app/routers/tarifas.py                             33      1      8      1    95%   57
+app/routers/tecnicos.py                           662     47    196     38    89%   70-71, 74, 95, 340->343, 409->411, 439, 536-543, 553->564, 565->576, 584-585, 663, 679-705, 731, 734->741, 747, 816, 896, 927->944, 958, 981-982, 1057->1071, 1104, 1124, 1129, 1135, 1137, 1157, 1209, 1215, 1217, 1224-1225, 1264-1267, 1440->1453, 1460->1476, 1483->1496, 1630->1628, 1660, 1666
+app/routers/users.py                              261    107     96     19    50%   56-57, 62-64, 114-115, 127, 133-149, 160, 184, 196-241, 250-252, 270, 280-321, 334, 337-341, 343-347, 358->370, 362, 364, 370->379, 372->379, 380-383, 387-399, 401->405, 403->405, 417, 419, 423->429, 470-471
+app/schemas/__init__.py                             3      0      0      0   100%
+app/schemas/auth.py                                84      1     10      1    98%   36
+app/schemas/cita.py                                35      0      0      0   100%
+app/schemas/cliente.py                             22      0      0      0   100%
+app/schemas/producto.py                            17     17      0      0     0%   2-23
+app/schemas/solicitud.py                           43      3      2      0    89%   14-16
+app/schemas/tarifa.py                              10      0      0      0   100%
+app/schemas/user.py                                37      0      0      0   100%
+app/services/__init__.py                            1      0      0      0   100%
+app/services/asignacion_service.py                374    112    126     26    66%   41, 46-48, 100->102, 107-113, 158, 212-215, 234, 286->304, 329, 355-359, 362, 382-384, 426, 432->438, 458, 463->465, 580, 593, 617, 681->690, 704, 709, 711-724, 754-761, 816, 833-947, 999-1012, 1026-1027, 1031-1069
+app/services/auth_service.py                      429     43    158     20    88%   93, 163-164, 187-192, 261, 292, 294, 456, 459-470, 479->484, 482-483, 485, 562-563, 595, 600, 643, 659-662, 690, 693->698, 696-697, 714, 753->755, 757, 794->796, 797
+app/services/devoluciones_service.py              338     39    148     29    85%   80, 99-100, 102, 172, 178-179, 187, 201, 295, 330->exit, 386, 389-390, 400, 409-410, 412, 426, 437-438, 440, 450, 471, 575->585, 590, 682->677, 684->677, 735, 737, 754-764, 792->795, 803, 807->815, 809, 840, 847, 858-859, 862, 869->872
+app/services/disponibilidad_service.py             34      9     10      1    68%   20-21, 23, 29-34
+app/services/especialidades.py                    249     28    116     24    85%   88-89, 91->84, 94, 103->101, 124, 145, 180, 199, 232-233, 242, 298, 310, 377, 400, 404, 450, 490, 507, 510, 525, 529->527, 539, 542, 562, 565, 584, 586->581, 601-603
+app/services/estados_entrega.py                    26      0      8      0   100%
+app/services/factura_service.py                   223     21     20      4    90%   58-63, 72-73, 106->exit, 466-468, 505-507, 509, 517->524, 520-522, 536-537, 541
+app/services/inventario_service.py                 68     10     26      7    82%   26-27, 29, 50->exit, 59-60, 77, 110, 128, 144, 172
+app/services/minio_service.py                     112      1     24      1    99%   131
+app/services/notificaciones.py                    279     13     94     22    91%   69-70, 223, 225, 280->291, 315->327, 393->404, 449->461, 503-505, 507->520, 544->557, 573, 591->603, 627->639, 662->674, 697->709, 728->exit, 746->758, 758->exit, 779->791, 792-801, 877->891, 999, 1085->1097
+app/services/novedades_service.py                 132      9     52      9    90%   138, 171-172, 195-201, 243, 251->254, 276, 282->285, 317, 348->360, 397
+app/services/pagos_service.py                     122      4     42      2    96%   124, 147-148, 178
+app/services/pedidos_service.py                   759    210    300     65    69%   119, 122, 154-155, 169-170, 194, 208, 213, 271-276, 308, 323-324, 326, 348-355, 376-396, 406, 430-433, 450, 473->472, 475, 480, 528, 554->551, 556, 587->586, 600-608, 614-670, 692-693, 695, 706-707, 709, 743->748, 765, 770, 781, 794-820, 824->838, 831, 839, 860-861, 891-892, 896-897, 910->909, 930, 940->987, 948, 951->exit, 970, 1017->1015, 1024-1044, 1056-1080, 1098-1099, 1113-1115, 1134-1136, 1146-1162, 1173-1219, 1255->1266, 1263->1255, 1267, 1275, 1280->exit, 1313-1318, 1399-1414, 1448, 1453-1456, 1460, 1475->1477, 1478->1483, 1481-1482, 1548, 1556->1563, 1557->1556, 1560->1563, 1575-1576, 1581-1582, 1589-1590, 1613-1614, 1645-1652, 1688, 1697, 1739, 1769-1775, 1804-1805, 1810-1811, 1819-1820, 1864-1865, 1937-1941
+app/services/precio_service.py                     29      2      6      0    94%   21-22
+app/services/recomendacion_service.py              71      0     22      1    99%   136->139
+app/services/reembolso_service.py                  28      1      0      0    96%   78
+app/services/reportes_service.py                  330     10     58     18    93%   190-191, 201, 207-208, 241, 332->362, 405->436, 488->490, 629, 740->754, 754->770, 771->785, 785->804, 804->815, 816, 846, 848->870, 890, 892->919, 919->938, 938->960
+app/services/scheduler.py                          57      0     12      4    94%   35->40, 48->55, 62->67, 74->79
+app/services/tareas_programadas.py                126      2     50     11    93%   88->83, 114->109, 133->109, 145->147, 228, 238, 247->222, 304->322, 307->322, 322->296, 325->296
+app/utils/__init__.py                               4      0      0      0   100%
+app/utils/audit_log.py                             42      2     14      4    89%   21->41, 60->62, 96, 99
+app/utils/database_values_i18n.py                  52      1     26      1    97%   295
+app/utils/email.py                                147      9     22      1    94%   223, 249-251, 256-260
+app/utils/fechas.py                                 8      0      0      0   100%
+app/utils/gmail_api.py                             47      0      8      0   100%
+app/utils/imagenes.py                              36      6     12      4    79%   30, 38, 40, 53-54, 59
+app/utils/limiter.py                                3      0      0      0   100%
+app/utils/respaldo_usuarios.py                     77      9     28     10    82%   65->64, 67, 74, 78, 108->116, 116->124, 124->130, 143, 146, 150, 159-161
+app/utils/security.py                             139     22     52      8    81%   48->50, 128->132, 153, 159->164, 162-163, 165-168, 170, 174->179, 177-178, 180-183, 220-227
+-------------------------------------------------------------------------------------------
+TOTAL                                           10522   1474   3108    611    82%
+Coverage XML written to file coverage.xml
+Required test coverage of 80% reached. Total coverage: 81.90%
+4 failed, 583 passed, 1023 warnings in 619.00s (0:10:18)
+EXIT=1

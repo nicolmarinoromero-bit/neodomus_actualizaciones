@@ -895,6 +895,10 @@ def _crear_orden_instalacion(
     if commit:
         db.commit()
         db.refresh(cita)
+    else:
+        # Asigna id_cita dentro de la transacción para que el resumen devuelto
+        # al cliente incluya la cita recién creada.
+        db.flush()
 
     nombre_cliente = f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente"
     fecha_texto = fecha.strftime("%d/%m/%Y")
@@ -1489,6 +1493,12 @@ async def crear_pedido(
             direccion_servicio=(cliente.address or "").strip() or None,
         )
         db.add(detalle)
+
+    # Los detalles deben estar en la transacción antes de que la orden de
+    # instalación consulte el pedido (SessionLocal usa autoflush=False): de
+    # ellos dependen la duración, las especializaciones, el número de técnicos
+    # y la entrega asociada.
+    db.flush()
 
     # Registrar el pago.
     pago = Pago(

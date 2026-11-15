@@ -81,7 +81,10 @@ def notificaciones_anuladas(contador=None):
 
 # Consulta Especializacion; confirma los cambios con la sesión de base de datos.
 def _crear_tecnico(db, sufijo, ids_esp=None, activo=True):
-    email = f"bloque2.{sufijo}.{int(time.time() * 1_000_000)}@test.local"
+    # Dominio de pruebas aceptado por EmailStr del proyecto (email-validator
+    # 2.1.0 rechaza TLDs reservados como .test/.local: una fila residual con
+    # ellos rompe con 500 los listados admin que serializan EmailStr).
+    email = f"bloque2.{sufijo}.{int(time.time() * 1_000_000)}@test.neodomus.com"
     u = User(
         first_name="Tec", last_name=sufijo, email=email, password_hash="x",
         id_rol_u=2, is_active=activo,
@@ -105,7 +108,7 @@ def _crear_tecnico(db, sufijo, ids_esp=None, activo=True):
 def _crear_cliente(db):
     c = Cliente(
         first_name="Test", last_name="Cliente",
-        email=f"b2.cliente.{int(time.time() * 1_000_000)}@test.local",
+        email=f"b2.cliente.{int(time.time() * 1_000_000)}@test.neodomus.com",
         is_active=True, auth_provider="local",
     )
     db.add(c)

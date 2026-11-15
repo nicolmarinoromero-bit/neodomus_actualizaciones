@@ -166,6 +166,7 @@ const NuevaNovedadModal = ({
 
       const res = await api.post<{ id_novedad: number; mensaje: string }>('/novedades', payload);
 
+      let errorEvidencia = false;
       if (evidenciaFile && res.data.id_novedad) {
         const formData = new FormData();
         formData.append('file', evidenciaFile);
@@ -174,11 +175,15 @@ const NuevaNovedadModal = ({
             headers: { 'Content-Type': 'multipart/form-data' },
           });
         } catch {
-          setToast({ msg: 'Novedad creada pero error al subir evidencia', tipo: 'err' });
+          errorEvidencia = true;
         }
       }
 
-      setToast({ msg: 'Novedad registrada correctamente', tipo: 'ok' });
+      setToast(
+        errorEvidencia
+          ? { msg: 'Novedad creada pero error al subir evidencia', tipo: 'err' }
+          : { msg: 'Novedad registrada correctamente', tipo: 'ok' },
+      );
       setTimeout(() => {
         resetForm();
         onCreado();

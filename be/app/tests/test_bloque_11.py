@@ -97,7 +97,7 @@ def notificaciones_anuladas(contador=None):
 
 # confirma los cambios con la sesión de base de datos.
 def _crear_tecnico(db, sufijo: str) -> Tecnico:
-    email = f"bloque11.{sufijo}.{int(time.time() * 1_000_000)}@test.local"
+    email = f"bloque11.{sufijo}.{int(time.time() * 1_000_000)}@test.neodomus.com"
     usuario = User(
         first_name="Tec",
         last_name=sufijo,
@@ -174,7 +174,7 @@ class BaseIntegracionTestCase(unittest.TestCase):
         self.cliente = Cliente(
             first_name="Test",
             last_name="Cliente",
-            email=f"b11.cliente.{int(time.time() * 1_000_000)}@test.local",
+            email=f"b11.cliente.{int(time.time() * 1_000_000)}@test.neodomus.com",
             is_active=True,
             auth_provider="local",
         )

@@ -239,10 +239,11 @@ def main():
                 wait_ready(processes[0], f'http://127.0.0.1:{api_port}/health')
                 wait_ready(processes[1], env['E2E_BASE_URL'])
 
+                repeat = os.environ.get('E2E_REPEAT_EACH', '1')
                 result = subprocess.run(
                     [node, 'node_modules/@playwright/test/cli.js', 'test',
-                     'cart-checkout.e2e.spec.ts', '--workers=1'],
-                    cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=300,
+                     'cart-checkout.e2e.spec.ts', '--workers=1', f'--repeat-each={repeat}'],
+                    cwd=ROOT / 'fe', env=env, creationflags=flags, timeout=900,
                     capture_output=True, text=True, encoding='utf-8', errors='replace',
                 )
                 encoding = sys.stdout.encoding or 'utf-8'

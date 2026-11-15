@@ -73,9 +73,12 @@ $Flows = [ordered]@{
     'cart-checkout'    = 'e2e_cart_checkout.py'
     'register'         = 'e2e_register.py'
     'session'          = 'e2e_session.py'
+    'login'            = 'e2e_login.py'
     'admin-paginacion' = 'e2e_admin_paginacion.py'
     'foto-tecnico'     = 'e2e_foto_tecnico.py'
     'reporte-ventas'   = 'e2e_reporte_ventas.py'
+    'tecnico-novedades' = 'e2e_tecnico_novedades.py'
+    'admin-instalaciones' = 'e2e_admin_instalaciones.py'
 }
 
 $ManualFlows = [ordered]@{

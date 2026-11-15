@@ -10,6 +10,7 @@ from app.models.solicitud_cuenta import SolicitudCuenta
 from app.models.user import User
 from app.schemas.cliente import ClientResponse, ClientUpdate
 from app.schemas.solicitud import SolicitudCreate, SolicitudResponse
+from app.utils.fechas import ahora_utc_naiva
 from app.utils.imagenes import validar_imagen_perfil
 from app.utils.security import get_current_client, get_current_employee
 from app.models.cita import Cita
@@ -50,19 +51,21 @@ def listar_clientes(
     )
     pedidos_por_cliente = dict(pedidos)
     citas_por_cliente = dict(citas)
+    # Listado de solo lectura tolerante a datos heredados: si una fila tiene un
+    # correo que EmailStr rechaza, construir ClientResponse abortaría TODO el
+    # listado con 500. El endpoint ya declara List[dict]; la validación estricta
+    # sigue vigente en las escrituras y en /clients/me.
     return [
         {
-            **ClientResponse(
-                id_cliente=c.id_cliente,
-                first_name=c.first_name,
-                last_name=c.last_name,
-                id_tipo_documento_c=c.id_tipo_documento_c,
-                documento_cliente=c.documento_cliente,
-                telefono_cliente=c.telefono_cliente,
-                email=c.email,
-                address=c.address,
-                is_active=c.is_active,
-            ).model_dump(),
+            "id_cliente": c.id_cliente,
+            "first_name": c.first_name,
+            "last_name": c.last_name,
+            "id_tipo_documento_c": c.id_tipo_documento_c,
+            "documento_cliente": c.documento_cliente,
+            "telefono_cliente": c.telefono_cliente,
+            "email": c.email,
+            "address": c.address,
+            "is_active": c.is_active,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "pedidos_count": pedidos_por_cliente.get(c.id_cliente, 0),
             "citas_count": citas_por_cliente.get(c.id_cliente, 0),
@@ -127,6 +130,34 @@ async def crear_solicitud(
 
     _alertar_admin_nueva_solicitud(db, current_client, data.tipo, data.motivo)
     return solicitud
+
+
+@router.delete("/me/cuenta-solicitud", status_code=204)
+def cancelar_solicitud(
+    current_client: Cliente = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Cancela la solicitud pendiente del propio cliente.
+
+    La fila no se elimina: pasa a estado "cancelada" y conserva la auditoría
+    de quién la solicitó y cuándo, igual que las resoluciones del admin.
+    """
+    solicitud = (
+        db.query(SolicitudCuenta)
+        .filter(
+            SolicitudCuenta.id_cliente == current_client.id_cliente,
+            SolicitudCuenta.estado == "pendiente",
+        )
+        .order_by(SolicitudCuenta.created_at.desc())
+        .first()
+    )
+    if not solicitud:
+        raise HTTPException(status_code=404, detail="No tienes una solicitud pendiente")
+
+    solicitud.estado = "cancelada"
+    solicitud.resuelta_at = ahora_utc_naiva()
+    db.commit()
+
 
 @router.put("/{id_cliente}/habilitar", response_model=ClientResponse)
 async def habilitar_cliente(

@@ -33,8 +33,11 @@ const Register = () => {
   const { googleLogin } = useAuth();
   const { t } = useIdioma();
   const [formData, setFormData] = useState<FormData>({
-    nombre: '', apellido: '', tipo_documento: 2, documento: '', 
-    ciudad: '', municipio: '', direccion: '', telefono: '', 
+    // El select visible muestra CC (defaultValue="1"): el estado inicial debe
+    // coincidir con lo que ve la persona usuaria (defecto detectado por el
+    // test de Register: antes nacía 2=CE con CC pintado).
+    nombre: '', apellido: '', tipo_documento: 1, documento: '',
+    ciudad: '', municipio: '', direccion: '', telefono: '',
     correo: '', contraseña: '',
   });
   
