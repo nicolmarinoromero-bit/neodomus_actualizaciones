@@ -7,7 +7,7 @@
 .DESCRIPTION
   Modos:
     - HOST (por defecto): usa el Python local. El script verifica dependencias
-      con 'pip list' (no instala nada) y la conectividad MySQL (TCP).
+      con metadatos de Python (no instala nada) y la conectividad MySQL (TCP).
     - -InDocker: ejecuta dentro del contenedor 'api' via 'uv' (docker compose
       exec). Exige que el contenedor este corriendo; NO lo inicia.
 
@@ -138,7 +138,7 @@ if ($InDocker) {
         'apscheduler', 'tzdata', 'httpx', 'google-auth', 'pymupdf'
     )
     if ($Coverage) { $required += 'coverage' }
-    Write-Host '[2] Verificando dependencias Python (pip list, solo lectura)...' -ForegroundColor Yellow
+    Write-Host '[2] Verificando dependencias Python (metadatos, solo lectura)...' -ForegroundColor Yellow
     $missing = Get-MissingPythonPackages -Required $required
     if ($missing.Count -gt 0) {
         Write-Host ("  FALTAN paquetes Python: " + ($missing -join ', ')) -ForegroundColor Red

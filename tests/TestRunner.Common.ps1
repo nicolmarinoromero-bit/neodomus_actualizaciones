@@ -31,21 +31,30 @@ function Get-DatabaseInfo {
 
 function Get-MissingPythonPackages {
     param([string[]]$Required)
-    $installed = @()
-    # En PowerShell 5.1, los errores redirigidos de un proceso nativo pueden
-    # terminar el script cuando ErrorActionPreference es Stop. Restaurarlo
-    # siempre conserva el comportamiento del runner.
+    # Consultar metadatos evita depender de pip, que no siempre viene instalado
+    # en los entornos virtuales creados por uv. No instala ni modifica paquetes.
     $prevEap = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $raw = & python -m pip list 2>$null
+        $metadataCode = @'
+from importlib.metadata import distributions
+names = {
+    distribution.metadata['Name'].lower().replace('_', '-')
+    for distribution in distributions()
+    if distribution.metadata.get('Name')
+}
+print(chr(10).join(sorted(names)))
+'@
+        $raw = & python -c $metadataCode 2>$null
+        $pythonExitCode = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $prevEap
     }
-    foreach ($line in $raw) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $name = (($line -split '\s+')[0]).ToLower().Replace('_', '-')
-        $installed += $name
+    if ($pythonExitCode -ne 0) {
+        return @($Required)
     }
-    return @($Required | Where-Object { $_ -notin $installed })
+    $installed = @($raw | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    return @($Required | Where-Object {
+        $_.ToLower().Replace('_', '-') -notin $installed
+    })
 }

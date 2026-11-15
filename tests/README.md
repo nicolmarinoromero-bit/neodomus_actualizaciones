@@ -141,7 +141,7 @@ equipo concreto solo funcionará si:
 `tests\run_backend_tests.ps1` sin `-InDocker` usa el Python local: solo
 funciona en manos de quien tenga instaladas las dependencias de `be/` y un
 MySQL de pruebas publicado al host (`localhost:3307`). Si faltan paquetes el
-script lo lista con `pip list` (solo lectura) y sale con código 2.
+script lo lista desde los metadatos del Python activo (solo lectura) y sale con código 2.
 
 ## 6. Comandos de ejecución
 
