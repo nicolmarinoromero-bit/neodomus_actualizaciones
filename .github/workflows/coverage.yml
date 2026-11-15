@@ -27,17 +27,17 @@ concurrency:
 jobs:
   frontend-coverage:
     name: Frontend - cobertura y umbral 80
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: fe
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -50,7 +50,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload frontend coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-coverage-report
           path: |
@@ -79,7 +79,7 @@ jobs:
 
   backend-coverage:
     name: Backend - cobertura 80 y 0 omitidas
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       mysql:
         image: mysql:8.0
@@ -98,10 +98,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -232,7 +232,7 @@ jobs:
 
       - name: Upload backend coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-coverage-report
           path: |

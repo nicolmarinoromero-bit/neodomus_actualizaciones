@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.cliente import Cliente
 from app.models.devolucion import Devolucion
-from app.models.pedido import DetallePedido, Pedido
+from app.models.pedido import DetallePedido
 from app.models.producto import Producto
 from app.models.roles_usuario import RolesUsuario
 from app.models.solicitud_devolucion import SolicitudDevolucion
@@ -45,6 +45,9 @@ from app.services.notificaciones import (
 from app.utils.security import get_current_client, get_current_employee, get_current_user
 
 EXTENSIONES_EVIDENCIA = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+ERROR_DEVOLUCION_NO_ENCONTRADA = "Devolución no encontrada"
+DIRECCION_POR_DEFINIR = "Por definir"
+ROLES_ADMINISTRATIVOS = {"admin", "administrador", "soporte"}
 
 router = APIRouter(prefix="/devoluciones", tags=["Devoluciones"])
 
@@ -53,28 +56,44 @@ def _url_evidencia_devolucion(id_devolucion: int, tipo: str) -> str:
     return f"/devoluciones/{id_devolucion}/evidencia-{tipo}/archivo"
 
 
-def _servir_evidencia_devolucion(db: Session, id_devolucion: int, tipo: str, current_user) -> Response:
-    """Sirve la evidencia de recogida/cambio previa comprobación de rol/asignación."""
+def _es_rol_administrativo(db: Session, user: User) -> bool:
+    role = db.execute(
+        select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == user.id_rol_u)
+    ).scalar_one_or_none()
+    return role in ROLES_ADMINISTRATIVOS
+
+
+def _validar_acceso_evidencia(db: Session, devolucion: Devolucion, current_user) -> None:
     from app.models.tecnico import Tecnico
 
+    if isinstance(current_user, Cliente):
+        tiene_acceso = devolucion.id_cliente_d == current_user.id_cliente
+    elif _es_rol_administrativo(db, current_user):
+        tiene_acceso = True
+    else:
+        ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
+        tiene_acceso = bool(ficha and devolucion.id_tecnico_recogida == ficha.id_tecnico)
+
+    if not tiene_acceso:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver esta evidencia")
+
+
+def _direccion_o_predeterminada(cliente: Optional[Cliente]) -> str:
+    if cliente is None:
+        return DIRECCION_POR_DEFINIR
+    return (cliente.address or "").strip() or DIRECCION_POR_DEFINIR
+
+
+def _servir_evidencia_devolucion(db: Session, id_devolucion: int, tipo: str, current_user) -> Response:
+    """Sirve la evidencia de recogida/cambio previa comprobación de rol/asignación."""
     devolucion = db.query(Devolucion).filter(Devolucion.id_devolucion == id_devolucion).first()
     if not devolucion:
-        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_DEVOLUCION_NO_ENCONTRADA)
     ref = devolucion.evidencia_recogida if tipo == "recogida" else devolucion.evidencia_cambio
     if not ref:
         raise HTTPException(status_code=404, detail="Evidencia no encontrada")
 
-    if isinstance(current_user, Cliente):
-        if devolucion.id_cliente_d != current_user.id_cliente:
-            raise HTTPException(status_code=403, detail="No tienes permiso para ver esta evidencia")
-    else:
-        role = db.execute(
-            select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
-        ).scalar_one_or_none()
-        if role not in ("admin", "administrador", "soporte"):
-            ficha = db.query(Tecnico).filter(Tecnico.id_usuario_t == current_user.id_usuario).first()
-            if not ficha or devolucion.id_tecnico_recogida != ficha.id_tecnico:
-                raise HTTPException(status_code=403, detail="No tienes permiso para ver esta evidencia")
+    _validar_acceso_evidencia(db, devolucion, current_user)
     try:
         contenido, media = minio_service.leer_archivo(ref)
     except FileNotFoundError:
@@ -82,7 +101,10 @@ def _servir_evidencia_devolucion(db: Session, id_devolucion: int, tipo: str, cur
     return Response(content=contenido, media_type=media)
 
 
-@router.get("/{id_devolucion}/evidencia-recogida/archivo")
+@router.get(
+    "/{id_devolucion}/evidencia-recogida/archivo",
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Evidencia no encontrada"}},
+)
 def descargar_evidencia_recogida(
     id_devolucion: int,
     current_user = Depends(get_current_user),
@@ -91,7 +113,10 @@ def descargar_evidencia_recogida(
     return _servir_evidencia_devolucion(db, id_devolucion, "recogida", current_user)
 
 
-@router.get("/{id_devolucion}/evidencia-cambio/archivo")
+@router.get(
+    "/{id_devolucion}/evidencia-cambio/archivo",
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Evidencia no encontrada"}},
+)
 def descargar_evidencia_cambio(
     id_devolucion: int,
     current_user = Depends(get_current_user),
@@ -108,7 +133,7 @@ def _admin(
     role = db.execute(
         select(RolesUsuario.nombre_rol).where(RolesUsuario.id_rol == current_user.id_rol_u)
     ).scalar_one_or_none()
-    if role not in ("admin", "administrador", "soporte"):
+    if role not in ROLES_ADMINISTRATIVOS:
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
     return current_user
 
@@ -122,15 +147,18 @@ class DevolucionCreate(BaseModel):
 
 
 def _serializar_devolucion(d: Devolucion, cliente=None, producto=None) -> dict:
+    if producto is not None:
+        nombre_producto = producto.nombre_producto
+    elif d.id_producto_d:
+        nombre_producto = f"Producto #{d.id_producto_d}"
+    else:
+        nombre_producto = None
+
     return {
         "id_devolucion": d.id_devolucion,
         "id_pedido": d.id_pedido_d,
         "id_producto": d.id_producto_d,
-        "producto": (
-            producto.nombre_producto
-            if producto is not None
-            else (f"Producto #{d.id_producto_d}" if d.id_producto_d else None)
-        ),
+        "producto": nombre_producto,
         "cantidad": d.cantidad or 1,
         "id_solicitud": d.id_solicitud_dv,
         "preferencia": d.preferencia,
@@ -149,91 +177,69 @@ def _serializar_devolucion(d: Devolucion, cliente=None, producto=None) -> dict:
     }
 
 
-def _notificar_solicitud_creada(db: Session, client: Cliente, solicitud) -> None:
-    """Notifica la creación de una solicitud: administradores, técnico(s) de
-    recogida asignados y confirmación al cliente."""
-    from app.services.notificaciones import programar_correo
+def _mapas_detalle_solicitud(db: Session, solicitud, lineas: list) -> tuple[dict, dict]:
+    ids_productos = [linea.id_producto_d for linea in lineas if linea.id_producto_d]
+    if not ids_productos:
+        return {}, {}
 
-    cliente_nombre = f"{client.first_name} {client.last_name}".strip() or "Cliente"
-    lineas = (
-        db.query(Devolucion)
-        .filter(Devolucion.id_solicitud_dv == solicitud.id_solicitud)
+    productos = db.query(Producto).filter(Producto.id_producto.in_(ids_productos)).all()
+    detalles = (
+        db.query(DetallePedido)
+        .filter(
+            DetallePedido.id_pedido_d == solicitud.id_pedido_s,
+            DetallePedido.id_producto_d.in_(ids_productos),
+        )
         .all()
     )
-    ids = [l.id_producto_d for l in lineas if l.id_producto_d]
-    productos_map = (
-        {p.id_producto: p for p in db.query(Producto).filter(Producto.id_producto.in_(ids)).all()}
-        if ids
-        else {}
-    )
-    detalles_map = (
-        {
-            d.id_producto_d: d
-            for d in db.query(DetallePedido)
-            .filter(
-                DetallePedido.id_pedido_d == solicitud.id_pedido_s,
-                DetallePedido.id_producto_d.in_(ids),
-            )
-            .all()
-        }
-        if ids
-        else {}
+    return (
+        {producto.id_producto: producto for producto in productos},
+        {detalle.id_producto_d: detalle for detalle in detalles},
     )
 
-    resumen_productos = ", ".join(
-        f"{_texto_cantidad_linea(l)} {_nombre_linea(l, detalles_map, productos_map)}" for l in lineas
-    )
 
-    # Administradores.
-    notificar_admin_devolucion_solicitada(
-        db,
-        solicitud.id_pedido_s,
-        cliente_nombre,
-        f"{resumen_productos} ({solicitud.numero})",
-        dv_service.MOTIVOS_DEVOLUCION.get(solicitud.motivo_tipo or "", solicitud.motivo_tipo),
-    )
+def _notificar_tecnicos_solicitud(
+    db: Session,
+    client: Cliente,
+    solicitud,
+    lineas: list,
+    productos_map: dict,
+    detalles_map: dict,
+    cliente_nombre: str,
+) -> None:
+    from app.models.tecnico import Tecnico
+    from app.services.notificaciones import programar_correo
 
-    # Técnico(s) de recogida + aviso de dirección.
-    direccion_cliente = (client.address or "").strip() or "Por definir"
+    direccion = _direccion_o_predeterminada(client)
     tecnicos_notificados: set[int] = set()
     for linea in lineas:
-        if not linea.id_tecnico_recogida or linea.id_tecnico_recogida in tecnicos_notificados:
+        id_tecnico = linea.id_tecnico_recogida
+        if not id_tecnico or id_tecnico in tecnicos_notificados:
             continue
-        tecnicos_notificados.add(linea.id_tecnico_recogida)
-        from app.models.tecnico import Tecnico
+        tecnicos_notificados.add(id_tecnico)
 
-        tecnico = (
-            db.query(Tecnico)
-            .filter(Tecnico.id_tecnico == linea.id_tecnico_recogida)
-            .first()
-        )
+        tecnico = db.query(Tecnico).filter(Tecnico.id_tecnico == id_tecnico).first()
         if not tecnico or not tecnico.usuario:
             continue
-        nombre_producto_txt = _nombre_linea(linea, detalles_map, productos_map)
+
+        nombre_producto = _nombre_linea(linea, detalles_map, productos_map)
         crear_notificacion(
             db,
             id_usuario=tecnico.usuario.id_usuario,
             id_cliente=None,
             tipo="recogida",
             titulo="Recogida por devolución asignada",
-            mensaje=(
-                f"Debes recoger '{nombre_producto_txt}' del pedido "
-                f"#{solicitud.id_pedido_s} en: {direccion_cliente}."
-            ),
+            mensaje=f"Debes recoger '{nombre_producto}' del pedido #{solicitud.id_pedido_s} en: {direccion}.",
         )
         if tecnico.usuario.email:
-            nombre_tecnico = (
-                f"{tecnico.usuario.first_name} {tecnico.usuario.last_name}".strip()
-                or "Técnico"
-            )
+            nombre_tecnico = f"{tecnico.usuario.first_name} {tecnico.usuario.last_name}".strip() or "Técnico"
             programar_correo(
                 tecnico.usuario.email,
                 "Recogida por devolución asignada - Neodomus",
                 "<div style='font-family:Arial,sans-serif;max-width:560px;margin:auto'>"
                 "<h2 style='color:#1f1a12'>Recogida asignada</h2>"
                 f"<p>Hola <strong>{nombre_tecnico}</strong>, te asignamos recoger el "
-                f"<strong>{nombre_producto_txt}</strong> del pedido #{solicitud.id_pedido_s}.</p>"
-                f"<p><strong>Dirección:</strong> {direccion_cliente}<br/>"
+                f"<strong>{nombre_producto}</strong> del pedido #{solicitud.id_pedido_s}.</p>"
+                f"<p><strong>Dirección:</strong> {direccion}<br/>"
                 f"<strong>Cliente:</strong> {cliente_nombre}</p>"
                 "</div>",
             )
@@ -244,13 +250,34 @@ def _notificar_solicitud_creada(db: Session, client: Cliente, solicitud) -> None
             id_cliente=client.id_cliente,
             tipo="recogida",
             titulo="Técnico asignado para tu devolución",
-            mensaje=(
-                f"Un técnico pasará a recoger los productos de tu devolución "
-                f"{solicitud.numero} (pedido #{solicitud.id_pedido_s})."
-            ),
+            mensaje=f"Un técnico pasará a recoger los productos de tu devolución {solicitud.numero} (pedido #{solicitud.id_pedido_s}).",
         )
 
-    # Confirmación al cliente.
+
+def _notificar_solicitud_creada(db: Session, client: Cliente, solicitud) -> None:
+    """Notifica administradores, técnicos asignados y al cliente."""
+    cliente_nombre = f"{client.first_name} {client.last_name}".strip() or "Cliente"
+    lineas = (
+        db.query(Devolucion)
+        .filter(Devolucion.id_solicitud_dv == solicitud.id_solicitud)
+        .all()
+    )
+    productos_map, detalles_map = _mapas_detalle_solicitud(db, solicitud, lineas)
+    resumen_productos = ", ".join(
+        f"{_texto_cantidad_linea(linea)} {_nombre_linea(linea, detalles_map, productos_map)}"
+        for linea in lineas
+    )
+
+    notificar_admin_devolucion_solicitada(
+        db,
+        solicitud.id_pedido_s,
+        cliente_nombre,
+        f"{resumen_productos} ({solicitud.numero})",
+        dv_service.MOTIVOS_DEVOLUCION.get(solicitud.motivo_tipo or "", solicitud.motivo_tipo),
+    )
+    _notificar_tecnicos_solicitud(
+        db, client, solicitud, lineas, productos_map, detalles_map, cliente_nombre
+    )
     notificar_devolucion_cliente(
         db,
         client.id_cliente,
@@ -282,7 +309,10 @@ def _texto_cantidad_linea(linea: Devolucion) -> str:
     return f"{linea.cantidad}×"
 
 
-@router.post("")
+@router.post(
+    "",
+    responses={400: {"description": "Solicitud inválida"}, 404: {"description": "Pedido no encontrado"}},
+)
 def solicitar_devolucion(
     data: DevolucionCreate,
     client: Cliente = Depends(get_current_client),
@@ -344,7 +374,10 @@ class SolicitudDevolucionCreate(BaseModel):
     comentario: Optional[str] = None
 
 
-@router.get("/elegibilidad/{id_pedido}")
+@router.get(
+    "/elegibilidad/{id_pedido}",
+    responses={404: {"description": "Pedido no encontrado"}},
+)
 def elegibilidad_devolucion(
     id_pedido: int,
     client: Cliente = Depends(get_current_client),
@@ -358,7 +391,10 @@ def elegibilidad_devolucion(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/solicitudes")
+@router.post(
+    "/solicitudes",
+    responses={400: {"description": "Solicitud inválida"}, 404: {"description": "Pedido no encontrado"}},
+)
 def crear_solicitud_devolucion(
     data: SolicitudDevolucionCreate,
     client: Cliente = Depends(get_current_client),
@@ -402,7 +438,7 @@ def mis_solicitudes_devolucion(
     return [dv_service.serializar_solicitud(db, s) for s in filas]
 
 
-@router.get("/admin/solicitudes")
+@router.get("/admin/solicitudes", responses={403: {"description": "Permisos insuficientes"}})
 def listar_solicitudes_admin(
     estado: Optional[str] = Query(None),
     _admin_user: User = Depends(_admin),
@@ -424,7 +460,82 @@ class EstadoSolicitudUpdate(BaseModel):
     observaciones: Optional[str] = None
 
 
-@router.put("/admin/solicitudes/{id_solicitud}/estado")
+def _guardar_estado_solicitud(
+    db: Session, solicitud: SolicitudDevolucion, data: EstadoSolicitudUpdate, admin: User, solo_observaciones: bool
+) -> tuple[SolicitudDevolucion, Optional[object]]:
+    try:
+        if solo_observaciones:
+            solicitud.observaciones_admin = (data.observaciones or "").strip() or None
+            solicitud.updated_at = datetime.now()
+            db.commit()
+            db.refresh(solicitud)
+            return solicitud, None
+        solicitud, reembolso = dv_service.cambiar_estado(
+            db,
+            solicitud,
+            data.estado,
+            resolucion=data.resolucion,
+            motivo_rechazo=data.motivo_rechazo,
+            observaciones=data.observaciones,
+            admin_id=admin.id_usuario,
+        )
+        return solicitud, reembolso
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except dv_service.ItemInvalido as exc:
+        raise HTTPException(status_code=400, detail=exc.mensaje) from exc
+
+
+def _notificar_cambio_estado_solicitud(db: Session, solicitud: SolicitudDevolucion) -> None:
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == solicitud.id_cliente_s).first()
+    evento = {
+        dv_service.EST_EN_REVISION: "en_revision",
+        dv_service.EST_APROBADA: "aprobada",
+        dv_service.EST_RECHAZADA: "rechazada",
+        dv_service.EST_RECIBIDA: "recibida",
+        dv_service.EST_REEMBOLSO: "reembolso_procesado",
+    }.get(solicitud.estado)
+    if not evento or not cliente:
+        return
+
+    lineas = (
+        db.query(Devolucion)
+        .filter(Devolucion.id_solicitud_dv == solicitud.id_solicitud)
+        .all()
+    )
+    ids_productos = [linea.id_producto_d for linea in lineas if linea.id_producto_d]
+    productos = (
+        db.query(Producto).filter(Producto.id_producto.in_(ids_productos)).all()
+        if ids_productos
+        else []
+    )
+    productos_map = {producto.id_producto: producto for producto in productos}
+    productos_txt = ", ".join(
+        f"{_texto_cantidad_linea(linea)} {_nombre_linea(linea, {}, productos_map)}"
+        for linea in lineas
+    )
+    notificar_devolucion_cliente(
+        db,
+        cliente.id_cliente,
+        cliente.email,
+        f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+        numero=solicitud.numero,
+        pedido_id=solicitud.id_pedido_s or 0,
+        evento=evento,
+        monto=float(solicitud.monto_total or 0),
+        motivo_rechazo=solicitud.motivo_rechazo,
+        productos_txt=productos_txt,
+    )
+
+
+@router.put(
+    "/admin/solicitudes/{id_solicitud}/estado",
+    responses={
+        400: {"description": "Actualización inválida"},
+        403: {"description": "Permisos insuficientes"},
+        404: {"description": "Solicitud no encontrada"},
+    },
+)
 def cambiar_estado_solicitud(
     id_solicitud: int,
     data: EstadoSolicitudUpdate,
@@ -449,72 +560,13 @@ def cambiar_estado_solicitud(
     if solo_observaciones and data.observaciones is None:
         raise HTTPException(status_code=400, detail="Nada que actualizar")
 
-    try:
-        if solo_observaciones:
-            solicitud.observaciones_admin = (data.observaciones or "").strip() or None
-            solicitud.updated_at = datetime.now()
-            db.commit()
-            db.refresh(solicitud)
-            reembolso = None
-        else:
-            solicitud, reembolso = dv_service.cambiar_estado(
-                db,
-                solicitud,
-                data.estado,
-                resolucion=data.resolucion,
-                motivo_rechazo=data.motivo_rechazo,
-                observaciones=data.observaciones,
-                admin_id=admin.id_usuario,
-            )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except dv_service.ItemInvalido as e:
-        raise HTTPException(status_code=400, detail=e.mensaje)
+    solicitud, reembolso = _guardar_estado_solicitud(
+        db, solicitud, data, admin, solo_observaciones
+    )
 
     # Notificaciones al cliente según el nuevo estado.
     if not solo_observaciones:
-        cliente = (
-            db.query(Cliente)
-            .filter(Cliente.id_cliente == solicitud.id_cliente_s)
-            .first()
-        )
-        evento = {
-            dv_service.EST_EN_REVISION: "en_revision",
-            dv_service.EST_APROBADA: "aprobada",
-            dv_service.EST_RECHAZADA: "rechazada",
-            dv_service.EST_RECIBIDA: "recibida",
-            dv_service.EST_REEMBOLSO: "reembolso_procesado",
-        }.get(solicitud.estado)
-        if evento and cliente:
-            lineas = (
-                db.query(Devolucion)
-                .filter(Devolucion.id_solicitud_dv == solicitud.id_solicitud)
-                .all()
-            )
-            ids = [l.id_producto_d for l in lineas if l.id_producto_d]
-            productos_map = (
-                {
-                    p.id_producto: p
-                    for p in db.query(Producto).filter(Producto.id_producto.in_(ids)).all()
-                }
-                if ids
-                else {}
-            )
-            productos_txt = ", ".join(
-                f"{_texto_cantidad_linea(l)} {_nombre_linea(l, {}, productos_map)}" for l in lineas
-            )
-            notificar_devolucion_cliente(
-                db,
-                cliente.id_cliente,
-                cliente.email,
-                f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
-                numero=solicitud.numero,
-                pedido_id=solicitud.id_pedido_s or 0,
-                evento=evento,
-                monto=float(solicitud.monto_total or 0),
-                motivo_rechazo=solicitud.motivo_rechazo,
-                productos_txt=productos_txt,
-            )
+        _notificar_cambio_estado_solicitud(db, solicitud)
 
     respuesta = dv_service.serializar_solicitud(db, solicitud)
     respuesta["id_reembolso"] = reembolso.id_reembolso if reembolso else None
@@ -542,7 +594,7 @@ def mis_devoluciones(
     return [_serializar_devolucion(f, producto=productos.get(f.id_producto_d)) for f in filas]
 
 
-@router.get("")
+@router.get("", responses={403: {"description": "Permisos insuficientes"}})
 def listar_devoluciones_admin(
     _admin_user: User = Depends(_admin),
     db: Session = Depends(get_db),
@@ -610,54 +662,62 @@ def mis_recogidas(
             )
         )
     filas = consulta.order_by(Devolucion.created_at.desc()).limit(200).all()
+    return [_serializar_recogida_tecnico(db, devolucion) for devolucion in filas]
 
-    resultado = []
-    for d in filas:
-        cliente = db.query(Cliente).filter(Cliente.id_cliente == d.id_cliente_d).first()
-        pedido = db.query(Pedido).filter(Pedido.id_pedido == d.id_pedido_d).first()
+
+def _serializar_recogida_tecnico(db: Session, devolucion: Devolucion) -> dict:
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == devolucion.id_cliente_d).first()
+    producto = None
+    if devolucion.id_producto_d:
         producto = (
-            db.query(Producto).filter(Producto.id_producto == d.id_producto_d).first()
-            if d.id_producto_d
-            else None
+            db.query(Producto)
+            .filter(Producto.id_producto == devolucion.id_producto_d)
+            .first()
         )
-        resultado.append({
-            "id_devolucion": d.id_devolucion,
-            "id_pedido": d.id_pedido_d,
-            "producto": (
-                producto.nombre_producto if producto else f"Producto #{d.id_producto_d}"
-            ),
-            "cantidad": d.cantidad or 1,
-            "producto_imagen": (
-                producto.imagen_url if producto else None
-            ),
-            "cliente": (
-                f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
-            ),
-            "direccion": (cliente.address or "").strip() if cliente else "Por definir",
-            "telefono": cliente.telefono_cliente if cliente else None,
-            "email": cliente.email if cliente else None,
-            "estado_devolucion": d.estado,
-            "resolucion": d.resolucion,
-            "preferencia": d.preferencia or "dinero",
-            "recogida_estado": d.recogida_estado,
-            "motivo": d.motivo,
-            "fecha_solicitud": d.created_at.isoformat() if d.created_at else None,
-            "evidencia_recogida_url": (
-                _url_evidencia_devolucion(d.id_devolucion, "recogida")
-                if d.evidencia_recogida
-                else None
-            ),
-            "fecha_recogida": d.fecha_recogida.isoformat() if d.fecha_recogida else None,
-            "evidencia_cambio_url": (
-                _url_evidencia_devolucion(d.id_devolucion, "cambio")
-                if d.evidencia_cambio
-                else None
-            ),
-            "fecha_entrega_cambio": (
-                d.fecha_entrega_cambio.isoformat() if d.fecha_entrega_cambio else None
-            ),
-        })
-    return resultado
+    nombre_producto = (
+        producto.nombre_producto if producto else f"Producto #{devolucion.id_producto_d}"
+    )
+    nombre_cliente = (
+        f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
+    )
+
+    return {
+        "id_devolucion": devolucion.id_devolucion,
+        "id_pedido": devolucion.id_pedido_d,
+        "producto": nombre_producto,
+        "cantidad": devolucion.cantidad or 1,
+        "producto_imagen": producto.imagen_url if producto else None,
+        "cliente": nombre_cliente,
+        "direccion": _direccion_o_predeterminada(cliente),
+        "telefono": cliente.telefono_cliente if cliente else None,
+        "email": cliente.email if cliente else None,
+        "estado_devolucion": devolucion.estado,
+        "resolucion": devolucion.resolucion,
+        "preferencia": devolucion.preferencia or "dinero",
+        "recogida_estado": devolucion.recogida_estado,
+        "motivo": devolucion.motivo,
+        "fecha_solicitud": (
+            devolucion.created_at.isoformat() if devolucion.created_at else None
+        ),
+        "evidencia_recogida_url": (
+            _url_evidencia_devolucion(devolucion.id_devolucion, "recogida")
+            if devolucion.evidencia_recogida
+            else None
+        ),
+        "fecha_recogida": (
+            devolucion.fecha_recogida.isoformat() if devolucion.fecha_recogida else None
+        ),
+        "evidencia_cambio_url": (
+            _url_evidencia_devolucion(devolucion.id_devolucion, "cambio")
+            if devolucion.evidencia_cambio
+            else None
+        ),
+        "fecha_entrega_cambio": (
+            devolucion.fecha_entrega_cambio.isoformat()
+            if devolucion.fecha_entrega_cambio
+            else None
+        ),
+    }
 
 
 # Agrupa los campos de RecogidaUpdate: recogida.
@@ -665,7 +725,10 @@ class RecogidaUpdate(BaseModel):
     recogida: bool = True
 
 
-@router.put("/{id_devolucion}/recogida")
+@router.put(
+    "/{id_devolucion}/recogida",
+    responses={404: {"description": "Recogida no encontrada"}},
+)
 def marcar_recogida(
     id_devolucion: int,
     data: RecogidaUpdate,
@@ -695,7 +758,169 @@ def marcar_recogida(
     }
 
 
-@router.post("/{id_devolucion}/evidencia-recogida")
+async def _leer_evidencia_imagen(file: UploadFile, uso: str) -> tuple[str, bytes]:
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail=f"Selecciona una foto {uso}")
+
+    extension = Path(file.filename).suffix.lower()
+    if extension not in EXTENSIONES_EVIDENCIA:
+        raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
+
+    contenido = await file.read()
+    if not contenido:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen supera los 5 MB")
+
+    try:
+        import io
+
+        from PIL import Image
+
+        Image.open(io.BytesIO(contenido)).verify()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="El archivo no es una imagen válida") from exc
+
+    return extension, contenido
+
+
+def _reintegrar_stock_recogida(
+    db: Session, devolucion: Devolucion
+) -> tuple[Optional[Producto], Optional[dict]]:
+    if not devolucion.id_producto_d:
+        return None, None
+    producto = db.query(Producto).filter(Producto.id_producto == devolucion.id_producto_d).first()
+    if producto is None:
+        return None, None
+
+    from app.services.inventario_service import reintegrar_stock
+    from app.services.pedidos_service import _variante_por_descripcion
+
+    consulta_detalle = db.query(DetallePedido).filter(
+        DetallePedido.id_pedido_d == devolucion.id_pedido_d,
+        DetallePedido.id_producto_d == devolucion.id_producto_d,
+    )
+    if devolucion.cantidad_metros is not None:
+        detalle = consulta_detalle.filter(DetallePedido.cantidad_metros.isnot(None)).first()
+        cantidad = Decimal(str(devolucion.cantidad_metros))
+    else:
+        detalle = (
+            consulta_detalle.filter(DetallePedido.cantidad_metros.is_(None)).first()
+            or consulta_detalle.first()
+        )
+        cantidad = Decimal(int(devolucion.cantidad or 1))
+
+    variante = (
+        _variante_por_descripcion(producto, detalle.descripcion_detalle)
+        if detalle is not None
+        else None
+    )
+    info = reintegrar_stock(db, producto, variante, cantidad)
+    return producto, info
+
+
+def _avanzar_solicitud_tras_recogida(db: Session, devolucion: Devolucion) -> None:
+    if not devolucion.id_solicitud_dv:
+        return
+    solicitud = (
+        db.query(SolicitudDevolucion)
+        .filter(SolicitudDevolucion.id_solicitud == devolucion.id_solicitud_dv)
+        .first()
+    )
+    if solicitud is None:
+        return
+
+    estado_previo = solicitud.estado
+    dv_service.avanzar_por_recogida(db, devolucion)
+    db.refresh(solicitud)
+    estados_notificables = {
+        dv_service.EST_RECIBIDA,
+        dv_service.EST_REEMBOLSO,
+        dv_service.EST_EN_DEVOLUCION,
+    }
+    if solicitud.estado == estado_previo or solicitud.estado not in estados_notificables:
+        return
+
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == solicitud.id_cliente_s).first()
+    if cliente is None:
+        return
+    notificar_devolucion_cliente(
+        db,
+        cliente.id_cliente,
+        cliente.email,
+        f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+        numero=solicitud.numero,
+        pedido_id=solicitud.id_pedido_s or 0,
+        evento="reembolso_procesado" if solicitud.estado == dv_service.EST_REEMBOLSO else "recibida",
+        monto=float(solicitud.monto_total or 0),
+    )
+
+
+def _notificar_recogida_a_cliente(db: Session, devolucion: Devolucion, cliente: Optional[Cliente]) -> None:
+    if cliente is None:
+        return
+    if (devolucion.resolucion or "") == "Reembolso":
+        detalle = "Tu reembolso continúa el proceso por el medio de pago original."
+    else:
+        detalle = "Coordinaremos el envío de tu producto de cambio."
+    crear_notificacion(
+        db,
+        id_usuario=None,
+        id_cliente=cliente.id_cliente,
+        tipo="entrega",
+        titulo=f"Devolución #{devolucion.id_devolucion} recogida",
+        mensaje=f"El técnico recogió tu producto. {detalle}",
+    )
+
+
+def _notificar_recogida_a_administradores(
+    db: Session,
+    devolucion: Devolucion,
+    producto: Optional[Producto],
+    cliente: Optional[Cliente],
+) -> None:
+    from app.models.user import User as UserModel
+
+    nombre_cliente = (
+        f"{cliente.first_name} {cliente.last_name}".strip() if cliente is not None else "Cliente"
+    )
+    producto_nombre = (
+        producto.nombre_producto
+        if producto
+        else f"Producto #{devolucion.id_producto_d or '?'}"
+    )
+    admins_ids = (
+        db.execute(
+            select(UserModel.id_usuario).where(
+                UserModel.id_rol_u == 1,
+                UserModel.is_active.is_(True),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for id_admin in admins_ids:
+        crear_notificacion(
+            db,
+            id_usuario=id_admin,
+            id_cliente=None,
+            tipo="recogida",
+            titulo="Devolución recogida por técnico",
+            mensaje=(
+                f"El técnico recogió '{producto_nombre}' de {nombre_cliente} "
+                f"(devolución #{devolucion.id_devolucion}, pedido #{devolucion.id_pedido_d}). "
+                "Evidencia fotográfica disponible en MinIO."
+            ),
+        )
+
+
+@router.post(
+    "/{id_devolucion}/evidencia-recogida",
+    responses={
+        400: {"description": "Evidencia inválida o devolución no lista para recogida"},
+        404: {"description": "Recogida no encontrada"},
+    },
+)
 async def subir_evidencia_recogida(
     id_devolucion: int,
     file: UploadFile = File(...),
@@ -729,24 +954,7 @@ async def subir_evidencia_recogida(
         # envío (o dos técnicos) no re-integre el stock dos veces.
         raise HTTPException(status_code=400, detail="Esta recogida ya fue confirmada")
 
-    if not file or not file.filename:
-        raise HTTPException(status_code=400, detail="Selecciona una foto de la recogida")
-    ext = Path(file.filename or "").suffix.lower()
-    if ext not in EXTENSIONES_EVIDENCIA:
-        raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
-    contenido = await file.read()
-    if not contenido:
-        raise HTTPException(status_code=400, detail="El archivo está vacío")
-    if len(contenido) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="La imagen supera los 5 MB")
-    try:
-        import io
-
-        from PIL import Image
-
-        Image.open(io.BytesIO(contenido)).verify()
-    except Exception:
-        raise HTTPException(status_code=400, detail="El archivo no es una imagen válida")
+    ext, contenido = await _leer_evidencia_imagen(file, "de la recogida")
 
     nombre = f"{uuid.uuid4().hex}{ext}"
     clave = minio_service.subir_imagen_privada("recogidas", nombre, contenido)
@@ -755,144 +963,16 @@ async def subir_evidencia_recogida(
     devolucion.fecha_recogida = datetime.now()
     devolucion.recogida_estado = "Recogida"
 
-    # El producto físicamente regresó: ahora sí entra al inventario.
-    # Se reintegra la CANTIDAD EXACTA devuelta: metros del corte (2,5 m)
-    # para ventas por metros, unidades enteras para el resto (PEN-10).
-    producto_devuelto = (
-        db.query(Producto).filter(Producto.id_producto == devolucion.id_producto_d).first()
-        if devolucion.id_producto_d
-        else None
-    )
-    stock_reintegrado_info = None
-    if producto_devuelto:
-        # La variante (color/medida) se deduce de la descripción congelada
-        # del pedido para reintegrar también su stock, espejando el
-        # descuento del checkout.
-        from app.services.inventario_service import reintegrar_stock
-        from app.services.pedidos_service import _variante_por_descripcion
-
-        consulta_detalle = db.query(DetallePedido).filter(
-            DetallePedido.id_pedido_d == devolucion.id_pedido_d,
-            DetallePedido.id_producto_d == devolucion.id_producto_d,
-        )
-        if devolucion.cantidad_metros is not None:
-            # Corte por metros: el detalle correspondiente es el vendido por metros.
-            detalle_linea = consulta_detalle.filter(
-                DetallePedido.cantidad_metros.isnot(None)
-            ).first()
-            cantidad_reintegrar = Decimal(str(devolucion.cantidad_metros))
-        else:
-            detalle_linea = (
-                consulta_detalle.filter(DetallePedido.cantidad_metros.is_(None)).first()
-                or consulta_detalle.first()
-            )
-            cantidad_reintegrar = Decimal(int(devolucion.cantidad or 1))
-        variante = (
-            _variante_por_descripcion(producto_devuelto, detalle_linea.descripcion_detalle)
-            if detalle_linea is not None
-            else None
-        )
-        stock_reintegrado_info = reintegrar_stock(
-            db, producto_devuelto, variante, cantidad_reintegrar
-        )
+    # La cantidad exacta de unidades o metros regresa al inventario.
+    producto_devuelto, stock_reintegrado_info = _reintegrar_stock_recogida(db, devolucion)
     db.commit()
 
-    # Avanza el pipeline de la solicitud asociada (→ En devolución /
-    # Recibida / Reembolso procesado) y notifica al cliente si cambió.
-    estado_previo = None
-    if devolucion.id_solicitud_dv:
-        solicitud_obj = (
-            db.query(SolicitudDevolucion)
-            .filter(SolicitudDevolucion.id_solicitud == devolucion.id_solicitud_dv)
-            .first()
-        )
-        if solicitud_obj:
-            estado_previo = solicitud_obj.estado
-            dv_service.avanzar_por_recogida(db, devolucion)
-            db.refresh(solicitud_obj)
-            if solicitud_obj.estado != estado_previo and solicitud_obj.estado in (
-                dv_service.EST_RECIBIDA,
-                dv_service.EST_REEMBOLSO,
-                dv_service.EST_EN_DEVOLUCION,
-            ):
-                cliente_sol = (
-                    db.query(Cliente)
-                    .filter(Cliente.id_cliente == solicitud_obj.id_cliente_s)
-                    .first()
-                )
-                if cliente_sol:
-                    notificar_devolucion_cliente(
-                        db,
-                        cliente_sol.id_cliente,
-                        cliente_sol.email,
-                        f"{cliente_sol.first_name} {cliente_sol.last_name}".strip() or "Cliente",
-                        numero=solicitud_obj.numero,
-                        pedido_id=solicitud_obj.id_pedido_s or 0,
-                        evento=(
-                            "reembolso_procesado"
-                            if solicitud_obj.estado == dv_service.EST_REEMBOLSO
-                            else "recibida"
-                        ),
-                        monto=float(solicitud_obj.monto_total or 0),
-                    )
+    # Avanza el pipeline y notifica los cambios al cliente.
+    _avanzar_solicitud_tras_recogida(db, devolucion)
 
     cliente = db.query(Cliente).filter(Cliente.id_cliente == devolucion.id_cliente_d).first()
-    if cliente is not None:
-        crear_notificacion(
-            db,
-            id_usuario=None,
-            id_cliente=cliente.id_cliente,
-            tipo="entrega",
-            titulo=f"Devolución #{devolucion.id_devolucion} recogida",
-            mensaje=(
-                "El técnico recogió tu producto. "
-                + (
-                    "Tu reembolso continúa el proceso por el medio de pago original."
-                    if (devolucion.resolucion or "") == "Reembolso"
-                    else "Coordinaremos el envío de tu producto de cambio."
-                )
-            ),
-        )
-
-    # ── Notificar al ADMINISTRADOR que se recogió el producto ──────
-    from app.models.user import User as UserModel
-
-    nombre_cliente = (
-        f"{cliente.first_name} {cliente.last_name}".strip()
-        if cliente is not None
-        else "Cliente"
-    )
-    producto_txt = (
-        producto_devuelto.nombre_producto
-        if producto_devuelto
-        else f"Producto #{devolucion.id_producto_d or '?'}"
-    )
-    admins_activos_ids = (
-        db.execute(
-            select(UserModel.id_usuario).where(
-                UserModel.id_rol_u == 1,
-                UserModel.is_active.is_(True),
-            )
-        )
-        .scalars()
-        .all()
-    )
-    # crear_notificacion hace commit y expira los objetos ORM asociados a la
-    # sesión. Mantener solo IDs escalares evita recargar usuarios que puedan
-    # haber sido eliminados mientras se procesan las notificaciones.
-    for id_admin in admins_activos_ids:
-        crear_notificacion(
-            db,
-            id_usuario=id_admin,
-            id_cliente=None,
-            tipo="recogida",
-            titulo="Devolución recogida por técnico",
-            mensaje=(
-                f"El técnico recogió '{producto_txt}' de {nombre_cliente} "
-                f"(devolución #{devolucion.id_devolucion}, pedido #{devolucion.id_pedido_d}). "
-                f"Evidencia fotográfica disponible en MinIO."
-            ),
-        )
+    _notificar_recogida_a_cliente(db, devolucion, cliente)
+    _notificar_recogida_a_administradores(db, devolucion, producto_devuelto, cliente)
 
     return {
         "id_devolucion": devolucion.id_devolucion,
@@ -908,7 +988,13 @@ async def subir_evidencia_recogida(
     }
 
 
-@router.post("/{id_devolucion}/evidencia-cambio")
+@router.post(
+    "/{id_devolucion}/evidencia-cambio",
+    responses={
+        400: {"description": "Evidencia inválida o entrega no lista"},
+        404: {"description": ERROR_DEVOLUCION_NO_ENCONTRADA},
+    },
+)
 async def subir_evidencia_cambio(
     id_devolucion: int,
     file: UploadFile = File(...),
@@ -931,7 +1017,7 @@ async def subir_evidencia_cambio(
         .first()
     )
     if not devolucion:
-        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_DEVOLUCION_NO_ENCONTRADA)
     if devolucion.recogida_estado != "Recogida":
         raise HTTPException(
             status_code=400,
@@ -947,24 +1033,7 @@ async def subir_evidencia_cambio(
             status_code=400, detail="La entrega del producto de cambio ya fue confirmada"
         )
 
-    if not file or not file.filename:
-        raise HTTPException(status_code=400, detail="Selecciona una foto de la entrega")
-    ext = Path(file.filename or "").suffix.lower()
-    if ext not in EXTENSIONES_EVIDENCIA:
-        raise HTTPException(status_code=400, detail="Formato no permitido (usa JPG, PNG, WEBP o GIF)")
-    contenido = await file.read()
-    if not contenido:
-        raise HTTPException(status_code=400, detail="El archivo está vacío")
-    if len(contenido) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="La imagen supera los 5 MB")
-    try:
-        import io
-
-        from PIL import Image
-
-        Image.open(io.BytesIO(contenido)).verify()
-    except Exception:
-        raise HTTPException(status_code=400, detail="El archivo no es una imagen válida")
+    ext, contenido = await _leer_evidencia_imagen(file, "de la entrega")
 
     nombre = f"{uuid.uuid4().hex}{ext}"
     clave = minio_service.subir_imagen_privada("recogidas", nombre, contenido)
@@ -1024,7 +1093,14 @@ class ReasignarTecnicoIn(BaseModel):
     id_tecnico: int
 
 
-@router.put("/admin/{id_devolucion}/reasignar-tecnico")
+@router.put(
+    "/admin/{id_devolucion}/reasignar-tecnico",
+    responses={
+        400: {"description": "El técnico ya está asignado"},
+        403: {"description": "Permisos insuficientes"},
+        404: {"description": "Devolución o técnico no encontrado"},
+    },
+)
 def reasignar_tecnico_recogida(
     id_devolucion: int,
     data: ReasignarTecnicoIn,
@@ -1041,7 +1117,7 @@ def reasignar_tecnico_recogida(
         db.query(Devolucion).filter(Devolucion.id_devolucion == id_devolucion).first()
     )
     if not devolucion:
-        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_DEVOLUCION_NO_ENCONTRADA)
 
     nuevo = (
         db.query(TecnicoModel)
@@ -1064,15 +1140,12 @@ def reasignar_tecnico_recogida(
     db.commit()
 
     cliente = db.query(Cliente).filter(Cliente.id_cliente == devolucion.id_cliente_d).first()
-    nombre_cliente = (
-        f"{cliente.first_name} {cliente.last_name}".strip() if cliente else "Cliente"
-    )
     nombre_nuevo = (
         f"{nuevo.usuario.first_name} {nuevo.usuario.last_name}".strip()
         if nuevo.usuario
         else "Técnico"
     )
-    direccion = ((cliente.address or "").strip() if cliente else "") or "Por definir"
+    direccion = _direccion_o_predeterminada(cliente)
 
     # Notificar al NUEVO técnico (plataforma + correo).
     if nuevo.usuario:
@@ -1182,7 +1255,107 @@ class EstadoDevolucionUpdate(BaseModel):
     resolucion: Optional[str] = None
 
 
-@router.put("/{id_devolucion}/estado")
+def _normalizar_estado_resolucion(data: EstadoDevolucionUpdate) -> tuple[str, Optional[str]]:
+    estado = data.estado.strip().capitalize()
+    if estado not in ("Aprobada", "Rechazada"):
+        raise HTTPException(status_code=400, detail="Estado no válido (Aprobada / Rechazada)")
+
+    resolucion = data.resolucion.strip().capitalize() if data.resolucion else None
+    if estado == "Aprobada" and resolucion not in ("Reembolso", "Cambio"):
+        raise HTTPException(
+            status_code=400,
+            detail="Debes indicar la resolución: Reembolso o Cambio",
+        )
+    if estado == "Rechazada":
+        resolucion = None
+    return estado, resolucion
+
+
+def _resolver_solicitud_vinculada(
+    db: Session,
+    devolucion: Devolucion,
+    estado: str,
+    resolucion: Optional[str],
+    admin: User,
+) -> Optional[dict]:
+    if not devolucion.id_solicitud_dv:
+        return None
+    solicitud = (
+        db.query(SolicitudDevolucion)
+        .filter(SolicitudDevolucion.id_solicitud == devolucion.id_solicitud_dv)
+        .first()
+    )
+    if solicitud is None or solicitud.estado not in (
+        dv_service.EST_SOLICITADA,
+        dv_service.EST_EN_REVISION,
+    ):
+        return None
+
+    estado_solicitud = (
+        dv_service.EST_APROBADA if estado == "Aprobada" else dv_service.EST_RECHAZADA
+    )
+    motivo_rechazo = (
+        resolucion if estado == "Rechazada" and resolucion else None
+    ) or "No cumple con las políticas de devolución"
+    try:
+        solicitud, _ = dv_service.cambiar_estado(
+            db,
+            solicitud,
+            estado_solicitud,
+            resolucion=resolucion,
+            motivo_rechazo=motivo_rechazo,
+            admin_id=admin.id_usuario,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cliente = db.query(Cliente).filter(Cliente.id_cliente == solicitud.id_cliente_s).first()
+    if cliente:
+        notificar_devolucion_cliente(
+            db,
+            cliente.id_cliente,
+            cliente.email,
+            f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
+            numero=solicitud.numero,
+            pedido_id=solicitud.id_pedido_s or 0,
+            evento="aprobada" if estado == "Aprobada" else "rechazada",
+            monto=float(solicitud.monto_total or 0),
+            motivo_rechazo=solicitud.motivo_rechazo,
+        )
+    return {
+        "id_devolucion": devolucion.id_devolucion,
+        "estado": estado,
+        "resolucion": solicitud.resolucion if estado == "Aprobada" else None,
+        "id_solicitud": solicitud.id_solicitud,
+        "solicitud_estado": solicitud.estado,
+    }
+
+
+def _mensaje_resolucion_devolucion(devolucion: Devolucion, estado: str, resolucion: Optional[str]) -> str:
+    if estado == "Rechazada":
+        return (
+            f"Tu solicitud de devolución #{devolucion.id_devolucion} fue rechazada "
+            "por el equipo de Neodomus."
+        )
+    if resolucion == "Reembolso":
+        return (
+            f"Tu solicitud de devolución #{devolucion.id_devolucion} fue aprobada. "
+            "Se devolverá el dinero de tu producto por el mismo medio de pago."
+        )
+    return (
+        f"Tu solicitud de devolución #{devolucion.id_devolucion} fue aprobada. "
+        "Coordinaremos el envío de tu producto de cambio."
+    )
+
+
+@router.put(
+    "/{id_devolucion}/estado",
+    responses={
+        400: {"description": "Estado o resolución inválidos"},
+        403: {"description": "Permisos insuficientes"},
+        404: {"description": ERROR_DEVOLUCION_NO_ENCONTRADA},
+    },
+)
 def resolver_devolucion(
     id_devolucion: int,
     data: EstadoDevolucionUpdate,
@@ -1196,76 +1369,19 @@ def resolver_devolucion(
     Si la línea pertenece a una solicitud del nuevo pipeline, la decisión
     se aplica a TODA la solicitud para mantener un único historial.
     """
-    estado = data.estado.strip().capitalize()
-    if estado not in ("Aprobada", "Rechazada"):
-        raise HTTPException(status_code=400, detail="Estado no válido (Aprobada / Rechazada)")
-
-    resolucion = data.resolucion.strip().capitalize() if data.resolucion else None
-    if estado == "Aprobada":
-        if resolucion not in ("Reembolso", "Cambio"):
-            raise HTTPException(
-                status_code=400,
-                detail="Debes indicar la resolución: Reembolso o Cambio",
-            )
-    else:
-        resolucion = None
+    estado, resolucion = _normalizar_estado_resolucion(data)
 
     devolucion = (
         db.query(Devolucion).filter(Devolucion.id_devolucion == id_devolucion).first()
     )
     if not devolucion:
-        raise HTTPException(status_code=404, detail="Devolución no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_DEVOLUCION_NO_ENCONTRADA)
 
-    # ── Línea vinculada al nuevo pipeline: delegar en la solicitud ──
-    if devolucion.id_solicitud_dv:
-        solicitud = (
-            db.query(SolicitudDevolucion)
-            .filter(SolicitudDevolucion.id_solicitud == devolucion.id_solicitud_dv)
-            .first()
-        )
-        if solicitud and solicitud.estado in (
-            dv_service.EST_SOLICITADA,
-            dv_service.EST_EN_REVISION,
-        ):
-            try:
-                solicitud, _ = dv_service.cambiar_estado(
-                    db,
-                    solicitud,
-                    dv_service.EST_APROBADA if estado == "Aprobada" else dv_service.EST_RECHAZADA,
-                    resolucion=resolucion,
-                    motivo_rechazo=(
-                        resolucion if estado == "Rechazada" and resolucion else None
-                    )
-                    or "No cumple con las políticas de devolución",
-                    admin_id=admin.id_usuario,
-                )
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-
-            cliente = (
-                db.query(Cliente)
-                .filter(Cliente.id_cliente == solicitud.id_cliente_s)
-                .first()
-            )
-            if cliente:
-                notificar_devolucion_cliente(
-                    db,
-                    cliente.id_cliente,
-                    cliente.email,
-                    f"{cliente.first_name} {cliente.last_name}".strip() or "Cliente",
-                    numero=solicitud.numero,
-                    pedido_id=solicitud.id_pedido_s or 0,
-                    evento="aprobada" if estado == "Aprobada" else "rechazada",
-                    monto=float(solicitud.monto_total or 0),
-                    motivo_rechazo=solicitud.motivo_rechazo,
-                )
-            return {
-                "id_devolucion": id_devolucion,
-                "estado": estado,
-                "resolucion": solicitud.resolucion if estado == "Aprobada" else None,
-                "id_solicitud": solicitud.id_solicitud,
-                "solicitud_estado": solicitud.estado,
-            }
+    respuesta_solicitud = _resolver_solicitud_vinculada(
+        db, devolucion, estado, resolucion, admin
+    )
+    if respuesta_solicitud is not None:
+        return respuesta_solicitud
 
     if devolucion.estado != "Pendiente":
         raise HTTPException(status_code=400, detail="Esta devolución ya fue resuelta")
@@ -1280,29 +1396,13 @@ def resolver_devolucion(
 
     from app.services.notificaciones import crear_notificacion
 
-    if estado == "Aprobada" and resolucion == "Reembolso":
-        mensaje = (
-            f"Tu solicitud de devolución #{devolucion.id_devolucion} fue aprobada. "
-            "Se devolverá el dinero de tu producto por el mismo medio de pago."
-        )
-    elif estado == "Aprobada":
-        mensaje = (
-            f"Tu solicitud de devolución #{devolucion.id_devolucion} fue aprobada. "
-            "Coordinaremos el envío de tu producto de cambio."
-        )
-    else:
-        mensaje = (
-            f"Tu solicitud de devolución #{devolucion.id_devolucion} fue rechazada "
-            "por el equipo de Neodomus."
-        )
-
     crear_notificacion(
         db,
         id_usuario=None,
         id_cliente=devolucion.id_cliente_d,
         tipo="entrega",
         titulo=f"Devolución {estado.lower()}",
-        mensaje=mensaje,
+        mensaje=_mensaje_resolucion_devolucion(devolucion, estado, resolucion),
     )
 
     # Aprobada como Reembolso → registrar el reembolso pendiente del dinero.

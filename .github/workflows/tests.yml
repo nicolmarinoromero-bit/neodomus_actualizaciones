@@ -40,13 +40,13 @@ jobs:
   # ─────────────────────────────── FRONTEND ──────────────────────────────
   frontend:
     name: Frontend (Vitest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -58,7 +58,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload FE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ci-frontend-log
           path: ci_fe_output.log
@@ -87,7 +87,7 @@ jobs:
   # ──────────────────────────────── BACKEND ─────────────────────────────
   backend:
     name: Backend (unittest + MySQL/MinIO efímeros)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       mysql:
         # MySQL 8 para el proyecto (misma versión del compose principal)
@@ -107,10 +107,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: "Setup Python 3.12 (spec: be/Dockerfile)"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -225,7 +225,7 @@ jobs:
 
       - name: Upload BE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ci-backend-log
           path: ci_be_output.log
@@ -234,7 +234,7 @@ jobs:
   # ─────────────────────────────────── E2E ──────────────────────────────
   e2e:
     name: E2E (Playwright sobre 6 flujos)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [frontend, backend]
     services:
       mysql:
@@ -254,10 +254,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -269,7 +269,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -281,7 +281,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -433,7 +433,7 @@ jobs:
 
       - name: "Upload E2E artifacts (siempre: result + logs por flujo)"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-results
           path: |
