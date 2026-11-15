@@ -187,9 +187,9 @@ describe('AdminReportes — descarga PDF', () => {
   });
 
   it('descarga con el rango elegido y deshabilita el botón mientras tanto', async () => {
-    let resolver: (valor?: unknown) => void = () => undefined;
+    let resolver: () => void = () => undefined;
     vi.mocked(descargarReportePdf).mockImplementation(
-      () => new Promise((resolve) => { resolver = resolve; }) as Promise<void>,
+      () => new Promise<void>((resolve) => { resolver = () => resolve(); }),
     );
 
     render(<AdminReportes />);

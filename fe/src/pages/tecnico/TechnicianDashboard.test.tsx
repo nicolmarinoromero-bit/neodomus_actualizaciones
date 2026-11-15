@@ -40,8 +40,9 @@ const ENTREGA = {
   fecha_entrega: HOY, productos: [{ nombre_producto: 'Cinta LED', cantidad: 2 }],
 };
 const RECOGIDA = {
-  id_devolucion: 4, estado: 'Aprobada', nombre_cliente: 'Luis Pérez',
-  direccion: 'Calle Recogida 9', productos: [{ nombre_producto: 'Panel', cantidad: 1 }],
+  id_devolucion: 4, id_pedido: 88, producto: 'Panel LED', cliente: 'Luis Pérez',
+  direccion: 'Calle Recogida 9', preferencia: 'producto',
+  estado_devolucion: 'Aprobada', recogida_estado: 'Pendiente',
 };
 
 function montar(ruta = '/dashboard/tecnico') {
@@ -152,15 +153,11 @@ describe('TechnicianDashboard — entregas y recogidas', () => {
 
   it('la recogida de devolución aparece con su cliente', async () => {
     // Arrange: la recogida usa la forma del backend (producto, cliente, estado...).
-    red(undefined, undefined, [{
-      id_devolucion: 4, producto: 'Panel LED', cliente: 'Luis Pérez',
-      direccion: 'Calle Recogida 9', preferencia: 'producto', estado_devolucion: 'Aprobada',
-      recogida_estado: 'Pendiente',
-    }]);
+    red(undefined, undefined, [{ ...RECOGIDA, id_devolucion: 5 }]);
     montar();
-    // Assert: la tarjeta de recogidas muestra el contador (el listado de
-    // recogidas vive en /tecnico/devoluciones; aquí está el resumen).
+    // Assert: la tarjeta de recogidas muestra el contador y el cliente.
     expect(await screen.findByText(/Recogidas por devolución/)).toBeTruthy();
+    expect(await screen.findByText('Luis Pérez')).toBeTruthy();
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
   });
 });

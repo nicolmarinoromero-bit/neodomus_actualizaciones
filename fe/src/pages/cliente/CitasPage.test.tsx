@@ -133,7 +133,7 @@ describe('CitasPage — agendar (paso a paso)', () => {
     await screen.findByText('Ana Técnica');
   }
 
-  async function fijarFecha(usuario: ReturnType<typeof userEvent.setup>) {
+  async function fijarFecha() {
     const { fireEvent } = await import('@testing-library/react');
     fireEvent.change(screen.getByLabelText(/Fecha de la cita/i), { target: { value: '2026-11-20' } });
     // Las horas del técnico cargan para esa fecha.
@@ -159,7 +159,7 @@ describe('CitasPage — agendar (paso a paso)', () => {
     montar();
     // Act: abrir el selector de técnicos, confirmar a Ana y elegir fecha.
     await elegirTecnico(usuario);
-    await fijarFecha(usuario);
+    await fijarFecha();
     // Assert: las horas del técnico aparecen como opciones seleccionables y
     // se pidieron al backend con el técnico y la fecha.
     await waitFor(() => {
@@ -179,7 +179,7 @@ describe('CitasPage — agendar (paso a paso)', () => {
     const usuario = userEvent.setup();
     montar();
     await elegirTecnico(usuario);
-    await fijarFecha(usuario);
+    await fijarFecha();
     // Act: enviar sin tipo/dirección/descripción.
     await usuario.click(screen.getByRole('button', { name: /Agendar cita/i }));
     // Assert
@@ -194,7 +194,7 @@ describe('CitasPage — agendar (paso a paso)', () => {
     const usuario = userEvent.setup();
     montar();
     await elegirTecnico(usuario);
-    await fijarFecha(usuario);
+    await fijarFecha();
     await llenarServicio(usuario);
     // Act: sin método de pago elegido.
     await usuario.click(screen.getByRole('button', { name: /Agendar cita/i }));
@@ -211,7 +211,7 @@ describe('CitasPage — agendar (paso a paso)', () => {
     const usuario = userEvent.setup();
     montar();
     await elegirTecnico(usuario);
-    await fijarFecha(usuario);
+    await fijarFecha();
     await llenarServicio(usuario);
     // Elegir punto de pago y confirmar.
     await usuario.click(screen.getByRole('button', { name: /Punto de pago/i }));

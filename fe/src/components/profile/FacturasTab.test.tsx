@@ -109,9 +109,9 @@ describe('FacturasTab', () => {
   });
 
   it('descarga la factura y deshabilita el botón mientras tanto', async () => {
-    let resolver: (valor?: unknown) => void = () => undefined;
+    let resolver: () => void = () => undefined;
     vi.mocked(descargarFactura).mockImplementation(
-      () => new Promise((resolve) => { resolver = resolve; }) as Promise<void>,
+      () => new Promise<void>((resolve) => { resolver = () => resolve(); }),
     );
 
     render(<FacturasTab />);

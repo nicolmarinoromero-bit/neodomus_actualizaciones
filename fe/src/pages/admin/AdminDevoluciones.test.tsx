@@ -39,7 +39,11 @@ function montar(ruta = '/admin/devoluciones') {
   );
 }
 
-function datos({ solicitudes = [SOLICITUD_SOLICITADA], reembolsos = [], elegibles = [] } = {}) {
+function datos({
+  solicitudes = [SOLICITUD_SOLICITADA],
+  reembolsos = [] as (typeof REEMBOLSO)[],
+  elegibles = [] as (typeof ELEGIBLE)[],
+} = {}) {
   apiMock.get.mockImplementation(async (url: string) => {
     if (url === '/devoluciones/admin/solicitudes') return { data: solicitudes };
     if (url === '/reembolsos') return { data: reembolsos };
