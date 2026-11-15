@@ -104,10 +104,12 @@ autorización del equipo):
   pruebas `neodomus_tests_tmp` (la app + dependencias que produce
   `be/Dockerfile`), conectado a `neodomus_tests_net` junto al MySQL/MinIO de
   pruebas, con el código del repo montado en **solo-lectura**.
-- Por cada corrida el contenedor efímero añade al venv `httpx==0.28.1` y
-  `pymupdf==1.28.2` con `uv` (la imagen no los trae y el contenedor se
-  autodestruye con `--rm`, por lo que **cada corrida necesita acceso a PyPI**;
-  el venv del contenedor es efímero también).
+- Por cada corrida el contenedor efímero añade al venv las dependencias fijadas
+  en CI: `httpx==0.28.1`, `pymupdf==1.28.2`, `pytest==8.4.2`,
+  `pytest-cov==6.3.0` y `pytest-mock==3.17.0`. La imagen no las trae y el
+  contenedor se autodestruye con `--rm`, así que cada corrida necesita acceso
+  a PyPI; si la instalación falla, el runner se detiene antes de descubrir
+  pruebas.
 - **Cobertura no soportada en este modo**: `-Coverage/-Html/-Xml` exigen el
   modo heredado `-InDocker` (se aborta en el preflight con código 2 y
   explicación, antes de correr nada).

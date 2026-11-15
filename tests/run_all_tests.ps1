@@ -523,7 +523,7 @@ if ($InDocker) {
     $LogsDir = Join-Path ([System.IO.Path]::GetTempPath()) ('neodomus_tests_logs\run_' + (Get-Date -Format 'yyyyMMdd_HHmmss'))
     New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
     $beSh = 'cp -r /src/app /app/ 2>/dev/null; ' +
-            'uv pip install --python /app/.venv/bin/python httpx==0.28.1 pymupdf==1.28.2 >/dev/null 2>&1; ' +
+            'uv pip install --python /app/.venv/bin/python httpx==0.28.1 pymupdf==1.28.2 pytest==8.4.2 pytest-cov==6.3.0 pytest-mock==3.17.0 >/dev/null 2>&1 || { echo "ERROR: no se pudieron instalar las dependencias de pruebas desde PyPI" >&2; exit 2; }; ' +
             "cd /app && ./.venv/bin/python -m unittest discover -s app/tests -t . -p 'test_*.py' -v >/logs/be_out.log 2>/logs/be_err.log; " +
             'rc=$?; echo ---BE_TAIL---; tail -n 40 /logs/be_err.log 2>/dev/null; echo ---; tail -n 5 /logs/be_out.log 2>/dev/null; echo RC=$rc; exit $rc'
     Write-Host ("  (contenedor efimero en '{0}'; sin salida incremental: ~2 min; logs en {1})" -f $TestNetwork, $LogsDir) -ForegroundColor DarkGray
