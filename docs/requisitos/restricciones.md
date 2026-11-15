@@ -12,7 +12,7 @@
 
 ### RT-001 — Stack de backend obligatorio
 El backend debe desarrollarse exclusivamente con:
-- **Python 3.10+** como lenguaje (actual **3.12** en `be/.python-version:1` y `be/Dockerfile:1` `python:3.12-slim`, `pyproject.toml:5` `>=3.10`).
+- **Python 3.11+** como lenguaje (actual **3.12** en `be/.python-version:1` y `be/Dockerfile:1` `python:3.12-slim`, `pyproject.toml:5` `>=3.11`).
 - **FastAPI** como framework web.
 - **SQLAlchemy 2.0+** como ORM.
 - **PyMySQL** como conector a base de datos.
