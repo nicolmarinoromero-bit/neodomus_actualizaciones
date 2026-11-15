@@ -127,7 +127,7 @@ if ($InDocker) {
     }
     $required = @(
         'fastapi', 'uvicorn', 'sqlalchemy', 'pymysql', 'pydantic', 'pydantic-settings',
-        'python-jose', 'passlib', 'bcrypt', 'python-multipart', 'slowapi',
+        'pyjwt', 'passlib', 'bcrypt', 'python-multipart', 'slowapi',
         'email-validator', 'reportlab', 'openpyxl', 'pillow', 'minio',
         'apscheduler', 'tzdata', 'httpx', 'google-auth', 'pymupdf'
     )

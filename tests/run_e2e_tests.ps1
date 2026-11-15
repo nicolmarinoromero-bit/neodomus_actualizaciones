@@ -148,7 +148,7 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 Write-Host '[2] Verificando dependencias Python de los orquestadores...' -ForegroundColor Yellow
 $required = @(
     'fastapi', 'uvicorn', 'sqlalchemy', 'pymysql', 'pydantic', 'pydantic-settings',
-    'python-jose', 'passlib', 'bcrypt', 'python-multipart', 'slowapi',
+    'pyjwt', 'passlib', 'bcrypt', 'python-multipart', 'slowapi',
     'email-validator', 'reportlab', 'openpyxl', 'pillow', 'minio',
     'apscheduler', 'tzdata', 'httpx', 'google-auth', 'pymupdf'
 )
