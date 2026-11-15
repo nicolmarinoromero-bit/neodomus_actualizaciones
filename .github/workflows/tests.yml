@@ -43,10 +43,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
 
@@ -58,7 +58,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload FE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ci-frontend-log
           path: ci_fe_output.log
@@ -88,29 +88,33 @@ jobs:
   backend:
     name: Backend (unittest + MySQL/MinIO efímeros)
     runs-on: ubuntu-24.04
-    services:
-      mysql:
-        # MySQL 8 para el proyecto (misma versión del compose principal)
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: noop_ci_dummy_pass_change_me
-          MYSQL_DATABASE: neodomus_test
-          MYSQL_USER: neodomus_ci_user
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Start ephemeral MySQL (random CI password)
+        shell: bash
+        run: |
+          root_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          app_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$root_pw"
+          echo "::add-mask::$app_pw"
+          {
+            echo "MYSQL_PASSWORD=$app_pw"
+            echo "DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4"
+            echo "TEST_DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_test?charset=utf8mb4"
+          } >> "$GITHUB_ENV"
+          docker run -d --name mysql-test \
+            -e MYSQL_ROOT_PASSWORD="$root_pw" \
+            -e MYSQL_DATABASE=neodomus_test \
+            -e MYSQL_USER=neodomus_ci_user \
+            -e MYSQL_PASSWORD="$app_pw" \
+            -p 3306:3306 \
+            mysql:8.0
 
       - name: "Setup Python 3.12 (spec: be/Dockerfile)"
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
           cache: pip
@@ -151,8 +155,6 @@ jobs:
 
       - name: Wait for MySQL (servicio CI, sin imprimir credenciales)
         shell: bash
-        env:
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
         run: |
           python - <<'EOF'
           import os, time, pymysql
@@ -200,19 +202,13 @@ jobs:
         shell: bash
         # alembic.ini vive en be/ (script_location relativo al ini)
         working-directory: be
-        env:
-          # Credenciales dummy del servicio CI (nunca de desarrollo)
-          MINIO_DB_USER: neodomus_ci_user
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
-        run: python -m alembic upgrade head
+        run: DATABASE_URL="$TEST_DATABASE_URL" python -m alembic upgrade head
 
       - name: Run backend tests (runner existente via pwsh)
         shell: pwsh
         env:
           # URL sentinela distinta de TEST_DATABASE_URL para permitir imports
           # de la app sin dirigir accidentalmente la suite a otra base.
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4
-          TEST_DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
           TEST_MINIO_ENDPOINT: localhost:9000
           TEST_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
           TEST_MINIO_ACCESS_KEY: ci_minio_user
@@ -225,7 +221,7 @@ jobs:
 
       - name: Upload BE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ci-backend-log
           path: ci_be_output.log
@@ -236,28 +232,32 @@ jobs:
     name: E2E (Playwright sobre 6 flujos)
     runs-on: ubuntu-24.04
     needs: [frontend, backend]
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: noop_ci_dummy_pass_change_me
-          MYSQL_DATABASE: neodomus_test
-          MYSQL_USER: neodomus_ci_user
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Start ephemeral MySQL (random CI password)
+        shell: bash
+        run: |
+          root_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          app_pw="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$root_pw"
+          echo "::add-mask::$app_pw"
+          {
+            echo "MYSQL_PASSWORD=$app_pw"
+            echo "DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4"
+            echo "TEST_DATABASE_URL=mysql+pymysql://neodomus_ci_user:$app_pw@127.0.0.1:3306/neodomus_test?charset=utf8mb4"
+          } >> "$GITHUB_ENV"
+          docker run -d --name mysql-test \
+            -e MYSQL_ROOT_PASSWORD="$root_pw" \
+            -e MYSQL_DATABASE=neodomus_test \
+            -e MYSQL_USER=neodomus_ci_user \
+            -e MYSQL_PASSWORD="$app_pw" \
+            -p 3306:3306 \
+            mysql:8.0
 
       - name: Setup Node 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
 
@@ -269,7 +269,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -281,7 +281,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
           cache: pip
@@ -318,8 +318,6 @@ jobs:
 
       - name: Wait for MySQL (sin imprimir credenciales)
         shell: bash
-        env:
-          MYSQL_PASSWORD: neodomus_ci_pass_crea123
         run: |
           python - <<'EOF'
           import os, time, pymysql
@@ -355,9 +353,7 @@ jobs:
         shell: bash
         # alembic.ini vive en be/ (script_location relativo al ini)
         working-directory: be
-        env:
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
-        run: python -m alembic upgrade head
+        run: DATABASE_URL="$TEST_DATABASE_URL" python -m alembic upgrade head
 
       - name: Create E2E buckets (dummy)
         shell: bash
@@ -385,10 +381,8 @@ jobs:
         shell: bash
         id: e2e
         env:
-          # URL sentinela para los imports de la app; debe ser distinta de
-          # TEST_DATABASE_URL para que testdb mantenga el aislamiento.
-          DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_ci_app?charset=utf8mb4
-          TEST_DATABASE_URL: mysql+pymysql://neodomus_ci_user:neodomus_ci_pass_crea123@127.0.0.1:3306/neodomus_test?charset=utf8mb4
+          # DATABASE_URL y TEST_DATABASE_URL vienen de GITHUB_ENV: se generan
+          # con la contraseña aleatoria del MySQL de este job.
           TEST_MINIO_ENDPOINT: localhost:9000
           TEST_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
           TEST_MINIO_ACCESS_KEY: ci_minio_user
@@ -400,6 +394,7 @@ jobs:
         run: |
           set +e
           FAILED=0
+          FAILED_COUNT=0
           FLOWS="cart-checkout register session admin-paginacion foto-tecnico reporte-ventas"
           : > e2e_results.txt
           for f in $FLOWS; do
@@ -407,18 +402,22 @@ jobs:
             python "scripts/e2e_${f}.py" > "e2e_${f}.log" 2>&1
             rc=$?
             echo "== EXIT $f=$rc ==" | tee -a e2e_results.txt
-            if [ "$rc" -ne 0 ]; then FAILED=$rc; fi
+            if [ "$rc" -ne 0 ]; then
+              FAILED=1
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+            fi
           done
           echo "== RESUMEN ==" | tee -a e2e_results.txt
           cat e2e_results.txt
           echo "E2E_FAILED=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "E2E_FAILED_COUNT=$FAILED_COUNT" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Exit with global E2E code
         shell: bash
         run: |
           if [ "${{ steps.e2e.outputs.E2E_FAILED }}" != "0" ]; then
-            echo "E2E falló (código ${{ steps.e2e.outputs.E2E_FAILED }})"; exit 1
+            echo "E2E falló en ${{ steps.e2e.outputs.E2E_FAILED_COUNT }} flujo(s)"; exit 1
           fi
           echo "E2E OK"
 
@@ -433,7 +432,7 @@ jobs:
 
       - name: "Upload E2E artifacts (siempre: result + logs por flujo)"
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: e2e-results
           path: |
