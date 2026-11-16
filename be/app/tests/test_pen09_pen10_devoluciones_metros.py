@@ -25,7 +25,7 @@ import io
 import threading
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -44,6 +44,7 @@ from app.models.tecnico import Tecnico
 from app.models.user import User
 from app.models.roles_usuario import RolesUsuario
 from app.services import devoluciones_service as dv_service
+from app.utils.fechas import fecha_bogota
 from app.tests.test_t1_identidad import BaseT1TestCase, PASSWORD
 
 # PNG válido generado con PIL (la validación del endpoint verifica la imagen).
@@ -164,7 +165,7 @@ class BasePen0910(BaseT1TestCase):
             id_cliente_pe=cliente.id_cliente,
             estado_pedido="Pagado",
             estado_entrega="Entregado",
-            entrega_actualizada_en=datetime.now(),
+            entrega_actualizada_en=fecha_bogota(),
             total_pedido=subtotal,
         )
         db = self.db
@@ -322,7 +323,7 @@ class SolicitudCorteCompletoTestCase(BasePen0910):
             id_cliente_pe=cliente.id_cliente,
             estado_pedido="Pagado",
             estado_entrega="Entregado",
-            entrega_actualizada_en=datetime.now(),
+            entrega_actualizada_en=fecha_bogota(),
             total_pedido=15000.0,
         )
         self.db.add(pedido)
@@ -795,7 +796,7 @@ class PermisosYRevisionHTTPTestCase(BasePen0910):
 
     def test_pedido_fuera_del_plazo_de_30_dias_no_admite_devolucion(self):
         p, cliente, pedido = self._preparar(metros="2.50")
-        pedido.entrega_actualizada_en = datetime.now() - timedelta(days=31)
+        pedido.entrega_actualizada_en = fecha_bogota() - timedelta(days=31)
         self.db.commit()
         token = self._token(self._login(cliente.email))
 

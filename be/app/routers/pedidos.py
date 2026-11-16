@@ -20,6 +20,7 @@ from app.models.user import User
 from app.services.pagos_service import BANCOS_COLOMBIANOS, METODOS_PAGO
 from app.services import minio_service, pedidos_service
 from app.services.estados_entrega import asignacion_reasignable
+from app.utils.fechas import fecha_bogota
 from app.utils.security import get_current_client, get_current_employee
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
@@ -577,7 +578,7 @@ def asignar_entrega_admin(
         pedido.id_tecnico_entrega = None
         pedido.nombre_tecnico_entrega = None
         pedido.estado_entrega = "Pendiente"
-        pedido.entrega_actualizada_en = datetime.now()
+        pedido.entrega_actualizada_en = fecha_bogota()
         db.commit()
 
         # Notificar al cliente que se removió el técnico de entrega.
@@ -708,7 +709,7 @@ def asignar_entrega_admin(
         else "Técnico"
     )
     pedido.estado_entrega = "Asignada"
-    pedido.entrega_actualizada_en = datetime.now()
+    pedido.entrega_actualizada_en = fecha_bogota()
     db.commit()
 
     fecha_txt = (

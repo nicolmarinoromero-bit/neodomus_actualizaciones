@@ -39,6 +39,7 @@ from app.services.notificaciones import notificar_cita_reasignada_cliente
 from app.routers.citas import _validar_franja_cita
 from app.models.ubicacion_tecnico import UbicacionTecnico
 from app.services import minio_service
+from app.utils.fechas import fecha_bogota
 from app.utils.security import get_current_employee
 
 ESTADOS_CITA = ("Pendiente", "Confirmada", "Finalizada", "Cancelada")
@@ -1155,7 +1156,7 @@ async def subir_evidencias_entrega(
 
     if not filas:
         raise HTTPException(status_code=400, detail="No se recibieron imágenes válidas")
-    pedido.entrega_actualizada_en = datetime.now()
+    pedido.entrega_actualizada_en = fecha_bogota()
     db.flush()
     urls = [_url_evidencia(ev.url_archivo, "entrega", ev.id) for ev in filas]
     db.commit()
@@ -1426,7 +1427,7 @@ def actualizar_estado_entrega_tecnico(
             )
 
     pedido.estado_entrega = estado
-    pedido.entrega_actualizada_en = datetime.now()
+    pedido.entrega_actualizada_en = fecha_bogota()
     db.commit()
     db.refresh(pedido)
 
