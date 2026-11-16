@@ -1,5 +1,5 @@
 # Cobertura del bootcamp de testing de NeoDomus.
-# Workflow INDEPENDIENTE de tests.yml y sonarcloud.yml (no los modifica).
+# Workflow independiente de tests.yml que publica reportes para SonarCloud.
 #
 # Objetivo de la Semana 8: publicar la cobertura real de frontend y backend
 # como artefactos, aplicar el trinquete de 80 % y exigir 0 pruebas omitidas
@@ -13,7 +13,7 @@ name: Cobertura (bootcamp)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, development]
   pull_request:
     branches: [main]
 
