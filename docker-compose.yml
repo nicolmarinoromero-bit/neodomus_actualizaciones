@@ -82,11 +82,11 @@ services:
       - ./fe/public/productos:/app/productos_local
       - /app/.venv
     command: >
-      sh -c "uv run alembic upgrade head &&
+      sh -c "alembic upgrade head &&
       if [ \"${EJECUTAR_SEED_AL_ARRANCAR:-true}\" = \"true\" ]; then
-        uv run python /app/scripts/seed_test_users.py || echo \"[aviso] seed_test_users.py falló, continuando con el inicio del servidor\";
+        python /app/scripts/seed_test_users.py || echo \"[aviso] seed_test_users.py falló, continuando con el inicio del servidor\";
       fi &&
-      exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - neodomus_net
 
@@ -107,7 +107,9 @@ services:
       - neodomus_net
 
   frontend:
-    build: ./fe
+    build:
+      context: .
+      dockerfile: fe/Dockerfile
     container_name: neodomus_frontend
     restart: always
     ports:
@@ -119,6 +121,7 @@ services:
       NEODOMUS_VITE_CACHE_DIR: /tmp/neodomus-vite-cache
     volumes:
       - ./fe:/app
+      - ./shared:/shared:ro
       - /app/node_modules
       - /app/.pnpm-store
     depends_on:

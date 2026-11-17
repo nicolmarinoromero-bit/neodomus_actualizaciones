@@ -4,8 +4,8 @@ services:
   web:
     image: neodomus-web:1.0.0
     build:
-      context: ../fe
-      dockerfile: ../deploy/Dockerfile.frontend
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
     ports:
       - "127.0.0.1:8080:80"
     volumes:

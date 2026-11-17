@@ -1,0 +1,46 @@
+name: Reportar un error
+description: Informar un problema reproducible sin incluir datos sensibles.
+title: "[Error]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "No incluyas contraseñas, tokens, datos personales ni información real de clientes."
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué ocurrió?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      placeholder: "1. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Resultado obtenido
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Entorno y versión
+      description: Sistema operativo, ambiente y versión/commit.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidencia depurada
+      description: Adjunta capturas o logs sin secretos ni datos personales.

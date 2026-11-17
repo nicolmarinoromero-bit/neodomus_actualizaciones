@@ -135,3 +135,11 @@ if [[ -n "$RESTIC_OFFSITE_REPOSITORY" ]]; then
   restic copy --from-repo "$RESTIC_REPOSITORY" --repo "$RESTIC_OFFSITE_REPOSITORY"
 fi
 echo "Backup restic completado; SHA-256 dump: $(cut -d' ' -f1 "$tmpdir/${MYSQL_DATABASE}.sql.gz.sha256"); SHA-256 manifest MinIO: $(sha256sum "$tmpdir/minio-data.sha256" | cut -d' ' -f1)"
+
+# Uptime Kuma Push monitor (optional). Signal only after backup, retention and
+# optional off-site copy have succeeded. Keep the push URL in a protected env file.
+if [[ -n "${BACKUP_HEARTBEAT_URL:-}" ]]; then
+  command -v curl >/dev/null || { echo 'Falta curl para reportar el heartbeat' >&2; exit 127; }
+  curl --fail --silent --show-error --max-time 15 "$BACKUP_HEARTBEAT_URL" >/dev/null
+  echo 'Heartbeat de respaldo reportado correctamente.'
+fi

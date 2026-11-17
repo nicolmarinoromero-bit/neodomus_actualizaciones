@@ -234,6 +234,8 @@ Variables de móvil (`movil/.env.example`): `EXPO_PUBLIC_API_URL` (sin el prefij
 - **Despliegue de producción**: [puesta en marcha, verificación y rollback](docs/deploy/puesta-en-marcha-produccion.md)
 - **Referencia técnica**: [arquitectura](docs/referencia-tecnica/architecture.md) · [endpoints](docs/referencia-tecnica/api-endpoints.md) · [esquema de BD](docs/referencia-tecnica/database-schema.md) · [diccionario de datos](docs/referencia-tecnica/diccionario-de-datos.md)
 - **Manuales**: [usuario](docs/manuales/usuario/MANUAL_DE_USUARIO.md) · [técnico](docs/manuales/tecnico/MANUAL_TECNICO.md)
+- **Ayuda rápida**: [guía](docs/ayuda/guia-rapida.md) · [preguntas frecuentes](docs/ayuda/preguntas-frecuentes.md)
+- **Operación**: [runbook API no disponible](docs/runbooks/RB-01-api-no-disponible.md) · [runbook respaldo atrasado](docs/runbooks/RB-02-respaldo-atrasado.md)
 - **Requisitos**: [HUs](docs/requisitos/HUs/) · [RFs](docs/requisitos/RFs/) · [RNFs](docs/requisitos/RNs/) · [restricciones](docs/requisitos/restricciones.md)
 - **Pruebas**: [tests/README.md](tests/README.md) (guía central) · [evidencias QA PEN-10](docs/qa/PEN-10/evidencias/INDEX.md)
 

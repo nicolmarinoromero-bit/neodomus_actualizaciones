@@ -19,9 +19,9 @@
 name: Neodomus Tests
 
 on:
-  # Push a ramas de trabajo (excluye integración)
+  # CI también corre en ramas de integración; los tags se validan en release.yml.
   push:
-    branches-ignore: [main, master, development]
+    branches: ["**"]
   # PR hacia las ramas de integración principales
   pull_request:
     branches: [development, master, main]

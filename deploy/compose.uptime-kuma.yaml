@@ -1,0 +1,20 @@
+# Monitor opcional. Desplegar en un host de monitoreo separado del servicio vigilado.
+# Antes de desplegar, fijar la imagen a una versión y digest aprobados por el operador.
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: neodomus-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  uptime_kuma_data:
