@@ -4,17 +4,17 @@ version = "1.0.0"
 description = "Backend de Neodomus - Sistema de gestión de servicios técnicos"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi==0.115.0",
+    "fastapi==0.163.1",
     "uvicorn[standard]==0.30.0",
     "sqlalchemy==2.0.30",
     "pymysql==1.2.4",
     "python-dotenv==1.0.0",
-    "pydantic==2.7.0",
+    "pydantic==2.14.3",
     "pydantic-settings==2.3.0",
     "PyJWT==2.15.1",
     "passlib[bcrypt]==1.7.4",
     "bcrypt==4.0.1",
-    "python-multipart==0.0.9",
+    "python-multipart==0.0.30",
     "slowapi==0.1.9",
     "email-validator==2.1.0",
     "reportlab==4.2.0",

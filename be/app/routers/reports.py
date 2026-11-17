@@ -395,7 +395,7 @@ def resumen_admin(
 
 @router.get("/ventas")
 def reporte_ventas(
-    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     id_tecnico: Optional[int] = None,
@@ -495,7 +495,7 @@ def reporte_ventas(
 
 @router.get("/citas")
 def reporte_citas(
-    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     id_tecnico: Optional[int] = None,
@@ -577,7 +577,7 @@ def reporte_citas(
 @router.get("/tecnico")
 def reporte_tecnico(
     id_tecnico: int = Query(...),
-    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     _admin_user: User = Depends(_admin),
@@ -887,7 +887,7 @@ def _datos_citas(db, id_tecnico, inicio, fin, periodo):
 
 @router.get("/ventas/pdf")
 def ventas_pdf(
-    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     id_tecnico: Optional[int] = None,
@@ -916,7 +916,7 @@ def ventas_pdf(
 
 @router.get("/citas/pdf")
 def citas_pdf(
-    periodo: str = Query("mes", regex="^(dia|semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(dia|semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     id_tecnico: Optional[int] = None,
@@ -1162,7 +1162,7 @@ def _datos_reporte_completo(db: Session, inicio: date, fin: date, periodo: str) 
 
 @router.get("/pdf")
 def reporte_pdf(
-    periodo: str = Query("mes", regex="^(semana|mes|anio)$"),
+    periodo: str = Query("mes", pattern="^(semana|mes|anio)$"),
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
     _admin_user: User = Depends(_admin),
