@@ -1,5 +1,7 @@
 allowBuilds:
   unrs-resolver: true
+overrides:
+  source-map-js: 1.2.2
 
 # Configuración de dependencias para Metro (PEN-07).
 # Metro necesita resolver módulos transitivos de Expo (p. ej. expo-modules-core)
