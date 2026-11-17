@@ -7,7 +7,7 @@ Guía basada en el layout actual `be/`, `fe/` y `movil/`. Requiere disponer de M
 - Python 3.11 o superior según `be/pyproject.toml`; `be/Dockerfile` usa Python 3.12.
 - Node.js 22 según `fe/Dockerfile` y el frontend configurado.
 - MySQL 8.0 para alinearse con `docker-compose.yml`.
-- `uv` para dependencias Python y pnpm para la app móvil. El frontend tiene `pnpm-lock.yaml` y `package-lock.json`; no hay versión de pnpm declarada como campo `packageManager`, por lo que utiliza la versión disponible compatible con sus lockfiles. El Dockerfile web prepara pnpm 10.
+- `uv` para dependencias Python y pnpm 11.4.0 para frontend y app móvil. El frontend declara `packageManager: pnpm@11.4.0` y su lockfile oficial es `pnpm-lock.yaml`.
 
 ## 1. Base de datos y servicios
 
@@ -34,7 +34,7 @@ API: `http://localhost:8000`; Swagger predeterminado de FastAPI: `/docs`; salud:
 
 ## 3. Aplicación web
 
-En otra terminal, desde `fe/` instala dependencias con el gestor elegido, respetando una lockfile coherente con el equipo. La configuración de Docker usa pnpm 10; este repositorio también contiene `package-lock.json`, de modo que acuerda con el equipo cuál lockfile es la fuente antes de actualizar dependencias.
+En otra terminal, desde `fe/` instala las dependencias con pnpm usando el lockfile versionado:
 
 ```sh
 pnpm install
