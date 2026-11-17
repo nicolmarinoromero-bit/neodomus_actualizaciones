@@ -6,7 +6,7 @@
 
 **Totales:** backend **291** casos (24 módulos unittest, medición 2026-11-12) ·
 frontend **118** casos (30 archivos Vitest) · E2E **28** casos (9 specs
-Playwright) · móvil 0.
+Playwright) · móvil **253** casos (24 archivos Jest, medición 2026-11-17).
 
 ---
 
@@ -77,7 +77,47 @@ Ejecución: `tests/run_frontend_tests.ps1`. No necesitan MySQL/Docker (red mocke
 
 Config: `fe/vitest.config.ts` (jsdom, globals, setup `fe/src/test/setup.ts` con shim de `URL.createObjectURL`).
 
-## 3. E2E — `fe/e2e/` (Playwright) y orquestadores `scripts/`
+## 3. Móvil — `movil/__tests__/` (Jest + jest-expo + RNTL)
+
+Ejecución: `tests/run_movil_tests.ps1`. Sin BD ni red: `fetch` mockeado con los
+helpers de `movil/__tests__/helpers/` (respuestas programadas) y
+AsyncStorage/SecureStore en memoria; nunca llaman al backend real. Config:
+`movil/jest.config.js` (preset `jest-expo`, umbrales de cobertura trinquete
+90/80/75/90) y `movil/jest-globals.d.ts`.
+
+| # | Archivo (ruta bajo `movil/__tests__/`) | Casos | Tipo | Funcionalidad |
+|---|---|---|---|---|
+| 1 | `utils/metros.test.ts` | 15 | Unitaria | Parseo y cálculo de metros |
+| 2 | `utils/validaciones.test.ts` | 14 | Unitaria | Validaciones de formularios |
+| 3 | `constants/variantes.test.ts` | 12 | Unitaria | Variantes de estilo de UI |
+| 4 | `services/api.test.ts` | 14 | Unitaria | Cliente HTTP base (respuestas programadas, errores) |
+| 5 | `services/auth.services.test.ts` | 12 | Unitaria | Endpoints de sesión (registro/login/OTP) |
+| 6 | `services/cliente.services.test.ts` | 14 | Unitaria | Pedidos/factura/direcciones del cliente |
+| 7 | `services/productos.service.test.ts` | 11 | Unitaria | Catálogo/detalle/favoritos de productos |
+| 8 | `services/novedades.service.test.ts` | 11 | Unitaria | Novedades y home |
+| 9 | `services/otros.servicios.test.ts` | 7 | Unitaria | Resto de endpoints |
+| 10 | `services/storage.test.ts` | 8 | Unitaria | Almacenamiento seguro de sesión |
+| 11 | `contexts/AuthContext.test.tsx` | 9 | Context | Sesión: login/logout/restore + persistencia |
+| 12 | `contexts/CartContext.test.tsx` | 20 | Context | Carrito: unidades/metros, totales, vaciado al salir |
+| 13 | `contexts/FavoritosContext.test.tsx` | 16 | Context | Favoritos de productos |
+| 14 | `contexts/TecnicosFavoritosContext.test.tsx` | 14 | Context | Técnicos favoritos |
+| 15 | `contexts/IdiomaContext.test.tsx` | 11 | Context | Idioma es/en + persistencia |
+| 16 | `hooks/useAuthImage.test.ts` | 9 | Hook | Imagen privada con token (lifecycle) |
+| 17 | `hooks/useScrollTopAlEntrar.test.ts` | 8 | Hook | Scroll al entrar en pantalla |
+| 18 | `components/CookieConsent.test.tsx` | 10 | Componente | Banner de cookies RGPD (aceptar/rechazar/configurar) |
+| 19 | `components/GateCliente.test.tsx` | 6 | Componente | Puerta de sesión del área cliente |
+| 20 | `components/OtpInput.test.tsx` | 13 | Componente | Código OTP (autofocus, borrado) |
+| 21 | `components/PasswordInput.test.tsx` | 7 | Componente | Contraseña (mostrar/ocultar) |
+| 22 | `components/PasswordChecklist.test.tsx` | 3 | Componente | Requisitos de contraseña |
+| 23 | `components/Dropdown.test.tsx` | 6 | Componente | Selector desplegable |
+| 24 | `piloto.test.tsx` | 3 | Integración | Pantallas piloto (smoke de navegación) |
+
+Cobertura (2026-11-17): 90,26 % sentencias / 81,29 % ramas / 78,12 % funciones /
+90,7 % líneas sobre 35 archivos de `movil` (`components|contexts|hooks|
+services|utils|constants`, más icon-symbol); `movil/app/**` y `movil/data/`
+quedan fuera del objetivo de cobertura.
+
+## 4. E2E — `fe/e2e/` (Playwright) y orquestadores `scripts/`
 
 Ejecución: `tests/run_e2e_tests.ps1` → `python scripts/e2e_*.py`. Los
 orquestadores exigen `TEST_DATABASE_URL` al importar, llaman
@@ -101,13 +141,13 @@ Soporte de E2E (no son pruebas): `scripts/e2e_seed.py` (seed determinista con
 `--reset` propio), `scripts/e2e_verify.py` (validador BD del spec metros),
 `scripts/seed_test_users.py` (usuarios de prueba idempotentes).
 
-## 4. Utilidades en `scripts/` (no tests)
+## 5. Utilidades en `scripts/` (no tests)
 
 `crear_admin.py`, `check_tecnico.py`, `reset_passwords.py`, `export_seed.py`,
 `verify_syntax.py` — herramientas de administración de datos/sintaxis, fuera
 del alcance de `tests/`.
 
-## 5. Huecos de cobertura conocidos (para planificar nuevas pruebas)
+## 6. Huecos de cobertura conocidos (para planificar nuevas pruebas)
 
 Backend con poca/ninguna cobertura (según acta T0 y endpoints existentes sin
 pruebas): `routers/products` CRUD admin (16 endpoints), `routers/reports` (9),
@@ -117,10 +157,13 @@ pruebas): `routers/products` CRUD admin (16 endpoints), `routers/reports` (9),
 `tareas_programadas`/scheduler, login con Google (`/auth/google`), logout.
 Frontend sin pruebas: `CheckoutPage`, `Login/Register` (page-level), paneles
 admin (Pedidos/Facturas/Consultas/Devoluciones), `utils/google.ts`,
-`utils/favoritos.ts`, `profileStorage`. Móvil: 0 (sin infraestructura de
-testing). E2E pendientes: flujo de citas del cliente, devolución, notificaciones.
+`utils/favoritos.ts`, `profileStorage`. Móvil (nuevo 2026-11-17):
+`components/public/PublicNavbar` (31 % líneas), `constants/api.ts` (60 %),
+`services/cliente.services` (77 %); pantallas `movil/app/**` y `movil/data/`
+fuera del objetivo de cobertura. E2E pendientes: flujo de citas del cliente,
+devolución, notificaciones.
 
-## 6. Riego de nomenclatura (documentado)
+## 7. Riesgo de nomenclatura (documentado)
 
 - `be/app/tests/testdb.py` **no** es un test (infraestructura); unittest no lo
   recoge por patrón (`test_*.py`). No renombrar: `testdb` es distinto de `test_<dominio>`.

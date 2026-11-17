@@ -2,12 +2,14 @@
 
 Carpeta **central** de documentación y ejecución de pruebas. Los tests reales
 **no viven aquí**: permanecen donde ya están (`be/app/tests/`, `fe/src/`,
-`fe/e2e/`) y estos scripts solo los **orquestan** de forma uniforme para las
-cuatro personas del equipo.
+`movil/__tests__/`, `fe/e2e/`) y estos scripts solo los **orquestan** de forma
+uniforme para las cuatro personas del equipo.
 
-> Última actualización: 2026-11-06 (Bloques 3-4 — punto de entrada
+> Última actualización: 2026-11-17 (Bloques 3-4 — punto de entrada
 > `tests\run_all_tests.ps1` con `-Setup`/`-IncludeE2E`, narrativa E2E en modo
-> host aislado y workflow de CI `.github/workflows/tests.yml`). Basada en la
+> host aislado y workflow de CI `.github/workflows/tests.yml`; + suite móvil:
+> runner `tests\run_movil_tests.ps1`, job CI `movil` y cobertura conectada a
+> SonarCloud). Basada en la
 > auditoría completa (ver `INVENTARIO.md` y `docs/T0_linea_base_testing.md`,
 > `docs/T1_identidad_permisos.md`, `docs/T2_consistencia_pago_pendiente.md`).
 
@@ -35,6 +37,10 @@ be/app/tests/                fe/src/**/*.test.{ts,tsx}      fe/e2e/*.e2e.spec.ts
 Correo/scheduler/pagos: neutralizados (testdb.py, DISABLE_SCHEDULER=1, simulador)
 ```
 
+> Suite **Móvil** añadida el 2026-11-17 (cuarta columna del esquema, no
+> redibujado): Jest sobre `movil/__tests__/` vía `tests\run_movil_tests.ps1`;
+> sin BD ni red real — `fetch` y AsyncStorage mockeados, igual que FE.
+
 Principios de la infraestructura (heredados del proyecto, NO cambiarlos sin
 autorización del equipo):
 
@@ -55,6 +61,7 @@ autorización del equipo):
 | **Unitarias** | Funciones/módulos aislados, sin BD ni red | `be/app/tests/test_precio_service.py`, `test_factura_pdf_logo.py`, `fe/src/utils/metros.test.ts` |
 | **Integración** | Servicios/routers reales sobre BD de pruebas (HTTP via cliente ASGI) | `be/app/tests/test_t1_identidad.py`, `test_checkout_metros_http.py` |
 | **Integración de UI (componentes/páginas)** | Hooks/contexts/componentes React con red mockeada | `fe/src/contexts/CartContext.test.tsx`, `fe/src/pages/public/CarritoPage.test.tsx` |
+| **Móvil (componentes/contexts/servicios)** | Componentes/hooks/contexts React Native con red mockeada (RNTL + jest-expo) | `movil/__tests__/contexts/CartContext.test.tsx`, `movil/__tests__/components/CookieConsent.test.tsx` |
 | **E2E** | Recorridos completos usuario (navegador real Chromium) contra API+FE reales | `fe/e2e/cart-checkout.e2e.spec.ts` (+ orquestador `scripts/e2e_cart_checkout.py`) |
 
 ## 3. Herramientas utilizadas
@@ -63,6 +70,7 @@ autorización del equipo):
 |---|---|---|
 | Backend | `unittest` (Python) + `httpx` (cliente ASGI) + `coverage` + `pymupdf` | `python -m unittest discover -s app/tests -p "test_*.py"` · `.coveragerc` |
 | Frontend unit | Vitest 2 + Testing Library + jsdom | `fe/vitest.config.ts` · `pnpm test` |
+| Móvil | Jest 30 + jest-expo + React Native Testing Library | `movil/jest.config.js` · `pnpm test` |
 | E2E | Playwright 1.48 (Chromium, headless) | `fe/playwright.config.ts` |
 | E2E orquestación | Scripts Python | `scripts/e2e_*.py` |
 | Infraestructura | Docker Compose (MySQL 8.0, MinIO, API, web) | `docker-compose.yml` |
@@ -75,6 +83,7 @@ autorización del equipo):
 |---|---|---|
 | Backend | `be/app/tests/test_*.py` (23 módulos + `testdb.py` = infra de aislamiento, no un test) | unittest ya los descubre por patrón `test_*.py` |
 | Frontend unit | `fe/src/**/*.{test,spec}.{ts,tsx}` | colocados junto al código que prueban (convención Vitest) |
+| Móvil | `movil/__tests__/**/*.test.{ts,tsx}` (24 archivos) | espejan la estructura de `movil/`; helpers de mock en `movil/__tests__/helpers/` |
 | E2E | `fe/e2e/*.e2e.spec.ts` | `testDir` de `playwright.config.ts` |
 | Orquestadores E2E | `scripts/e2e_*.py` | exigen `TEST_DATABASE_URL`, levantan servidores efímeros y validan la BD |
 | Actas/documentación | `docs/T0_*`, `docs/T1_*`, `docs/T2_*` | registro de lo certificado por bloque |
@@ -96,6 +105,7 @@ autorización del equipo):
 | 5 | Credenciales del MinIO de pruebas (SOLO para `-Setup`) | `$env:MINIO_TEST_ROOT_USER` / `$env:MINIO_TEST_ROOT_PASSWORD` via env; **sin valores por defecto**, nunca en archivos | `setup_minio_test.ps1` |
 | 6 | `TEST_MINIO_*` (las 6, §8) | Con `-Setup` se **derivan solas**; si no, fijarlas a mano con lo que imprime `setup_minio_test.ps1` | run_all_tests ([4]) |
 | 7 | Node.js + pnpm + `fe/node_modules` | Node 22+ (+ `corepack enable`); `cd fe; pnpm install` | `run_frontend_tests.ps1` |
+| 8 | Node.js + pnpm + `movil/node_modules` | Node 22+ (+ `corepack enable`); `cd movil; pnpm install` | `run_movil_tests.ps1` |
 
 ### 5.2 Backend — modo contenedor efímero (por defecto en `run_all_tests.ps1`)
 
@@ -166,6 +176,13 @@ powershell ... tests\run_backend_tests.ps1 -Coverage -Html -Xml                 
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_frontend_tests.ps1             # pnpm test (vitest run)
 powershell ... tests\run_frontend_tests.ps1 -File src/utils/metros.test.ts                   # una prueba/archivo
 powershell ... tests\run_frontend_tests.ps1 -Coverage                                        # requiere @vitest/coverage-v8 instalado
+```
+
+**Móvil (Jest):**
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_movil_tests.ps1                # pnpm test (jest)
+powershell ... tests\run_movil_tests.ps1 -File __tests__/utils/metros.test.ts                # una prueba/archivo
+powershell ... tests\run_movil_tests.ps1 -Coverage                                           # + cobertura (umbrales trinquete 90/80/75/90)
 ```
 
 **E2E (Playwright vía orquestadores):**
@@ -352,6 +369,12 @@ healthcheck, crea los buckets e imprime las `TEST_MINIO_*`; idempotente).
 3. Si el archivo no es un test (helper), no lo nombres `*.test.*` (Vitest lo tomaría como suite).
 4. Actualiza `tests/INVENTARIO.md`.
 
+**Móvil** (`movil/__tests__/...` espejando la estructura de `movil/`):
+1. Naming: `<modulo>.test.ts(x)` bajo `movil/__tests__/` (los `roots` de `movil/jest.config.js` solo descubren ahí).
+2. Mock de red con los helpers de `movil/__tests__/helpers/fetch.ts` (respuestas programadas). **Nunca** llamar al backend real.
+3. RNTL v14: `render`, `renderHook` y `rerender` son asíncronos — siempre `await`.
+4. Actualiza `tests/INVENTARIO.md`.
+
 **E2E**:
 1. Spec en `fe/e2e/<nombre>.e2e.spec.ts` siguiendo el patrón de `cart-checkout` (no hardcodear datos: leer `process.env`).
 2. Orquestador en `scripts/e2e_<nombre>.py` (copia el patrón de `e2e_register.py`): exige `TEST_DATABASE_URL`, `testdb.ensure_test_schema()`, fixtures únicas con limpieza, API efímera con `DISABLE_SCHEDULER=1` y validación final en BD.
@@ -462,19 +485,21 @@ puertos (design de Bloques 1-2), la forma reproducible es:
 - **Disparadores:** `push` a ramas de trabajo (excluye `main`/`master`/
   `development`), `pull_request` hacia `development`/`master`/`main` y
   `workflow_dispatch` (manual).
-- **Jobs:** `frontend` (Vitest) y `backend` (unittest con **MySQL y MinIO
-  efímeros del runner**: `mysql:8.0` y MinIO `RELEASE.2025-10-15T17-29-55Z`,
-  la misma release pinnada del compose de pruebas) → `e2e` (job **separado**,
-  con `needs: [frontend, backend]`, que instala Chromium con
-  `npx playwright install --with-deps chromium` y ejecuta **directamente los
-  6 orquestadores** `scripts/e2e_*.py`).
+- **Jobs:** `frontend` (Vitest), `movil` (Jest + jest-expo, mismo patrón que
+  frontend: runner vía pwsh, sin BD ni red) y `backend` (unittest con
+  **MySQL y MinIO efímeros del runner**: `mysql:8.0` y MinIO
+  `RELEASE.2025-10-15T17-29-55Z`, la misma release pinnada del compose de
+  pruebas) → `e2e` (job **separado**, con `needs: [frontend, backend]`, que
+  instala Chromium con `npx playwright install --with-deps chromium` y ejecuta
+  **directamente los 6 orquestadores** `scripts/e2e_*.py`).
 - **`concurrency`** por ref con `cancel-in-progress` evita corridas duplicadas
   (no ejecuta E2E dos veces para el mismo commit/ref).
 - **Credenciales del CI:** cuentas dummy efímeras definidas en el workflow
   (`neodomus_ci_user`, MinIO `ci_minio_user`); **nunca** las del desarrollo, y
   nada sensible se imprime (los `Wait for MySQL` usan env, no el CLI).
 - **Versiones:** Python 3.12 (spec de `be/Dockerfile`), Node 22, pnpm 11.4.0
-  (corepack, la misma de local), acciones oficiales con tags mayores
+  en `fe` (corepack, la misma de local) y 12.3.4 en `movil` (la de los
+  workflows de SonarCloud/coverage), acciones oficiales con tags mayores
   (`checkout@v4`, `setup-node@v4`, `setup-python@v5`, `cache@v4`,
   `upload-artifact@v4`).
 - **E2E en Linux sin tocar el runner:** invoca los orquestadores directamente
@@ -482,7 +507,8 @@ puertos (design de Bloques 1-2), la forma reproducible es:
   (Windows-only) y **NO** se modificó para forzar compatibilidad.
 - **Resultados y logs:** el job `e2e` sube siempapa un artefacto `e2e-results`
   con `e2e_results.txt` (exit por flujo) y el log completo de cada flujo; en
-  `backend`/`frontend` el log se sube solo si el job falla.
+  `backend`/`frontend`/`movil` el log se sube solo si el job falla
+  (`ci-backend-log` / `ci-frontend-log` / `ci-movil-log`).
 - **Estado remoto:** el workflow está implementado y validado localmente
   (sintaxis YAML, referencias y rutas); **aún no ejecutado en GitHub** hasta el
   primer push/PR aprobado.
@@ -494,6 +520,6 @@ puertos (design de Bloques 1-2), la forma reproducible es:
    (`### Resultados E2E` + `== EXIT <flujo>=<código> ==`) y en el artifact
    `e2e-results` (log completo de cada flujo con la salida de Playwright).
 3. En `backend`/`frontend`, el log completo está en el artifact correspondiente
-   (`ci-backend-log` / `ci-frontend-log`), subido solo en fallo.
+   (`ci-backend-log` / `ci-frontend-log` / `ci-movil-log`), subido solo en fallo.
 4. Los screenshots/trace de Playwright (solo en fallo) quedan en el repositorio
    del job bajo `fe/test-results/` (gitignored).
