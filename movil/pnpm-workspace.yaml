@@ -1,4 +1,5 @@
 allowBuilds:
+  '@parcel/watcher': false
   unrs-resolver: true
 
 # Configuración de dependencias para Metro (PEN-07).
@@ -35,3 +36,4 @@ minimumReleaseAgeExclude:
   - expo-system-ui@57.0.4
   - expo-web-browser@57.0.3
   - expo-constants@57.0.18
+  - jest-expo@58.0.15
