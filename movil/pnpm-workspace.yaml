@@ -1,4 +1,5 @@
 allowBuilds:
+  '@parcel/watcher': false
   unrs-resolver: true
 overrides:
   'brace-expansion@1.1.18': 1.1.20
@@ -42,3 +43,4 @@ minimumReleaseAgeExclude:
   - expo-system-ui@57.0.4
   - expo-web-browser@57.0.3
   - expo-constants@57.0.18
+  - jest-expo@58.0.15
