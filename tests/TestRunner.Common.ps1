@@ -58,3 +58,32 @@ print(chr(10).join(sorted(names)))
         $_.ToLower().Replace('_', '-') -notin $installed
     })
 }
+
+function Test-NodeProjectPrerequisites {
+    param(
+        [ValidateSet('fe', 'movil')][string]$ProjectName,
+        [string]$ProjectDirectory
+    )
+
+    Write-Host '[1] Validando Node y pnpm...' -ForegroundColor Yellow
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-Host '  ERROR: node no esta disponible en PATH.' -ForegroundColor Red
+        Write-Host '  Instala Node.js con autorizacion del equipo.' -ForegroundColor Green
+        return $false
+    }
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        Write-Host '  ERROR: pnpm no esta disponible en PATH.' -ForegroundColor Red
+        Write-Host '  Con Node 22+: corepack enable (requiere accion manual).' -ForegroundColor Green
+        return $false
+    }
+    Write-Host '  OK: node y pnpm disponibles.' -ForegroundColor Green
+
+    Write-Host "[2] Validando dependencias de $ProjectName (node_modules)..." -ForegroundColor Yellow
+    if (-not (Test-Path (Join-Path $ProjectDirectory 'node_modules'))) {
+        Write-Host "  ERROR: $ProjectName/node_modules no existe." -ForegroundColor Red
+        Write-Host "  Ejecuta manualmente: cd $ProjectName; pnpm install" -ForegroundColor Green
+        return $false
+    }
+    Write-Host '  OK: node_modules presente.' -ForegroundColor Green
+    return $true
+}

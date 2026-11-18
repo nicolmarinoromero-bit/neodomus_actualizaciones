@@ -1,5 +1,6 @@
 // Componente de navegación y estructura visual: AdminNavbar. Se reutiliza en las pantallas de su área.
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useOutsideDismiss } from '../../hooks/useOutsideDismiss';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaBars, FaChevronDown, FaRightFromBracket, FaUserShield } from 'react-icons/fa6';
 import { useAuth } from '@contexts/AuthContext';
@@ -32,8 +33,7 @@ const AdminNavbar = ({
   const { t } = useIdioma();
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { open, setOpen, rootRef: dropdownRef } = useOutsideDismiss<HTMLDivElement>();
   const [, forceUpdate] = useState(0);
 
   useEffect(() => {
@@ -42,17 +42,7 @@ const AdminNavbar = ({
     return () => window.removeEventListener('admin-profile-updated', handler);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const avatar = getAdminAvatar();
+const avatar = getAdminAvatar();
   const userData = (() => {
     try {
       const stored = tabGet('user');
