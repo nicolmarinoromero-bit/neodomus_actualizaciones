@@ -60,7 +60,7 @@ La ruta raíz `/` devuelve mensaje de estado y `/health` devuelve `{"status":"ok
 
 Los endpoints aplican dependencias de autenticación/rol de acuerdo con cada router. No supongas que una ruta pública por aparecer en la web es anónima, ni que todos los endpoints usan el mismo rol. Revisa el decorador y las dependencias del endpoint.
 
-El cliente web adjunta `Authorization: Bearer ...`, renueva tokens ante respuestas 401 según `fe/src/services/api.ts`, y maneja sesión en contexto de autenticación. La configuración puede variar por entorno.
+La web y la aplicación móvil adjuntan `Authorization: Bearer ...`; sus clientes renuevan tokens ante respuestas 401 según `fe/src/services/api.ts` y `movil/services/api.ts`. El backend devuelve tokens y además establece cookies `HttpOnly`; su extractor prioriza el encabezado `Authorization` y admite la cookie como alternativa. La configuración de seguridad y vigencia puede variar por entorno.
 
 ## Mantenimiento de esta referencia
 

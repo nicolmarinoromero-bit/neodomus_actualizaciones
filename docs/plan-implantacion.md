@@ -39,16 +39,16 @@ El repositorio de Neodomus **no usa Node.js/Express como backend ni MongoDB como
 | Capa | Tecnología real | Puerto host | Estado en el repositorio |
 |---|---|---|---|
 | Frontend web | React 18.3.1 + Vite 5.4.21 | `5173` | `docker-compose.yml` servicio `frontend` |
-| Backend API | FastAPI 0.115.0 + Uvicorn 0.30.0 (Python 3.12.15) | `8000` | `docker-compose.yml` servicio `api` |
+| Backend API | FastAPI 0.163.1 + Uvicorn 0.30.0 (Python 3.12.15) | `8000` | `docker-compose.yml` servicio `api` |
 | Base de datos | MySQL 8.0.46 | `3307` → `3306` interno | `docker-compose.yml` servicio `db` |
 | Almacenamiento de objetos | MinIO Server `RELEASE.2025-09-07T16-13-09Z` | `9000` API S3 · `9001` consola | `docker-compose.yml` servicio `minio` |
-| Aplicación móvil | Expo SDK 57.0.22 + React Native 0.86.3 | Metro `8081` (desarrollo) | `movil/` |
+| Aplicación móvil | Expo SDK 58.0.23 + React Native 0.88.1 | Metro `8081` (desarrollo) | `movil/` |
 | Proxy / TLS | Nginx 1.28.0 (propuesto) | `80` / `443` | **Pendiente de incorporar** |
 | Base de datos documental | MongoDB | No aplica | **No forma parte del stack** |
 
 > **Puertos del stack:** no se comprueban `3000` ni `27017` porque no corresponden a este repositorio. El backend escucha en `8000`, la base de datos real es MySQL en `3307` y no hay MongoDB. Por eso el script valida `80`, `443`, `5173`, `8000`, `3306`, `3307`, `9000` y `9001`.
 
-> **Nota de auditoría:** el `README.md` todavía describe la app móvil como Expo SDK 54.0.37 / React Native 0.81.5. El manifiesto `movil/package.json` ya declara Expo 57.0.22 / React Native 0.86.3; esta ficha usa el manifiesto como fuente de verdad y deja la actualización del README para la Semana 2.
+> **Nota de auditoría:** el `README.md` todavía describe la app móvil como Expo SDK 54.0.37 / React Native 0.81.5. El manifiesto `movil/package.json` ya declara Expo 58.0.23 / React Native 0.88.1; esta ficha se sincronizó con el manifiesto el 18/11/2026; las demás fechas y estados del plan conservan su corte anterior.
 
 ### 0.3 Hallazgos que condicionan la implantación
 
@@ -79,7 +79,7 @@ El repositorio de Neodomus **no usa Node.js/Express como backend ni MongoDB como
 | Runtime de backend | Python | 3.12.15 | API runtime | PSF-2.0 | Imagen base `python:3.12-slim` |
 | Runtime de build web | Node.js | 22.23.3 | Build / Toolchain | MIT | Solo build del frontend; no es servidor de producción |
 | Gestor de paquetes web | pnpm | 10.34.7 | Build / Toolchain | MIT | Usado por `fe/Dockerfile` |
-| Runtime móvil | Node.js + Expo CLI | Node.js 22.23.3 · Expo 57.0.22 | Build / Mobile | MIT | La app móvil no se ejecuta en el servidor |
+| Runtime móvil | Node.js + Expo CLI | Node.js 22.23.3 · Expo 58.0.23 | Build / Mobile | MIT | La app móvil no se ejecuta en el servidor |
 
 #### 1.1.2 Aplicación: frontend web, API, base de datos y almacenamiento
 
@@ -90,7 +90,7 @@ El repositorio de Neodomus **no usa Node.js/Express como backend ni MongoDB como
 | Lenguaje frontend | TypeScript | 5.9.3 | Web | Apache-2.0 | Tipado estático del frontend |
 | Ruteo frontend | React Router DOM | 7.18.0 | Web | MIT | Rutas públicas y por rol |
 | Cliente HTTP | Axios | 1.8.4 | Web | MIT | Interceptores JWT y refresh |
-| Framework API | FastAPI | 0.115.0 | API | MIT | API REST versionada en `/api/v1` |
+| Framework API | FastAPI | 0.163.1 | API | MIT | API REST versionada en `/api/v1` |
 | Servidor ASGI | Uvicorn | 0.30.0 | API | BSD-3-Clause | Ejecuta FastAPI |
 | ORM | SQLAlchemy | 2.0.30 | API / Acceso a datos | MIT | Modelos y sesiones |
 | Migraciones | Alembic | 1.13.2 | DB / Migraciones | MIT | Head de migraciones del proyecto |
@@ -99,9 +99,9 @@ El repositorio de Neodomus **no usa Node.js/Express como backend ni MongoDB como
 | Base de datos | MySQL Community Server | 8.0.46 actual / 8.4.13 LTS objetivo | DB | GPL-2.0-only con FOSS Exception | 8.0 sin soporte desde 30/04/2026; migración obligatoria |
 | Almacenamiento de objetos | MinIO Server | `RELEASE.2025-09-07T16-13-09Z` | Almacenamiento S3 | AGPL-3.0-only | Imagen actual `elestio/minio`; fijar imagen oficial |
 | SDK de objetos | MinIO Python SDK | 7.2.20 | API / Cliente S3 | Apache-2.0 | Subida de imágenes y evidencias |
-| Aplicación móvil | Expo SDK | 57.0.22 | Mobile | MIT | Cliente Android/iOS |
-| Framework móvil | React Native | 0.86.3 | Mobile | MIT | Runtime de la app móvil |
-| UI móvil | React | 19.2.3 | Mobile | MIT | Componentes de la app |
+| Aplicación móvil | Expo SDK | 58.0.23 | Mobile | MIT | Cliente Android/iOS |
+| Framework móvil | React Native | 0.88.1 | Mobile | MIT | Runtime de la app móvil |
+| UI móvil | React | 19.3.0 | Mobile | MIT | Componentes de la app |
 | Lenguaje móvil | TypeScript | 6.0.3 | Mobile | Apache-2.0 | Tipado de la app móvil |
 
 #### 1.1.3 Librerías de soporte y activos

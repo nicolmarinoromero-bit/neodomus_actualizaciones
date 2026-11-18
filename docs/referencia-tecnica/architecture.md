@@ -1,6 +1,6 @@
 # Arquitectura del sistema
 
-**Revisión documental:** 30 de octubre de 2026. Esta descripción se basa en la estructura y configuración visibles del repositorio; no prueba que exista un despliegue en producción.
+**Revisión documental:** 18 de noviembre de 2026. Esta descripción se basa en la estructura y configuración visibles del repositorio; no prueba que exista un despliegue en producción.
 
 ## Vista general
 
@@ -32,9 +32,9 @@ El diagrama representa dependencias configuradas en el repositorio. No implica q
 
 ## Tecnologías configuradas
 
-- Backend: `be/pyproject.toml` especifica Python `>=3.10`, FastAPI 0.115.0, Uvicorn 0.30.0, SQLAlchemy 2.0.30, Alembic 1.13.2. El Dockerfile usa Python 3.12.
+- Backend: `be/pyproject.toml` especifica Python `>=3.11`, FastAPI 0.163.1, Uvicorn 0.30.0, SQLAlchemy 2.0.30 y Alembic 1.13.2. El Dockerfile usa Python 3.12.
 - Web: `fe/package.json` declara React 18.3.1, Vite 5.4.21, TypeScript 5.9.3 y React Router DOM 7.18.0.
-- Móvil: `movil/package.json` declara Expo 57.0.22, React Native 0.86.3, React 19.2.3 y Expo Router 57.0.21.
+- Móvil: `movil/package.json` declara Expo 58.0.23, Expo Router 58.0.30, React Native 0.88.1 y React 19.3.0.
 - Base de datos: el Compose declara `mysql:8.0`.
 - Dependencias adicionales: MinIO, SMTP configurable, Google OAuth opcional y simulador de pago por defecto.
 
@@ -56,7 +56,7 @@ La app móvil separa `(tabs)` y `(tecnico)` y redirige según el rol restaurado 
 
 ## Datos y archivos
 
-La base de datos evoluciona mediante migraciones en `be/alembic/versions/`; los modelos se encuentran en `be/app/models/`. Las migraciones, no un diagrama antiguo ni un listado de historias, determinan el esquema aplicado. El servicio MinIO fija lectura pública de objetos para el bucket configurado; no almacenar allí archivos privados sin revisar este diseño.
+La base de datos evoluciona mediante migraciones en `be/alembic/versions/`; los modelos se encuentran en `be/app/models/`. El último archivo de migración presente en el checkout revisado es `0066_reparar_refresh_tokens.py`; verifica el historial y la revisión destino antes de desplegar. MinIO separa un bucket público para medios públicos y otro privado para evidencias. Las evidencias privadas se leen por medio del backend con autorización; referencias históricas pueden tener otro origen y requieren verificarse por separado.
 
 ## Entorno local
 

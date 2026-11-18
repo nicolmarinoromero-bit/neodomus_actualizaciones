@@ -1,6 +1,6 @@
 # Diccionario de datos Neodomus
 
-> **Estado de sincronización (30/10/2026):** este diccionario es material heredado y requiere cotejo columna a columna con `be/app/models/` y todas las migraciones Alembic hasta `0060`. Puede conservar datos de una revisión anterior y no debe usarse como esquema ejecutable sin esa comprobación. Consulta [modelo y fuentes autoritativas](database-schema.md).
+> **Estado de sincronización (18/11/2026):** este diccionario es material heredado y requiere cotejo columna a columna con `be/app/models/` y todas las migraciones Alembic hasta `0066`. Puede conservar datos de una revisión anterior y no debe usarse como esquema ejecutable sin esa comprobación. Consulta [modelo y fuentes autoritativas](database-schema.md).
 
 **Fuente:** modelos SQLAlchemy de `be/app/models/`. Tipos y restricciones reflejan las declaraciones ORM; para la estructura física desplegada deben contrastarse las migraciones de Alembic y `scripts/init_db.sql`.
 

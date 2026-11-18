@@ -1,248 +1,227 @@
-# MANUAL DE USUARIO
+# Manual de usuario de NeoDomus
 
-**Sistema:** NeoDomus  
-**Documento:** Manual de usuario  
-**Versión documental:** 1.1  
-**Actualizado:** 30 de octubre de 2026  
+**Sistema:** NeoDomus — gestión y automatización del hogar inteligente
+**Versión documental:** 2.1
+**Revisión:** 18 de noviembre de 2026
 **Dirigido a:** visitantes, clientes, técnicos y administradores
+
+## Propósito y alcance
+
+Este manual explica cómo orientarse y realizar las acciones principales que aparecen en la aplicación web y móvil. Está organizado por perfil y se basa en las pantallas y rutas del repositorio revisado. La dirección de acceso, la disponibilidad de cada función y los textos de los controles pueden variar según la instalación.
+
+El manual no certifica una URL pública ni una instalación específica. Quien administra el entorno debe entregar la dirección, las instrucciones de acceso y el canal de soporte. Los pagos están configurados por defecto en modo simulador y no representan un cobro bancario real.
 
 ## Contenido
 
-1. [Alcance](#1-alcance)
-2. [Requisitos de conocimiento para operar el sistema](#2-requisitos-de-conocimiento-para-operar-el-sistema)
-3. [Requisitos de hardware y software del equipo cliente](#3-requisitos-de-hardware-y-software-del-equipo-cliente)
-4. [Información sobre la mesa de ayuda](#4-información-sobre-la-mesa-de-ayuda)
-5. [Política de seguridad](#5-política-de-seguridad)
-6. [Estructura del software](#6-estructura-del-software)
-   - [Ingreso al sistema](#61-ingreso-al-sistema)
-   - [Mapa de navegación](#62-mapa-de-navegación)
-   - [Descripción de las funciones del sistema](#63-descripción-de-las-funciones-del-sistema)
-   - [Descripción de los mensajes de error](#64-descripción-de-los-mensajes-de-error)
-7. [Glosario](#7-glosario)
-8. [Control del documento](#8-control-del-documento)
+1. [Qué ofrece NeoDomus](#qué-ofrece-neodomus)
+2. [Conocimientos necesarios](#conocimientos-necesarios)
+3. [Equipo y software](#equipo-y-software)
+4. [Seguridad y cuidado de la cuenta](#seguridad-y-cuidado-de-la-cuenta)
+5. [Ingresar y administrar la cuenta](#ingresar-y-administrar-la-cuenta)
+6. [Navegación por perfil](#navegación-por-perfil)
+7. [Funciones principales](#funciones-principales)
+8. [Ayuda y reporte de situaciones](#ayuda-y-reporte-de-situaciones)
+9. [Mensajes y orientación ante errores](#mensajes-y-orientación-ante-errores)
+10. [Glosario](#glosario)
+11. [Control del documento](#control-del-documento)
 
-> **Nota sobre el alcance:** este manual aplica a las pantallas y flujos identificables en el repositorio. No se confirmó una URL pública activa. Las imágenes entregadas se usaron como guía de estructura, no como capturas de pantallas del producto.
+## Qué ofrece NeoDomus
 
-## 1. Alcance
+NeoDomus reúne un catálogo de productos de domótica y funciones para gestionar pedidos, citas y trabajo técnico. La web presenta áreas públicas y paneles para clientes, técnicos y administradores. La aplicación móvil incluye navegación para clientes y técnicos.
 
-NeoDomus es una plataforma para consultar productos de domótica y gestionar pedidos, citas/instalaciones y actividades de servicio técnico. La aplicación web contempla visitantes, clientes, técnicos y administradores. La aplicación móvil presenta una experiencia pública/cliente y un área para técnicos.
+| Perfil | Acciones principales identificadas |
+|---|---|
+| Visitante | Consultar el inicio, catálogo y detalles; usar el carrito; leer información, ayuda y páginas legales; registrarse e iniciar sesión. |
+| Cliente | Consultar pedidos, perfil, citas, técnicos, novedades y devoluciones relacionadas con sus pedidos; acceder a facturas y otras secciones disponibles. |
+| Técnico | Consultar actividades asignadas, citas, entregas y recogidas; registrar evidencias y revisar historial y otras secciones de su perfil. |
+| Administrador | Gestionar productos, técnicos, instalaciones, pedidos, facturas, consultas, devoluciones, novedades, clientes, proveedores, reportes y notificaciones. |
 
-El manual explica cómo orientarse en las secciones detectadas, cómo acceder y qué precauciones seguir. Una ruta o pantalla presente en el código no demuestra que todas sus operaciones estén conectadas o que el entorno esté publicado. El pago está configurado por defecto como simulador académico y no representa un cobro bancario real.
+La disponibilidad de una acción depende de la cuenta, el rol, el estado del registro y la configuración del entorno.
 
-## 2. Requisitos de conocimiento para operar el sistema
+## Conocimientos necesarios
 
-No se encontró una certificación ni curso obligatorio para usuarios. Como orientación práctica, se recomienda que la persona pueda:
+No se requiere saber programar. Es útil saber abrir una página o aplicación, completar formularios, usar el correo electrónico y seguir las indicaciones que aparecen en pantalla. Para reportar una situación, identifica la sección y la acción que estabas realizando.
 
-- Usar un navegador o abrir una aplicación móvil e interactuar con formularios y menús.
-- Utilizar correo electrónico para verificar la cuenta o recuperar el acceso cuando el entorno tenga correo configurado.
-- Seguir las instrucciones en pantalla y comunicar el mensaje/situación que aparece si una operación falla.
-- Para clientes, conocer los datos de contacto y dirección que desea registrar.
-- Para técnicos y administradores, recibir del responsable del proyecto la cuenta, el rol y las instrucciones operativas que correspondan.
+Los técnicos pueden necesitar tomar una fotografía como evidencia de una actividad. Los administradores deben operar únicamente los módulos y registros para los que tengan autorización.
 
-Estos son conocimientos recomendados para la operación; el proyecto no documenta prerrequisitos de capacitación por perfil.
+## Equipo y software
 
-## 3. Requisitos de hardware y software del equipo cliente
+- Para la web: un dispositivo capaz de abrir un navegador actual y conectarse a la dirección del entorno.
+- Para móvil: un teléfono compatible con la aplicación distribuida por el equipo y con conexión al servidor.
+- El repositorio no establece requisitos oficiales de memoria, procesador, resolución ni una lista de versiones de navegador compatibles.
+- El equipo administrador debe proporcionar la dirección web o el medio de instalación móvil. No adivines la dirección ni instales una copia no confirmada.
 
-### Equipo y conectividad
+## Seguridad y cuidado de la cuenta
 
-- Un equipo capaz de ejecutar un navegador web moderno o un teléfono compatible con la instalación móvil.
-- Conexión de red que permita llegar a la dirección del frontend y a la API del entorno.
-- Para la app móvil en dispositivo físico, acceso de red al servidor API configurado.
+- Mantén tu contraseña privada y usa una contraseña que no compartas con otras cuentas.
+- No entregues códigos de verificación, enlaces de recuperación, cookies ni información de sesión a otra persona.
+- Cierra la sesión al terminar, en especial cuando compartas el dispositivo.
+- Confirma que accedes desde la dirección entregada por el responsable del entorno.
+- Adjunta solo las fotografías necesarias para describir el trabajo; evita mostrar información personal ajena al servicio.
+- No envíes contraseñas ni datos de pago en un reporte de soporte.
 
-El repositorio no establece memoria, procesador, espacio libre, resolución mínima ni velocidad de conexión. No se inventan valores mínimos o recomendados.
+El sistema incorpora autenticación y controles según el rol. Las medidas de cuidado de este apartado son recomendaciones para la persona usuaria y no significan que cada una sea comprobada automáticamente por la aplicación. No se encontró una política institucional de seguridad aprobada dentro de la documentación revisada.
 
-### Software
+## Ingresar y administrar la cuenta
 
-| Cliente | Información verificable | Pendiente |
-|---|---|---|
-| Web | Interfaz React 18.3.1 y Vite 5.4.21 (`fe/package.json`) | No se encontró matriz oficial de navegadores/ versiones soportadas. |
-| Móvil | Expo 57.0.22 y React Native 0.86.3 (`movil/package.json`) | La instalación final depende de cómo el equipo distribuya la aplicación y de las plataformas habilitadas. |
-| API | Debe ser accesible desde el cliente | La URL la proporciona el responsable del entorno; no se encontró una dirección productiva confirmada. |
+### Abrir NeoDomus
 
-La versión de Node/Python para compilar es un requisito de desarrollo, no un requisito del equipo cliente que navega la web.
+1. Solicita al responsable la dirección web o las instrucciones de instalación móvil.
+2. Abre NeoDomus y localiza la opción de acceso a la cuenta.
+3. Escribe el correo y la contraseña registrados y selecciona **Iniciar sesión**.
+4. Si el acceso se completa, la aplicación muestra las secciones permitidas para tu perfil.
 
-## 4. Información sobre la mesa de ayuda
+Las rutas de acceso observadas en la web incluyen `/login` y `/register`. La dirección local de desarrollo se documenta en la [guía de instalación con Docker](../../setup/con-docker.md); no es una dirección de producción.
 
-No se encontró un correo, teléfono, horario ni responsable oficial de mesa de ayuda. Solicita estos datos al equipo que administra tu instalación de NeoDomus.
+### Crear una cuenta de cliente
 
-Al reportar un problema, incluye:
+1. Desde la página de acceso, abre **Registro**.
+2. Completa los campos que muestre el formulario y envía la solicitud.
+3. Si la instalación solicita verificación, abre el mensaje enviado al correo y sigue sus instrucciones.
+4. Completa la información adicional que la pantalla solicite antes de continuar.
+5. Inicia sesión cuando la cuenta y el correo estén habilitados.
 
-1. Tu perfil (visitante, cliente, técnico o administrador), sin compartir tu contraseña.
-2. La sección y la acción que intentabas realizar.
-3. Fecha y hora aproximada, y el dispositivo/navegador utilizado.
-4. El texto del error, si aparece, y los pasos para reproducirlo.
-5. Una captura de pantalla solo si no muestra contraseñas, códigos, tokens ni datos personales de otras personas.
+El envío del correo depende del proveedor configurado en el entorno. Si no recibes el mensaje, revisa la carpeta de correo no deseado y consulta al responsable del sistema.
 
-No envíes contraseñas, códigos de verificación, tokens de sesión ni información de pago sensible.
+### Iniciar sesión con Google
 
-## 5. Política de seguridad
+Si aparece la opción de Google, selecciónala y sigue el flujo de Google Identity. El acceso depende de la configuración del entorno y de que Google confirme el correo de la cuenta. Si la opción no aparece, usa el acceso por correo y contraseña o consulta al responsable.
 
-No se encontró una política institucional publicada que el usuario deba aceptar para operar. Hasta que el equipo defina una política oficial, aplica estas medidas de cuidado:
+### Recuperar o cambiar la contraseña
 
-- Usa una contraseña única y no la compartas.
-- No compartas códigos de verificación o recuperación.
-- Cierra sesión al terminar en un equipo compartido y protege el dispositivo.
-- Mantén privados los datos personales y adjunta solo imágenes necesarias para el servicio.
-- Confirma que estás usando la URL o instalación proporcionada por el responsable.
-- Reporta actividad inesperada sin enviar credenciales.
+1. En la página de acceso, selecciona la opción para recuperar la contraseña.
+2. Escribe el correo asociado con la cuenta y solicita el código.
+3. Revisa tu correo, incluido correo no deseado, y escribe el código en la aplicación.
+4. Define y confirma la nueva contraseña siguiendo las indicaciones.
+5. Regresa al acceso e inicia sesión con la contraseña actualizada.
 
-El backend usa autenticación y controles por rol, pero los detalles de implementación pertenecen al manual técnico. Estas recomendaciones de usuario no deben confundirse con una certificación de seguridad del sistema.
+Si ya tienes una sesión, puedes cambiar la contraseña desde el perfil cuando la opción esté disponible. Algunas cuentas de empleado pueden requerir el cambio antes de continuar.
 
-## 6. Estructura del software
+### Cerrar sesión
 
-NeoDomus se presenta al usuario mediante dos clientes: una aplicación web (`fe/`) y una app móvil (`movil/`). Ambas se comunican con una API (`be/`) que administra operaciones y datos. El usuario no necesita instalar Python, Node.js, MySQL ni Docker para acceder a una instalación ya publicada. En una instalación local, el responsable del equipo debe iniciar primero esos servicios; consulta el [manual técnico](../tecnico/MANUAL_TECNICO.md).
+Abre el menú de cuenta y selecciona **Cerrar sesión**. En un dispositivo compartido, cierra también la ventana o aplicación al terminar.
 
-La navegación cambia según el perfil. En la web hay rutas públicas y áreas de cliente, técnico y administrador. En móvil el código dispone de una experiencia pública/cliente y otra de técnico; no se identificó un panel de administración móvil equivalente.
+## Navegación por perfil
 
-### 6.1 Ingreso al sistema
+La web agrupa las rutas por acceso público y por rol. Estas son las áreas principales identificadas en el código; algunos nombres pueden variar en la interfaz.
 
-La dirección de acceso debe ser entregada por quien administra el entorno. No se encontró URL de producción confirmada.
+| Área | Secciones web |
+|---|---|
+| Pública | Inicio, productos, detalle de producto, carrito, ayuda, información, contacto y páginas legales. |
+| Cliente | Perfil, técnicos, citas, novedades y ayuda; el checkout requiere una cuenta de cliente. |
+| Técnico | Panel, citas, historial, clientes, mensajes, calificaciones, entregas, devoluciones y novedades. |
+| Administrador | Panel, notificaciones, productos, catálogo, técnicos, instalaciones, pedidos, facturas, consultas, devoluciones, novedades, clientes, proveedores y reportes. |
 
-#### Crear cuenta e iniciar sesión en la web
+En móvil, las pantallas se organizan por navegación de cliente y de técnico. La aplicación móvil no muestra un panel administrativo equivalente al de la web.
 
-1. Abre NeoDomus desde la dirección proporcionada.
-2. Selecciona el acceso a la cuenta o registro que aparece en la interfaz.
-3. Para registro de cliente, completa los datos requeridos por el formulario.
-4. Si la instalación solicita verificar el correo, sigue el enlace o código que recibas. El envío depende de la configuración de correo del entorno.
-5. Inicia sesión con tus credenciales. El backend también incluye inicio con Google, sujeto a que OAuth esté configurado.
-6. Para cerrar sesión, utiliza la acción de salida en el menú de cuenta.
+## Funciones principales
 
-Las rutas web observadas incluyen `/login`, `/register`, `/verify-email`, `/forgot-password`, `/verify-code`, `/reset-password`, `/cambiar-password` y `/cambiar-password-obligatorio`.
+### Consultar productos
 
-#### Recuperar el acceso
+1. Abre **Productos** o el catálogo desde el inicio.
+2. Selecciona un artículo para ver su detalle.
+3. Revisa la información y las variantes disponibles.
+4. Si deseas continuar, usa la acción para añadirlo al carrito.
 
-1. Abre la opción de recuperación desde el acceso de cuenta.
-2. Escribe el correo asociado a la cuenta y solicita el código.
-3. Ingresa el código recibido y sigue las indicaciones para definir una nueva contraseña.
-4. Si el mensaje no llega, revisa correo no deseado y contacta al responsable del entorno para confirmar que el envío esté habilitado.
+La disponibilidad mostrada depende del inventario y de la respuesta del entorno.
 
-En móvil existen pantallas para login, registro, verificación de correo y recuperación/cambio de contraseña.
+### Revisar el carrito y realizar una compra
 
-### 6.2 Mapa de navegación
+1. Abre **Carrito** y revisa los artículos y cantidades.
+2. Ajusta las cantidades o elimina artículos según las opciones disponibles.
+3. Continúa al checkout e inicia sesión como cliente si la aplicación lo solicita.
+4. Completa los datos que aparezcan y revisa el resumen antes de confirmar.
+5. Consulta después el pedido desde el perfil o la sección de pedidos.
 
-El siguiente mapa resume rutas del frontend registradas en `fe/src/App.tsx`. Las URL son rutas de la aplicación luego de abrir la dirección base. Los permisos se aplican según el rol y pueden requerir una sesión.
+El modo predeterminado de pagos es un simulador. Las respuestas de ese modo sirven para probar el flujo y no procesan dinero real.
 
-```mermaid
-flowchart TD
-  VIS[Visitante] --> PUB[Catálogo / productos]
-  VIS --> AUTH[Login / registro / recuperación]
-  VIS --> INFO[Inicio / información / ayuda / contacto / legales]
-  PUB --> DET[Detalle de producto]
-  PUB --> CART[Carrito]
-  CART --> CHECK[Checkout - cliente]
-  CHECK --> ORDER[Pedido / pago simulado]
-  CLI[Cliente] --> CDASH[Dashboard y perfil]
-  CLI --> CCITA[Citas y técnicos]
-  CLI --> CNEWS[Novedades y ayuda]
-  TEC[Técnico] --> TDASH[Dashboard técnico]
-  TEC --> TWORK[Citas / historial / clientes / mensajes]
-  TEC --> TDEL[Entregas / evidencias / devoluciones]
-  ADM[Administrador] --> ADASH[Dashboard y reportes]
-  ADM --> ACAT[Productos / catálogo / proveedores]
-  ADM --> AOPS[Instalaciones / pedidos / facturas / devoluciones]
-  ADM --> AUSER[Clientes / técnicos / consultas / novedades]
-```
+### Consultar perfil, pedidos y facturas
 
-#### Rutas web por área
+Abre **Perfil** y selecciona la sección que necesites. En **Pedidos** puedes consultar pedidos y la información relacionada que la interfaz tenga disponible, incluidas devoluciones. Las secciones de facturas, reembolsos, datos personales e idioma pueden aparecer según el cliente y el entorno.
 
-| Área | Rutas registradas | Perfil indicado por la configuración de rutas |
-|---|---|---|
-| Pública | `/`, `/productos`, `/producto/:id`, `/carrito`, `/home`, `/info`, `/ayuda`, `/terminos`, `/privacidad`, `/cookies`, `/contacto` | Visitante; algunas acciones requieren cuenta. |
-| Cuenta | `/login`, `/register`, `/forgot-password`, `/verify-code`, `/reset-password`, `/verify-email` | Flujo de acceso. |
-| Cliente | `/dashboard/cliente`, `/perfil`, `/cliente/tecnicos`, `/cliente/citas`, `/cliente/novedades`, `/cliente/ayuda`, `/cambiar-password` | Cliente autenticado. |
-| Checkout | `/checkout` | Protegido para cliente. |
-| Técnico | `/dashboard/tecnico`, `/perfil/tecnico`, `/tecnico/citas`, `/tecnico/historial`, `/tecnico/clientes`, `/tecnico/mensajes`, `/tecnico/calificaciones`, `/tecnico/entregas`, `/tecnico/devoluciones`, `/tecnico/novedades` | Técnico autenticado. |
-| Administrador | `/dashboard/admin`, `/perfil/admin`, `/admin/notificaciones`, `/admin/productos`, `/admin/productos/nuevo`, `/admin/productos/:id`, `/admin/catalogo`, `/admin/tecnicos`, `/admin/instalaciones`, `/admin/pedidos`, `/admin/facturas`, `/admin/consultas`, `/admin/devoluciones`, `/admin/novedades`, `/admin/clientes`, `/admin/proveedores`, `/admin/reportes` | Administrador autenticado. |
+### Solicitar una devolución de un pedido
 
-La ruta `/notificaciones` también está registrada bajo el layout público, pero las operaciones disponibles dependen de la vista y del estado de sesión. Un visitante puede llegar a rutas desconocidas y la aplicación lo redirige a `/`.
+1. Abre tu perfil y entra en la sección **Pedidos**.
+2. Selecciona el pedido y revisa qué productos y cantidades permite devolver.
+3. Elige los artículos disponibles, selecciona el motivo y completa los campos que solicite el formulario.
+4. Envía la solicitud y consulta su estado en la misma sección.
 
-En móvil la navegación se organiza en `app/(tabs)` y `app/(tecnico)`. Las pantallas concretas se listan en el código fuente; la app redirige al área técnica cuando reconoce el rol `tecnico`.
+La opción depende de la elegibilidad del pedido y de sus cantidades disponibles. La solicitud pasa a revisión administrativa. El administrador puede aprobarla con resolución de reembolso o cambio, o rechazarla indicando el motivo. Si se requiere una recogida, se asigna a un técnico; el técnico registra la recogida y la evidencia desde su sección de devoluciones. Los estados visibles pueden incluir revisión, aprobación o rechazo, producto en devolución, recibido y reembolso procesado.
 
-### 6.3 Descripción de las funciones del sistema
+La resolución de reembolso queda registrada en NeoDomus. En el modo de pago simulado no significa que el dinero se haya devuelto por una entidad financiera.
 
-Las instrucciones siguientes explican la secuencia general visible en el producto. Los nombres de botones y campos pueden variar entre versiones; sigue el texto que muestre la pantalla. No se incluyen capturas porque en los adjuntos solo se proporcionaron diagramas de estructura, no pantallas reales de NeoDomus.
+### Consultar y gestionar citas
 
-#### Consulta de productos
+Como cliente, abre **Citas** para consultar o crear una solicitud con la información que requiera la pantalla. Como técnico, abre **Citas** para revisar las actividades asignadas y las acciones que estén habilitadas. Si una cita no aparece o requiere atención administrativa, registra el número o la fecha de la cita para el reporte.
 
-1. Abre el catálogo desde la página principal o `/productos`.
-2. Recorre la lista y abre el producto para consultar su detalle.
-3. Revisa la información, variantes y disponibilidad que se muestren.
-4. Si deseas comprar, agrega el producto al carrito según los controles de esa pantalla.
+### Registrar trabajo como técnico
 
-#### Carrito y checkout
+1. Inicia sesión con la cuenta de técnico.
+2. Abre el panel y revisa las citas, entregas o recogidas asignadas.
+3. Selecciona el registro para consultar sus detalles.
+4. Usa las acciones disponibles para actualizarlo y adjunta evidencia cuando se solicite.
+5. Consulta el historial para revisar actividades anteriores.
 
-1. Abre `/carrito` y revisa los productos y cantidades.
-2. Ajusta o elimina elementos usando las acciones disponibles.
-3. Continúa al checkout. Debes ingresar como cliente; la ruta está protegida.
-4. Completa la información solicitada y elige una alternativa de pago disponible en la pantalla.
-5. Revisa el resumen antes de confirmar.
+Las evidencias de devolución y de otras tareas se guardan con controles de acceso; no compartas enlaces o imágenes de trabajo fuera del flujo autorizado.
 
-El backend declara `PAYMENT_PROVIDER=simulator` por defecto. Aunque se muestren nombres de medios de pago, no asumas que el flujo realiza un cargo real.
+### Operar módulos administrativos
 
-#### Perfil, citas y servicios del cliente
+1. Inicia sesión con una cuenta habilitada como administrador.
+2. Abre el panel de administración y selecciona el módulo correspondiente.
+3. Busca el registro y revisa sus datos antes de realizar una acción.
+4. Sigue las indicaciones de la pantalla y confirma el resultado que muestre el sistema.
 
-1. Ingresa con una cuenta de cliente.
-2. Abre el perfil/dashboard y selecciona la sección disponible: datos de cuenta, citas/servicios, técnicos, pedidos, facturas, notificaciones o novedades.
-3. Para solicitar o consultar una cita, utiliza las pantallas de citas y completa los datos que solicite el formulario.
-4. Confirma el estado desde la sección correspondiente; si no aparece o no coincide, registra la situación para soporte.
+Las acciones administrativas pueden cambiar el estado de pedidos, cuentas, devoluciones y otros registros. Si no tienes certeza de la operación, consulta al responsable del sistema antes de confirmarla.
 
-El código contiene rutas para `/cliente/citas`, `/cliente/tecnicos`, `/perfil`, `/dashboard/cliente` y pantallas de catálogo/checkout. La disponibilidad de cada acción depende de la sesión y del backend.
+## Ayuda y reporte de situaciones
 
-#### Operación del técnico
+No se encontró en el repositorio un correo, teléfono, horario o persona responsable confirmados para la mesa de ayuda. Solicita el canal al equipo que administra tu instalación.
 
-1. Inicia sesión con un perfil técnico.
-2. Abre el dashboard y consulta las citas/entregas que aparecen asignadas.
-3. Selecciona el elemento para ver su detalle.
-4. Usa las acciones habilitadas para actualizar el estado o adjuntar evidencia relacionada.
-5. Revisa historial, clientes, mensajes, calificaciones, devoluciones y novedades en sus secciones.
+Al reportar una situación, incluye:
 
-No adjuntes imágenes ajenas al servicio ni datos personales innecesarios. No se documentan aquí cambios de estado concretos porque deben confirmarse en la operación del entorno.
+1. Tu perfil (visitante, cliente, técnico o administrador).
+2. La sección y la acción que estabas realizando.
+3. Fecha y hora aproximadas.
+4. Dispositivo y navegador o aplicación móvil.
+5. El texto que apareció en pantalla y los pasos previos.
+6. Una captura solo si no revela contraseñas, códigos, tokens ni datos personales de otras personas.
 
-#### Operación del administrador
+No envíes credenciales ni tokens. Si el canal de ayuda aparece dentro del entorno, puedes usarlo según las instrucciones del responsable.
 
-La web incluye módulos administrativos de productos, catálogo, técnicos, instalaciones, pedidos, facturas, consultas, devoluciones, novedades, clientes, proveedores y reportes. Para operar:
+## Mensajes y orientación ante errores
 
-1. Inicia sesión con el perfil de administrador que haya habilitado el responsable.
-2. Abre el dashboard administrativo.
-3. Entra al módulo que corresponda y localiza el registro usando sus filtros.
-4. Revisa la información antes de guardar cualquier cambio.
-5. Confirma que la pantalla indique el resultado esperado.
+Los textos exactos pueden cambiar entre versiones. Usa primero la orientación general y comunica el mensaje literal al soporte.
 
-No se describe la creación de cuentas o roles como una acción disponible para todos los administradores; depende de los permisos y endpoints configurados.
+| Situación | Qué puedes hacer |
+|---|---|
+| No puedes iniciar sesión | Revisa el correo escrito, confirma que la cuenta esté verificada y vuelve a intentarlo. Si no recuerdas la contraseña, inicia la recuperación. |
+| No llega el código o correo | Revisa correo no deseado y consulta al responsable si el proveedor de correo está habilitado para ese entorno. |
+| No aparece el acceso con Google | Usa correo y contraseña o consulta al responsable de la instalación. La opción depende de la configuración de Google. |
+| No carga el catálogo, pedido o cita | Comprueba la conexión y vuelve a intentar. Anota la hora y la sección para reportarlo si continúa. |
+| No se ve una imagen o evidencia | Vuelve a abrir el registro y reporta qué producto, cita, pedido o devolución está afectado. |
+| Una devolución sigue en revisión | Consulta el estado en tu perfil. La revisión y la recogida pueden requerir una acción del administrador o del técnico asignado. |
+| El resultado del pago no es el esperado | Recuerda que el modo predeterminado es un simulador y consulta al responsable antes de asumir que hubo un cobro real. |
 
-### 6.4 Descripción de los mensajes de error
+## Glosario
 
-No se halló un catálogo central de mensajes de error del usuario. La tabla distingue situaciones probables de mensajes literales: los textos entre comillas no se inventan.
+- **API:** servicio que comunica la aplicación con el sistema que gestiona los datos.
+- **Carrito:** lista de productos que preparas antes de enviar un pedido.
+- **Checkout:** pantalla donde revisas y confirmas una compra.
+- **Evidencia:** fotografía u otro registro solicitado para documentar una tarea.
+- **Perfil:** cuenta y secciones asociadas con tu rol.
+- **Reembolso:** registro de devolución de dinero asociado a una operación; el simulador no procesa una transferencia financiera.
+- **Rol:** tipo de cuenta que determina qué áreas de NeoDomus puedes usar.
+- **Técnico:** perfil que atiende actividades de servicio, entrega o recogida asignadas.
+- **URL:** dirección web que te proporciona quien administra el entorno.
 
-| Situación observada por el usuario | Qué puede significar | Acción recomendada |
-|---|---|---|
-| Credenciales rechazadas o acceso no completado | Datos incorrectos, cuenta aún no verificada o servicio de autenticación inaccesible | Revisa el correo, completa verificación si corresponde y solicita recuperación. Si persiste, contacta al administrador. |
-| No llega el correo de verificación/recuperación | El envío SMTP/servicio de correo puede no estar configurado en ese entorno | Comprueba correo no deseado y pide al responsable revisar el servicio de correo. |
-| Sesión expirada | El token ya no es válido o no pudo renovarse | Vuelve a iniciar sesión. No compartas el token al reportarlo. |
-| Catálogo, pedido o cita no carga | Puede haber un problema de red, API o servicio de datos | Comprueba conectividad, vuelve a intentar y reporta la pantalla, hora y pasos. |
-| Imagen no visible | El archivo o el servicio de almacenamiento puede no estar disponible | Intenta recargar y reporta el producto/registro afectado. |
-| Pago en estado distinto al esperado | La configuración predeterminada simula el resultado | Revisa el estado mostrado y contacta al responsable; no lo tomes como comprobante de una transacción real. |
-
-Los mensajes exactos y códigos técnicos deben consultarse en la respuesta del servicio o en los registros del entorno; no se presentan como mensajes literales en este manual.
-
-## 7. Glosario
-
-- **API:** servicio que comunica la aplicación web/móvil con el backend.
-- **Cita/instalación:** solicitud programada de un servicio técnico.
-- **Cliente:** persona usuaria con cuenta para gestionar compras y servicios.
-- **Técnico:** perfil que atiende trabajo asignado.
-- **Administrador:** perfil con acceso a módulos administrativos de la web.
-- **Simulador de pago:** mecanismo de prueba que no procesa dinero real.
-- **Sesión:** periodo durante el cual la cuenta permanece autenticada.
-
-## 8. Control del documento
+## Control del documento
 
 | Versión | Fecha | Descripción |
 |---|---|---|
-| 1.0 | 2026-10-30 | Primera versión de trabajo basada en rutas y configuración del repositorio. |
-| 1.1 | 2026-10-30 | Reorganización con los componentes solicitados en el PDF y las imágenes de referencia. |
+| 1.0 | 2026-10-30 | Primera versión de trabajo basada en las rutas y configuración del repositorio. |
+| 1.1 | 2026-10-30 | Reorganización de contenidos y referencias. |
+| 2.0 | 2026-11-02 | Ampliación según el manual de referencia y sus secciones de uso. |
+| 2.1 | 2026-11-18 | Revisión frente a la aplicación actual; actualización de navegación y cobertura de Google, pedidos, devoluciones y operación móvil. |
 
-**Elaboró:** documentación del proyecto NeoDomus.  
-**Aprobación institucional:** pendiente.  
-
-Consulta el [manual técnico](../tecnico/MANUAL_TECNICO.md) y el [índice de documentación](../../README.md).
+**Aprobación institucional:** pendiente de confirmación por el equipo del proyecto.
+**Documento relacionado:** [Manual técnico](../tecnico/MANUAL_TECNICO.md) · [Índice de documentación](../../README.md).

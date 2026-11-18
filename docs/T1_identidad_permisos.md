@@ -4,8 +4,9 @@ Inventario de rutas con sus reglas de autenticación/autorización, defectos
 corregidos, pruebas HTTP reales y limitaciones. Se conserva la infraestructura de
 T0/T0.1 (TEST_DATABASE_URL + testdb.py, base dedicada). No se hizo commit/push.
 
-> **T1.1** (recuperación de cuentas, archivos privados y pendientes de
-> autorización) queda integrado en este documento: ver sección 8.
+> **T1.1** (recuperación de cuentas, archivos privados y pendientes de autorización) queda integrado en este documento: ver sección 8.
+
+> **Vigencia:** informe histórico del corte T1. La gestión de evidencias y autenticación evolucionó después; consulta docs/security/almacenamiento-compartido-replicas.md, docs/security/migracion-evidencias-legadas.md y docs/referencia-tecnica/api-endpoints.md para el estado descrito por la documentación actual.
 
 ## 1. Defectos de autenticación confirmados y corregidos
 
