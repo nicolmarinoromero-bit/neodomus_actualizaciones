@@ -1,6 +1,6 @@
 # Manual de usuario de NeoDomus
 
-**Sistema:** NeoDomus — gestión y automatización del hogar inteligente
+**Sistema:** Neodomus — gestión y automatización del hogar inteligente
 **Versión documental:** 2.1
 **Revisión:** 18 de noviembre de 2026
 **Dirigido a:** visitantes, clientes, técnicos y administradores
