@@ -5,6 +5,8 @@
 #  - Backend: unittest sobre una base MySQL efímera del runner + MinIO de
 #    pruebas efímero (credenciales CI dummy, NUNCA las del desarrollo).
 #  - Frontend: Vitest con pnpm.
+#  - Móvil: Jest (jest-expo + React Native Testing Library), sin BD ni red
+#    (red/mock de AsyncStorage en memoria; no llama al backend real).
 #  - E2E: job SEPARADO que ejecuta directamente los orquestadores
 #    `scripts/e2e_*.py` (el runner `tests/run_e2e_tests.ps1` es Windows-
 #    only: valida Chromium vía %LOCALAPPDATA%; NO se modifica para Linux).
@@ -82,6 +84,56 @@ jobs:
         with:
           name: ci-frontend-log
           path: ci_fe_output.log
+          if-no-files-found: ignore
+
+  # ───────────────────────────────── MÓVIL ──────────────────────────────
+  # Mismo patrón que frontend: runner existente via pwsh, sin BD ni red.
+  # pnpm 12.3.4 = versión con la que sonarcloud.yml/coverage.yml instalan
+  # movil (fe usa 11.4.0 por su campo packageManager; movil no lo declara).
+  movil:
+    name: Movil (Jest + jest-expo)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Enable pnpm (corepack, versión pinnada de los workflows de movil)
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@12.3.4 --activate
+          pnpm config set store-dir ~/.pnpm-store
+
+      - name: Cache pnpm store
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-movil-${{ runner.os }}-${{ hashFiles('movil/pnpm-lock.yaml') }}
+          restore-keys: pnpm-movil-${{ runner.os }}-
+
+      - name: Install dependencies (pnpm)
+        shell: bash
+        working-directory: movil
+        run: pnpm install --frozen-lockfile
+
+      - name: Run movil tests (runner existente via pwsh)
+        shell: pwsh
+        run: |
+          Write-Host "Node: $(& node --version) · Pnpm: $(& pnpm --version)"
+          pwsh -NoProfile -File ./tests/run_movil_tests.ps1 2>&1 | Tee-Object -FilePath ci_movil_output.log
+          exit $LASTEXITCODE
+
+      - name: Upload movil log (solo en fallo)
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ci-movil-log
+          path: ci_movil_output.log
           if-no-files-found: ignore
 
   # ──────────────────────────────── BACKEND ─────────────────────────────

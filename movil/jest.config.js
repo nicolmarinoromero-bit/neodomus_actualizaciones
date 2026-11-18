@@ -27,6 +27,17 @@ module.exports = {
 
   coverageDirectory: "coverage",
   coverageReporters: ["text", "lcov", "json-summary"],
+  // Trinquete de cobertura (convención del repo, igual que fe/vitest.config.ts):
+  // nunca baja respecto a la medición real de 2026-11-17
+  // (90.26 % sentencias, 81.29 % ramas, 78.12 % funciones, 90.7 % líneas).
+  coverageThreshold: {
+    global: {
+      statements: 90,
+      branches: 80,
+      functions: 75,
+      lines: 90,
+    },
+  },
   collectCoverageFrom: [
     "app/**/*.{ts,tsx}",
     "components/**/*.{ts,tsx}",
