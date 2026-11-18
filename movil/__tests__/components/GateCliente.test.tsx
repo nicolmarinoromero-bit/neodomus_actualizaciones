@@ -80,9 +80,8 @@ it("visitante ve la pantalla de acceso con ambos botones", async () => {
       "Mis pedidos es una sección para usuarios con cuenta Neodomus verificada. Inicia sesión o crea tu cuenta para acceder.",
     ),
   ).toBeTruthy();
-  // "Iniciar sesión" también lo muestra la barra pública (2 veces); el
-  // del gate es el último en el árbol.
-  expect(screen.getAllByText("Iniciar sesión")).toHaveLength(3);
+  // El navbar y el gate muestran un botón de inicio de sesión cada uno.
+  expect(screen.getAllByText("Iniciar sesión")).toHaveLength(2);
   expect(screen.getByText("Crear cuenta")).toBeTruthy();
   expect(screen.queryByText("CONTENIDO-CLIENTE")).toBeNull();
 });
