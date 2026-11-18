@@ -11,7 +11,7 @@ bcrypt==4.0.1
 python-multipart==0.0.30
 slowapi==0.1.9
 email-validator==2.1.0
-reportlab==4.2.0
+reportlab==5.1.0
 openpyxl==3.1.5
 Pillow==13.0.0
 alembic==1.13.2
