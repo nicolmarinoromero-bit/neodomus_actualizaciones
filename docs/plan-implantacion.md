@@ -664,6 +664,10 @@ Evidencias: [Linux](../evidencias/smoke-linux.txt), [Railway](../evidencias/smok
 
 Para la demostración se eligió Railway Trial porque permitió conservar MySQL y usar crédito de prueba. La prueba ofrece USD 5 por única vez, hasta 30 días. Como alternativa en la misma plataforma, Hobby tiene un mínimo de USD 5 al mes, con el consumo incluido hasta ese importe y cobro adicional si se supera. El costo real depende de CPU, memoria, almacenamiento y tráfico. Consultado el 4 de noviembre de 2026. [Prueba de Railway](https://docs.railway.com/pricing/free-trial) · [Planes y tarifas](https://docs.railway.com/pricing/plans)
 
+### 5.10 Instalación automatizada mediante IaC — Semana 10 opcional
+
+**No implementada; evaluación técnica: no aplica por ahora.** El repositorio describe un despliegue en VPS/Ubuntu por Compose y no declara proveedor de infraestructura ni inventario de recursos cloud. No hay suficientes variables de entorno/infraestructura aprobadas para crear cloud-init, Ansible o OpenTofu sin asumir usuarios, redes, firewall, DNS, almacenamiento o proveedor. La instalación actualmente documentada está en las secciones 5.1–5.2. Si se selecciona infraestructura objetivo, diseñar primero aprovisionamiento idempotente y protección de recursos persistentes, validar en máquinas desechables y nunca guardar secretos o estado sensible en Git. No ejecutar `apply`/`destroy` en recursos reales sin autorización.
+
 
 ---
 
@@ -947,6 +951,117 @@ Para instalación manual requerida: `chown root:root /opt/neodomus/.env && chmod
 
 La configuración del repositorio no puede demostrar la instalación de llaves, el filtrado efectivo del host ni una restauración por otra persona. La aceptación final requiere completar estas evidencias en el servidor real; no registrar secretos, llaves privadas ni datos personales en los artefactos.
 
+## 8. CI/CD, despliegue, rollback y monitoreo — Semana 7
+
+### 8.1 Integración continua
+
+El workflow existente `.github/workflows/tests.yml` conserva sus jobs de frontend, backend con MySQL/MinIO efímeros y E2E. Ahora se ejecuta en cada push a ramas y en PR hacia `development`, `master` y `main`; los tags los atiende el workflow de liberación. Los jobs continúan usando credenciales efímeras de prueba, sin secretos de producción. El resultado verificable es el run de GitHub Actions para el SHA correspondiente; la modificación local de triggers no equivale a una ejecución aprobada.
+
+### 8.2 Protección de `main`
+
+La protección debe configurarse en GitHub (Settings → Rules → Rulesets, o Branch protection rules) para `main`: requerir PR, el número de aprobaciones definido por el equipo, resolver conversaciones y exigir los checks de los jobs obligatorios de `Neodomus Tests` y `Trivy filesystem scan`. Activar bloqueo de force-push y borrado. La protección remota no puede activarse desde este repositorio y queda **pendiente de configuración y verificación**. No fusionar una liberación con checks fallidos.
+
+### 8.3 Imágenes versionadas GHCR
+
+`.github/workflows/release.yml` publica las imágenes de API y web ante un tag `vX.Y.Z`, y exige que el tag apunte a un commit integrado en `main` con una ejecución exitosa de `Neodomus Tests`. Publica tags de versión sin `v` y SHA; usa Buildx y caché de GitHub Actions. Solo el workflow escribe en `packages`; no publica desde PR. El workflow aún requiere una ejecución real para confirmar permisos de paquete, compilación, pruebas asociadas y disponibilidad de ambas imágenes. Configurar acceso de lectura del servicio que las consuma por separado.
+
+### 8.4 Railway y despliegue de servidor
+
+Se conserva Railway como proveedor seleccionado, según la decisión del usuario. El documento registra una liberación histórica en Railway; el plan de Semana 5 aclara que MinIO en la nube quedó sin verificar. El entorno versionado usa MySQL 8.0 y MinIO en Compose; la API aplica Alembic y el servicio web usa Nginx propio. No se cambia arbitrariamente la arquitectura ni se realiza un despliegue real desde este checkout. Antes de declarar el despliegue actual cumplido, verificar en Railway la base de datos MySQL, MinIO/almacenamiento, red privada, secretos, healthcheck y la versión activa. Railway acepta imágenes de GHCR; las privadas requieren plan Pro y credenciales de registry de solo lectura configuradas en Railway. Esta conexión es manual y aún no está verificada.
+
+El archivo `deploy/compose.prod.yaml` separa el job `migrate` del servicio API y conserva volúmenes `mysql_data` y `minio_data`. No ejecutar `docker compose down -v`, no borrar volúmenes y no aplicar migraciones destructivas automáticamente. Las imágenes GHCR están preparadas para publicar, pero el Compose productivo actual todavía construye imágenes locales etiquetadas `1.0.0`; el consumo de GHCR requiere un cambio revisado y probado en un entorno aislado. Por ello el despliegue continuo queda pendiente. No existe endpoint de versión en la API; el monitoreo de versión debe hacerse desde los metadatos/tag de imagen o panel del proveedor hasta que se diseñe un mecanismo que no exponga información interna.
+
+### 8.5 Rollback
+
+Para rollback del despliegue Compose, usar la imagen anterior ya disponible, conservar base de datos y volúmenes, verificar compatibilidad del esquema y seguir la reversión de la sección 5.2. No reconstruir una versión anterior ni bajar migraciones automáticamente. En Railway, seleccionar la última versión desplegada conocida en el panel y aplicar su mecanismo de rollback tras validar la compatibilidad del esquema; ensayar primero en staging. No se ejecutó reversión en esta entrega. Render queda fuera de alcance porque se conserva Railway.
+
+### 8.6 Monitoreo Uptime Kuma
+
+`deploy/compose.uptime-kuma.yaml` ofrece Uptime Kuma con volumen persistente y puerto de administración enlazado a loopback. Su etiqueta de imagen inicial es flotante: antes de desplegar, fijar una versión parche y digest aprobados. Desplegarlo en **otro host** distinto al que monitorea, con firewall y acceso administrativo mediante proxy autenticado o túnel SSH. Desde su interfaz, crear monitores HTTP para `/health`, `/health/readiness` y la versión desplegada (si el despliegue expone un endpoint de versión), junto con el canal de alertas elegido. La configuración de monitores/canal requiere operación manual y no se afirma que esté activa.
+
+Para el monitor Push de respaldos, configurar `BACKUP_HEARTBEAT_URL` como secreto en el entorno del job `scripts/backup-restic.sh`. El script notifica solo tras `restic backup`, retención y copia off-site opcional exitosos; requiere `curl`. Configurar en Kuma un plazo acorde al calendario de respaldo, y probar un job exitoso y otro fallido en laboratorio. Un contenedor activo no demuestra que exista una copia válida. Aplicar [RB-01](runbooks/RB-01-api-no-disponible.md) para API caída y [RB-02](runbooks/RB-02-respaldo-atrasado.md) para heartbeat vencido.
+
+### 8.7 GitLab CI
+
+**No aplica por ahora:** GitHub Actions es el pipeline configurado. Mantener un segundo pipeline productivo en GitLab duplicaría liberaciones y credenciales. Si el programa formativo exige el anexo, trasladar los mismos jobs y reglas a `.gitlab-ci.yml` de forma mutuamente excluyente y con variables protegidas; no activar ambos despliegues.
+
+## 9. Mantenimiento, soporte y capacitación — Semana 8
+
+### 9.1 Dependencias y vulnerabilidades
+
+`.github/dependabot.yml` configura revisiones semanales para GitHub Actions, Python (`be`), web (`fe`) y móvil (`movil`), con límites de PR y agrupación de actualizaciones menores/parches. Ninguna actualización se acepta automáticamente: debe pasar CI y revisión. `.github/workflows/security.yml` escanea dependencias y configuración con Trivy en push/PR, bloqueando hallazgos HIGH y CRITICAL (incluye hallazgos sin fix disponible) hasta su revisión y corrección o excepción documentada. La publicación en GHCR exige una ejecución exitosa de ese workflow en `main`; el escaneo no demuestra que el proyecto esté libre de vulnerabilidades y sus resultados reales aún deben revisarse.
+
+### 9.2 Mantenimiento del servidor
+
+Calendario mínimo propuesto, a aprobar por el responsable: semanal revisar jobs de respaldo, alertas y espacio; mensual revisar parches de seguridad, imágenes, certificados, usuarios y componentes fuera de soporte; trimestral ensayar restauración y revisar capacidad/RPO/RTO. Aplicar actualizaciones primero en staging, programar reinicios con ventana aprobada y conservar registro de versiones y resultado. No ejecutar limpieza que borre volúmenes Docker. La automatización de parches y política de reinicio depende del host y aún no está configurada.
+
+### 9.3 Soporte N0–N3 y capacitación
+
+| Nivel | Atención | Responsable / límite |
+|---|---|---|
+| N0 | Guía rápida, FAQ y documentación | Autoservicio; no incluye acceso a producción |
+| N1 | Recepción, clasificación y reproducción inicial | Responsable de soporte asignado por el equipo; horario y tiempos por acordar |
+| N2 | Diagnóstico de aplicación, infraestructura y respaldo | Operador técnico autorizado; escalar incidentes de datos al responsable de datos |
+| N3 | Defectos de código, arquitectura o proveedor | Desarrollo/especialistas; depende de disponibilidad y acceso aprobado |
+
+No se promete SLA ni cobertura fuera de horario hasta que el equipo asigne responsables, canal, horario y capacidad. Plan de capacitación sugerido (90 minutos): usuarios (30 min: catálogo, compra simulada y consultas; demostrar tarea sin ayuda), operadores (30 min: estado, alertas y runbooks; resolver una alerta de laboratorio), soporte (30 min: clasificación, evidencia segura y escalamiento). Registrar asistentes, tarea observada, resultado y dudas; no hay capacitación impartida ni evidencia de aprendizaje en este commit.
+
+### 9.4 Formularios y ayudas
+
+Las plantillas `.github/ISSUE_TEMPLATE/bug_report.yml` y `support_request.yml` piden entorno, versión, pasos y evidencia redactada; advierten no remitir secretos ni datos personales. La guía rápida está en [`docs/ayuda/guia-rapida.md`](ayuda/guia-rapida.md) y las preguntas conocidas en [`docs/ayuda/preguntas-frecuentes.md`](ayuda/preguntas-frecuentes.md). Runbooks: [API no disponible](runbooks/RB-01-api-no-disponible.md) y [respaldo atrasado](runbooks/RB-02-respaldo-atrasado.md). Ajustar cualquier instrucción al Compose y host reales antes de ejecutarla.
+
+## 10. Aceptación, simulacro y entrega formal — Semana 9
+
+### 10.1 Casos de aceptación
+
+| ID | Requisito | Precondición y pasos | Resultado esperado | Resultado obtenido / estado / evidencia |
+|---|---|---|---|---|
+| ACC-01 | Instalación limpia | Host aislado; seguir este plan y la guía Docker | Web, API, MySQL y MinIO saludables | Pendiente de ejecutar; no aprobado hasta registrar evidencia |
+| ACC-02 | Restauración e integridad | Copia válida y entorno aislado; restaurar y correr verificador SHA-256 | Huellas y conteos coinciden | Pendiente; sin evidencia en este commit |
+| ACC-03 | Smoke test | Stack restaurado y datos de prueba | `scripts/smoke-test.sh` concluye sin fallos | Pendiente de ejecutar; no inventar resultado |
+| ACC-04 | CI | Push/PR representativo | Checks requeridos concluyen exitosos | Cambio de trigger preparado; run remoto pendiente |
+
+Se aprueba un caso solo con resultado observado y evidencia fechada; rechazo o falta de evidencia deja el gate no aprobado.
+
+### 10.2 Simulacro de instalación limpia
+
+Ejecutar con una persona de otro equipo en un host aislado y usando únicamente este Plan de Implantación más las referencias que enlaza. Registrar responsable, fecha, versión del plan, SHA del proyecto, tiempo, asistencia recibida (debe ser ninguna para aprobar), desvíos, restauración, manifiesto de hashes, smoke test y correcciones. No restaurar sobre producción. El simulacro no se ha realizado; gate **NO APROBADO / pendiente de evidencia**.
+
+### 10.3 Acta de entrega
+
+**Plantilla para completar tras aceptación:** alcance y SHA entregados: ____; requisitos aceptados y evidencias: ____; instalación limpia/restauración/smoke: ____; pendientes y riesgos: ____; garantía acordada: ____; responsables y canal/horario de soporte: ____; accesos transferidos mediante gestor seguro (sin credenciales en acta): ____; fecha: ____; firma del equipo que entrega: ____; firma de quien recibe: ____. No completar resultados antes de observarlos.
+
+## Matriz de cumplimiento de semanas 7–10
+
+Los estados indican lo que puede sostener este checkout; documentación preparada no equivale a ejecución externa.
+
+| Semana | Requisito | Estado | Archivo o ubicación | Evidencia |
+|---|---|---|---|---|
+| 07 | CI | PARCIAL | `.github/workflows/tests.yml` | Trigger ampliado; ejecución remota no observada |
+| 07 | Protección de main | PENDIENTE | Configuración de reglas GitHub | Requiere configuración manual y verificación |
+| 07 | GHCR | PARCIAL | `.github/workflows/release.yml` | Workflow preparado; sin publicación observada |
+| 07 | Render | NO APLICA | Sección 8.4 | Se conserva Railway por decisión del usuario |
+| 07 | Railway | PARCIAL | Secciones 5.3 y 8.4 | Hay evidencia histórica; verificación del despliegue vigente pendiente |
+| 07 | Rollback sin reconstrucción | PARCIAL | Secciones 5.2 y 8.5 | Procedimiento descrito; prueba controlada pendiente |
+| 07 | Despliegue con rollback automático | PENDIENTE | `deploy/` | No hay script verificado; no reemplazar despliegue actual |
+| 07 | Uptime Kuma | PARCIAL | `deploy/compose.uptime-kuma.yaml`, `scripts/backup-restic.sh` | Compose y heartbeat preparados; monitores no configurados |
+| 07 | GitLab CI | NO APLICA | Sección 8.7 | GitHub Actions ya es pipeline activo |
+| 08 | Dependabot | PARCIAL | `.github/dependabot.yml` | Archivo preparado; alertas/PR remotos no verificados |
+| 08 | Auditoría de vulnerabilidades | PARCIAL | `.github/workflows/security.yml` | Escáner y umbral implementados; resultados del repositorio aún no revisados |
+| 08 | Mantenimiento del servidor | PARCIAL | Sección 9.2 | Calendario documentado; host no configurado |
+| 08 | Soporte N0-N3 | PARCIAL | Sección 9.3 | Niveles propuestos; responsables y tiempos por acordar |
+| 08 | Runbooks | PARCIAL | `docs/runbooks/` | Dos procedimientos preparados; ejecución no observada |
+| 08 | Capacitación | PENDIENTE | Sección 9.3 | Plan propuesto; capacitación no impartida |
+| 08 | Guía rápida y FAQ | PARCIAL | `docs/ayuda/` | Documentos preparados, no validados por usuarios |
+| 09 | Pruebas de aceptación | PARCIAL | Sección 10.1 | Casos definidos; resultados pendientes |
+| 09 | Simulacro de instalación limpia | PENDIENTE | Sección 10.2 | No realizado |
+| 09 | Restauración y verificación de huellas | PENDIENTE | Sección 10.2 | No hay evidencia del simulacro |
+| 09 | Acta de entrega | PARCIAL | Sección 10.3 | Plantilla integrada; entrega/firma pendientes |
+| 10 | cloud-init | NO APLICA | Sección 5.10 | Infraestructura objetivo no seleccionada |
+| 10 | Ansible idempotente | NO APLICA | Sección 5.10 | Infraestructura objetivo no seleccionada |
+| 10 | Ansible Vault | NO APLICA | Sección 5.10 | Sin playbook, secretos no necesarios |
+| 10 | OpenTofu, si aplica | NO APLICA | Sección 5.10 | No hay proveedor ni recursos cloud definidos |
+
 ## Anexo — Archivos incorporados
 
 - `be/app/config.py`: validación fail-fast de configuración y secretos.
@@ -955,3 +1070,5 @@ La configuración del repositorio no puede demostrar la instalación de llaves, 
 - `scripts/smoke-test.sh`: verificación HTTP y autenticación obligatoria con cuenta de prueba.
 - `scripts/verificar-migracion.py`: comparación exacta de conteos y hashes SHA-256.
 - Plantillas `.env.example`, `be/.env.example` y `deploy/env.prod.example`: variables declaradas sin secretos reales.
+- `.github/dependabot.yml`, workflows de CI, seguridad y liberación, y formularios de soporte.
+- `deploy/compose.uptime-kuma.yaml`, `docs/runbooks/` y `docs/ayuda/`.

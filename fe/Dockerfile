@@ -15,7 +15,7 @@ WORKDIR /app
 # pnpm-workspace.yaml es parte de la instalación: contiene 'allowBuilds'
 # (aprobación de scripts de build, p. ej. esbuild). Sin copiarlo, pnpm 11
 # aborta en CI con ERR_PNPM_IGNORED_BUILDS.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY fe/package.json fe/pnpm-lock.yaml fe/pnpm-workspace.yaml ./
 # --frozen-lockfile (S8544): instala estrictamente lo resuelto en
 # pnpm-lock.yaml; nunca re-resuelve versiones nuevas en el build.
 RUN pnpm install --frozen-lockfile
@@ -26,11 +26,12 @@ USER node
 
 # Copia con listado explícito (S6470): evita arrastrar archivos sensibles o
 # ajenos a la imagen (p. ej. .env, artefactos dist/, stores de paquetes).
-COPY index.html vite.config.ts tsconfig.json tsconfig.node.json tsconfig.app.json ./
-COPY playwright.config.ts vite-env.d.ts ./
-COPY src ./src
-COPY public ./public
-COPY e2e ./e2e
+COPY fe/index.html fe/vite.config.ts fe/tsconfig.json fe/tsconfig.node.json fe/tsconfig.app.json ./
+COPY fe/playwright.config.ts fe/vite-env.d.ts ./
+COPY fe/src ./src
+COPY fe/public ./public
+COPY fe/e2e ./e2e
+COPY shared /shared
 
 EXPOSE 5173
 

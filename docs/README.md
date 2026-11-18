@@ -9,6 +9,8 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 - [Instalación con Docker](setup/con-docker.md)
 - [Instalación sin Docker](setup/sin-docker.md)
 - [Plan de trabajo](plan-trabajo.md)
+- [Plan de Implantación](plan-implantacion.md)
+- [Ayuda rápida](ayuda/guia-rapida.md) · [Preguntas frecuentes](ayuda/preguntas-frecuentes.md)
 
 ## Referencia técnica
 
@@ -43,6 +45,9 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 - [Errores del equipo 2026-10-21](gestion/Errores_equipo_2026-10-21.md)
 
 ## Validación y operación
+
+- [Runbook API no disponible](runbooks/RB-01-api-no-disponible.md)
+- [Runbook respaldo atrasado](runbooks/RB-02-respaldo-atrasado.md)
 
 - [Requisito académico PSI: aclaraciones y criterios](requisitos/PSI_criterios_aceptacion.md)
 - [Checklist de validación del proyecto](qa/checklist-validacion.md)

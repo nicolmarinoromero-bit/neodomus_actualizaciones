@@ -1,0 +1,81 @@
+name: Publish versioned images
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Validate release and publish GHCR images
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate version and successful main CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="${GITHUB_REF_NAME}"
+          [[ "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo '::error::La etiqueta debe cumplir SemVer vX.Y.Z.'; exit 1;
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo '::error::La versión debe apuntar a un commit integrado en main.'; exit 1;
+          }
+          successful_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/tests.yml/runs?head_sha=${GITHUB_SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | select(.head_branch == "main" and .conclusion == "success")] | length')"
+          [[ "$successful_runs" -gt 0 ]] || {
+            echo '::error::No hay una ejecución exitosa de Neodomus Tests para este commit en main.'; exit 1;
+          }
+          security_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/security.yml/runs?head_sha=${GITHUB_SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | select(.head_branch == "main" and .conclusion == "success")] | length')"
+          [[ "$security_runs" -gt 0 ]] || {
+            echo '::error::No hay un escaneo de seguridad exitoso para este commit en main.'; exit 1;
+          }
+
+      - name: Authenticate to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build and publish API image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          image="${IMAGE,,}"
+          docker buildx build ./be --push \
+            --tag "$image:${GITHUB_REF_NAME#v}" \
+            --tag "$image:${GITHUB_SHA}" \
+            --cache-from type=gha,scope=api \
+            --cache-to type=gha,scope=api,mode=max
+
+      - name: Build and publish web image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}-web
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          image="${IMAGE,,}"
+          docker buildx build . -f deploy/Dockerfile.frontend --push \
+            --tag "$image:${GITHUB_REF_NAME#v}" \
+            --tag "$image:${GITHUB_SHA}" \
+            --cache-from type=gha,scope=web \
+            --cache-to type=gha,scope=web,mode=max

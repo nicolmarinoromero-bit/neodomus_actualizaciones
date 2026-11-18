@@ -1,0 +1,30 @@
+name: Solicitud de ayuda
+description: Solicitar orientación de uso o reportar una dificultad.
+title: "[Ayuda]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: "No incluyas contraseñas, tokens, datos personales ni información real de clientes."
+  - type: textarea
+    id: request
+    attributes:
+      label: ¿Qué necesitas hacer o resolver?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos realizados
+  - type: input
+    id: environment
+    attributes:
+      label: Entorno y versión
+      description: Sistema operativo, ambiente y versión/commit.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidencia depurada
+      description: Adjunta mensajes o capturas sin datos sensibles.
