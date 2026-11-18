@@ -52,7 +52,7 @@ pnpm install
 pnpm start
 ```
 
-Consulta `movil/README.md` (guía del proyecto actualizada) y `movil/.env.example`. El `AGENTS.md` local contiene una referencia Expo 54, pero el manifiesto presente declara Expo 57; confirma la versión efectiva del checkout antes de aplicar instrucciones versionadas de Expo.
+Consulta `movil/README.md` y `movil/.env.example`. En la revisión del 18 de noviembre de 2026, `movil/package.json` declara Expo 58.0.23, Expo Router 58.0.30 y React Native 0.88.1. Los archivos de instrucciones o reportes fechados anteriormente pueden conservar versiones históricas; usa el manifiesto y la lockfile del checkout para preparar el entorno.
 
 ## Límites y diagnóstico
 

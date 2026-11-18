@@ -14,14 +14,14 @@
 -->
 
 > **Proyecto:** Neodomus — Plataforma de gestión de servicios domóticos  
-> **Stack:** React 18 + TypeScript · Vite · FastAPI · MySQL · Leaflet · pnpm  
-> **Cobertura tests:** Frontend ≥ 80% · Backend ≥ 70%
+> **Stack de referencia:** React + TypeScript · Vite · FastAPI · MySQL · Expo/React Native · pnpm
+> **Nota:** Leaflet y los porcentajes de cobertura de ejemplos posteriores son referencias históricas o aspiracionales, no datos actuales.
 
 ---
 
 ## Resumen ejecutivo
 
-El sistema aplica **10 patrones arquitectónicos y de diseño** de uso profesional adaptados a una aplicación del mundo real de servicios técnicos. Cada patrón resuelve un problema concreto y está presente en el código del proyecto.
+El documento explica **10 patrones arquitectónicos y de diseño** mediante ejemplos. Algunos se usan en el código y otros son ilustrativos o aspiracionales; el listado no constituye una auditoría de implementación. Para el estado actual consulta la arquitectura comprobada en docs/referencia-tecnica/architecture.md.
 
 | #   | Patrón                              | Dónde vive                           | Qué resuelve                                                              |
 | --- | ----------------------------------- | ------------------------------------ | ------------------------------------------------------------------------- |
@@ -34,7 +34,7 @@ El sistema aplica **10 patrones arquitectónicos y de diseño** de uso profesion
 | 7   | Interceptor                         | `frontend/src/services/api.ts`       | Adjuntar token JWT en cada petición automáticamente                       |
 | 8   | Route Guard basado en roles         | `frontend/src/components/ProtectedRoute.tsx` | Proteger rutas según rol (usuario, técnico, admin)                       |
 | 9   | Monorepo                            | `backend/` + `frontend/`             | Código fuente unificado en un solo repositorio                            |
-| 10  | Patrón de Mapa + Marcadores         | `frontend/src/modules/maps/` + Leaflet | Visualización de tareas geolocalizadas para técnicos                     |
+| 10 | Mapa y marcadores (ejemplo conceptual) | No identificado en el código actual | Ejemplo didáctico de visualización geográfica |
 
 ---
 

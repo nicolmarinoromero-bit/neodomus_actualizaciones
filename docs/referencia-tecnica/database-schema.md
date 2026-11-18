@@ -1,10 +1,10 @@
 # Modelo de datos y esquema relacional
 
-**Revisado:** 30 de octubre de 2026. Esta guía describe dónde obtener el esquema verdadero y resume las áreas de datos. No sustituye la inspección de la base de datos desplegada.
+**Revisado:** 18 de noviembre de 2026. Esta guía describe dónde obtener el esquema verdadero y resume las áreas de datos. No sustituye la inspección de la base de datos desplegada.
 
 ## Fuentes autoritativas
 
-1. Migraciones de `be/alembic/versions/`, en orden de `revision`/`down_revision`. La migración más reciente visible en el checkout es `0060_stock_y_metros_decimal.py` (revisión `0060`, fecha indicada 2026-10-17).
+1. Migraciones de `be/alembic/versions/`, en orden de `revision`/`down_revision`. El archivo más reciente visible en el checkout es `0066_reparar_refresh_tokens.py` (revisión `0066`). La base desplegada puede estar en una revisión distinta si no se han aplicado las migraciones.
 2. Modelos ORM de `be/app/models/` para la estructura usada por la aplicación.
 3. `scripts/init_db.sql` como script SQL adicional; compáralo con las migraciones antes de tratarlo como esquema equivalente.
 
@@ -36,4 +36,4 @@ La migración `0060` convierte existencias y cantidades por metros a tipos decim
 
 ## Diccionario
 
-El documento [diccionario de datos](diccionario-de-datos.md) contiene descripciones por tabla, pero requiere reconciliación columna a columna con la revisión `0060` antes de usarlo como especificación exacta. Para una consulta fiel, revisa los modelos y migraciones actuales.
+El documento [diccionario de datos](diccionario-de-datos.md) contiene descripciones por tabla, pero requiere reconciliación columna a columna con la revisión `0066` antes de usarlo como especificación exacta. Para una consulta fiel, revisa los modelos y migraciones actuales.

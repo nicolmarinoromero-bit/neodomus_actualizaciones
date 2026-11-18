@@ -1,6 +1,6 @@
 # Instalación local con Docker
 
-Guía correspondiente al `docker-compose.yml` de la raíz revisado el 30 de octubre de 2026.
+Guía correspondiente al `docker-compose.yml` de la raíz revisado el 18 de noviembre de 2026.
 
 ## Requisitos
 
@@ -27,7 +27,7 @@ Desde la raíz del proyecto:
 docker compose up --build
 ```
 
-Compose crea estos servicios: MySQL 8.0 (`3307` en el host), API (`8000`), MinIO (`9000`, consola `9001`) y web (`5173`). La API ejecuta `uv run alembic upgrade head` antes de Uvicorn. El frontend usa Vite en el contenedor.
+Compose crea estos servicios: MySQL 8.0 (`3307` en el host), API (`8000`), MinIO (`9000`, consola `9001`) y web (`5173`). El comando del servicio `api` ejecuta `alembic upgrade head` antes de Uvicorn. El frontend usa Vite en el contenedor.
 
 Direcciones locales configuradas:
 

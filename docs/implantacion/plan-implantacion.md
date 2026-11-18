@@ -6,7 +6,7 @@
 
 La configuración comprobada en este repositorio es una API **Python/FastAPI** con SQLAlchemy y Alembic, una aplicación web React/Vite, una app móvil Expo/React Native, **MySQL 8.0** y MinIO. Este checkout no configura una API Node.js/Express ni bases PostgreSQL o MongoDB; los procedimientos de esta versión se limitan a MySQL.
 
-El `docker-compose.yml` actual es de desarrollo: monta el código fuente, arranca servidores de desarrollo y puede sembrar usuarios si `EJECUTAR_SEED_AL_ARRANCAR` no se desactiva. No es una configuración productiva certificada. Antes de desplegar producción se requiere un Compose/manifest endurecido, TLS, gestión de secretos, red privada, límites de recursos, monitoreo y revisión del acceso de MinIO.
+El `docker-compose.yml` actual es de desarrollo: monta el código fuente, arranca servidores de desarrollo y puede sembrar usuarios si `EJECUTAR_SEED_AL_ARRANCAR` no se desactiva. No es una configuración productiva certificada. Antes de desplegar producción se requiere un Compose/manifest endurecido, TLS, gestión de secretos, red privada, límites de recursos, monitoreo y monitoreo. La configuración actual separa un bucket público para medios públicos y uno privado para evidencias; revisa las referencias heredadas antes de establecer la política de acceso por entorno.
 
 No se encontró en el repositorio un extracto legado de producción, un inventario de volumen real ni evidencia de una restauración en un entorno aislado. Esos datos se registran como pendientes y no se sustituyen por cifras inventadas. El SQL versionado `scripts/init_db.sql` es una referencia de inicialización/semillas, no prueba de ser el origen oficial de datos productivos.
 
@@ -21,9 +21,9 @@ Inventario contrastado con manifiestos y Compose. Las etiquetas de imagen mysql:
 | Componente | Software y versión observada | Tipo | Licencia | Estado de pin |
 |---|---|---|---|---|
 | Web | React 18.3.1, Vite 5.4.21; Node.js 22 (node:22-alpine) | Web | React/Vite MIT; Node.js MIT y avisos de terceros | Paquetes fijados; imagen Node solo mayor |
-| API | Python 3.12, FastAPI 0.115.0, SQLAlchemy 2.0.30, Uvicorn 0.30.0 | API | PSF-2.0, MIT, MIT, BSD-3-Clause | Paquetes en be/uv.lock; imagen python:3.12-slim sin digest |
+| API | Python 3.12, FastAPI 0.163.1, SQLAlchemy 2.0.30, Uvicorn 0.30.0 | API | PSF-2.0, MIT, MIT, BSD-3-Clause | Paquetes en be/uv.lock; imagen python:3.12-slim sin digest |
 | Migraciones | Alembic 1.13.2 | Migrador | MIT | Versión declarada en backend |
-| Móvil | Expo 57.0.22, React Native 0.86.3, React 19.2.3 | Móvil | MIT | Verificar lockfile antes de publicación |
+| Móvil | Expo 58.0.23, React Native 0.88.1, React 19.3.0 | Móvil | MIT | Verificar lockfile antes de publicación |
 | Base de datos | MySQL Community Server 8.0 (mysql:8.0) | DB | GPL-2.0 Community Edition | Tag de rama, no parche |
 | Objetos | MinIO (elestio/minio:latest) | Almacenamiento | AGPL-3.0 para MinIO; confirmar licencia del artefacto exacto | latest, no reproducible |
 | Proxy local | Caddy 2 (caddy:2-alpine) | Proxy | Apache-2.0 | Tag flotante; perfil local |
@@ -465,7 +465,7 @@ También validar un flujo de login de prueba autorizado, lectura de catálogo, s
 
 - Usar cuentas nominales y mínimo privilegio; separar credenciales de staging y producción.
 - Mantener `.env`, claves privadas de `age` y datos de respaldo fuera de Git, imágenes, logs y tickets. Rotar secretos mediante el gestor aprobado.
-- En producción terminar TLS en un proxy controlado; poner MySQL y MinIO en redes privadas; exponer solo rutas necesarias. Revisar especialmente la política de acceso público del bucket configurado en el código actual.
+- En producción terminar TLS en un proxy controlado; poner MySQL y MinIO en redes privadas; exponer solo rutas necesarias. Mantener separados MINIO_BUCKET para medios públicos y MINIO_PRIVATE_BUCKET para evidencias privadas; verificar las referencias heredadas y las políticas del servidor MinIO.
 - Configurar scheduler, alertas de fallo/antigüedad, monitoreo de disco, logs centralizados y procedimiento de escalamiento antes de aceptar tráfico real.
 - Documentar RPO/RTO medidos, inventario de versiones, propietarios y accesos de emergencia. Retirar credenciales temporales después del smoke test.
 
