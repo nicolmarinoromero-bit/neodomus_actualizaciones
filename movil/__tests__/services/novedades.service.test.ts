@@ -62,12 +62,14 @@ describe("consultas simples", () => {
     await novedades.obtenerNovedad(11);
     await novedades.listarMisNovedades();
     await novedades.listarNovedadesCliente();
+    await novedades.listarCuponesCliente();
     await novedades.obtenerEvidencias(11);
 
     expect(url(0)).toBe(`${BASE}/novedades/11`);
     expect(url(1)).toBe(`${BASE}/novedades/mis-novedades`);
     expect(url(2)).toBe(`${BASE}/novedades/cliente/novedades`);
-    expect(url(3)).toBe(`${BASE}/novedades/11/evidencias`);
+    expect(url(3)).toBe(`${BASE}/novedades/cliente/mis-cupones`);
+    expect(url(4)).toBe(`${BASE}/novedades/11/evidencias`);
   });
 });
 

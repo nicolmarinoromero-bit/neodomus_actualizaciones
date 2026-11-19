@@ -1,5 +1,5 @@
 // Componente de navegación y estructura visual: AdminSidebar. Se reutiliza en las pantallas de su área.
-import { NavLink } from "react-router-dom";
+import SidebarNavigation, { type SidebarSection } from './SidebarNavigation';
 import { useIdioma } from "@i18n/IdiomaContext";
 import {
   FaHouse,
@@ -23,15 +23,10 @@ interface AdminSidebarProps {
   onNavigate?: () => void;
 }
 
-interface Seccion {
-  titulo: string;
-  links: { to: string; icon: React.ReactNode; label: string; badge?: number }[];
-}
-
 const AdminSidebar = ({ open, pendientes, onNavigate }: AdminSidebarProps) => {
   const { t } = useIdioma();
 
-  const secciones: Seccion[] = [
+  const secciones: SidebarSection[] = [
     {
       titulo: t('adm.sidebar.panel'),
       links: [
@@ -67,27 +62,12 @@ const AdminSidebar = ({ open, pendientes, onNavigate }: AdminSidebarProps) => {
   ];
 
   return (
-    <aside className={`admin-sidebar ${open ? 'open' : ''}`}>
-      <nav className="sidebar-nav" aria-label={t('adm.sidebar.menuAria')}>
-        {secciones.map((seccion) => (
-          <div key={seccion.titulo}>
-            <span className="sidebar-section-title">{seccion.titulo}</span>
-            {seccion.links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={onNavigate}
-                className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-              >
-                <span className="sidebar-icon">{link.icon}</span>
-                <span className="sidebar-label">{link.label}</span>
-                {link.badge ? <span className="sidebar-badge">{link.badge}</span> : null}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
-    </aside>
+    <SidebarNavigation
+      open={open}
+      ariaLabel={t('adm.sidebar.menuAria')}
+      sections={secciones}
+      onNavigate={onNavigate}
+    />
   );
 };
 

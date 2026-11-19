@@ -45,6 +45,7 @@ const DICCIONARIO_BASE: Record<string, { es: string; en: string }> = {
   "menu.misReembolsos": { es: "Mis reembolsos", en: "My refunds" },
   "menu.misResenas": { es: "Mis reseñas", en: "My reviews" },
   "menu.misTecnicos": { es: "Mis técnicos", en: "My technicians" },
+  "menu.misNovedades": { es: "Mis novedades", en: "My updates" },
   "menu.misFacturas": { es: "Mis facturas", en: "My invoices" },
   "menu.idioma": { es: "Idioma", en: "Language" },
   "menu.cerrarSesion": { es: "Cerrar sesión", en: "Log out" },

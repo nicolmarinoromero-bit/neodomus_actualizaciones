@@ -23,6 +23,7 @@ jest.mock("react-native-safe-area-context", () =>
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  act,
   fireEvent,
   render,
   renderHook,
@@ -51,12 +52,15 @@ function Sonda() {
 }
 
 async function montar() {
-  await render(
-    <CookieConsentProvider>
-      <Sonda />
-    </CookieConsentProvider>,
-  );
-  // La decisión se carga de AsyncStorage al montar.
+  await act(async () => {
+    render(
+      <CookieConsentProvider>
+        <Sonda />
+      </CookieConsentProvider>,
+    );
+    // Drena la carga asíncrona de AsyncStorage iniciada por el efecto del proveedor.
+    await AsyncStorage.getItem(CLAVE);
+  });
   await waitFor(() => expect(screen.getByTestId("estado-sonda")).toBeTruthy());
 }
 

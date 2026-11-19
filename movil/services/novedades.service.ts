@@ -84,6 +84,19 @@ export interface Novedad {
   pedido_info: { id_pedido: number; estado: string | null; estado_label?: string; fecha_entrega: string | null } | null;
   cita_info: { id_cita: number; tipo_servicio: string; fecha: string | null; hora: string; estado: string; estado_label?: string } | null;
   devolucion_info: { id_devolucion: number; estado: string | null; estado_label?: string; motivo: string | null } | null;
+  cupon?: CuponCliente | null;
+}
+
+export interface CuponCliente {
+  id_cupon: number;
+  codigo: string;
+  tipo_descuento: string;
+  valor_descuento: number;
+  fecha_vencimiento: string | null;
+  compra_minima: number;
+  usos_maximos: number;
+  usos_realizados: number;
+  activo?: boolean;
 }
 
 export interface NovedadDetalle extends Novedad {
@@ -216,6 +229,10 @@ export function listarMisNovedades() {
 // Comunica con el backend mediante API "/novedades/cliente/novedades".
 export function listarNovedadesCliente() {
   return apiFetch<Novedad[]>("/novedades/cliente/novedades");
+}
+
+export function listarCuponesCliente() {
+  return apiFetch<CuponCliente[]>("/novedades/cliente/mis-cupones");
 }
 
 // Comunica con el backend mediante API `/novedades/${id}`.

@@ -119,9 +119,10 @@ it("componente sin métodos de scroll no lanza error", async () => {
 
   const raf = activarFramesSincronos();
   try {
-    expect(() => {
-      act(() => dispararFoco()());
-    }).not.toThrow();
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
     expect(raf).toHaveBeenCalledTimes(2);
   } finally {
     raf.mockRestore();
@@ -134,9 +135,10 @@ it("ref vacío no lanza error", async () => {
 
   const raf = activarFramesSincronos();
   try {
-    expect(() => {
-      act(() => dispararFoco()());
-    }).not.toThrow();
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
     expect(raf).toHaveBeenCalledTimes(2);
   } finally {
     raf.mockRestore();
@@ -152,9 +154,10 @@ it("ref nativo sin scrollTo ni scrollToOffset no lanza error", async () => {
 
   const raf = activarFramesSincronos();
   try {
-    expect(() => {
-      act(() => dispararFoco()());
-    }).not.toThrow();
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
     expect(raf).toHaveBeenCalledTimes(2);
     expect(envuelta.getNativeScrollRef).toHaveBeenCalledTimes(1);
   } finally {

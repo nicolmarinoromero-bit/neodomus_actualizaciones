@@ -25,13 +25,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'TestRunner.Common.ps1')
 $Root  = Split-Path -Parent $PSScriptRoot
 $FeDir = Join-Path $Root 'fe'
 $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-function Write-Rule([string]$Text = '=') {
-    Write-Host ($Text * 78) -ForegroundColor DarkGray
-}
 
 # ---------------------------------------------------------------- main ----
 Write-Rule
@@ -41,25 +38,9 @@ Write-Host ("Alcance   : " + ($(if ([string]::IsNullOrWhiteSpace($File)) { 'todo
 Write-Host ("Cobertura : " + ($(if ($Coverage) { 'si (@vitest/coverage-v8)' } else { 'no' })))
 Write-Rule
 
-Write-Host '[1] Validando Node y pnpm...' -ForegroundColor Yellow
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Host '  ERROR: node no esta disponible en PATH (instala Node.js, con autorizacion del equipo).' -ForegroundColor Red
+if (-not (Test-NodeProjectPrerequisites -ProjectName 'fe' -ProjectDirectory $FeDir)) {
     exit 2
 }
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Write-Host '  ERROR: pnpm no esta disponible en PATH.' -ForegroundColor Red
-    Write-Host '  Con Node 22+: corepack enable (instala el shim; requiere accion manual).' -ForegroundColor Green
-    exit 2
-}
-Write-Host '  OK: node y pnpm disponibles.' -ForegroundColor Green
-
-Write-Host '[2] Validando dependencias del frontend (fe/node_modules)...' -ForegroundColor Yellow
-if (-not (Test-Path (Join-Path $FeDir 'node_modules'))) {
-    Write-Host '  ERROR: fe/node_modules no existe.' -ForegroundColor Red
-    Write-Host '  Ejecuta manualmente (requiere instalacion): cd fe; pnpm install' -ForegroundColor Green
-    exit 2
-}
-Write-Host '  OK: node_modules presente.' -ForegroundColor Green
 
 Write-Host '[3] Validando cobertura...' -ForegroundColor Yellow
 if ($Coverage) {

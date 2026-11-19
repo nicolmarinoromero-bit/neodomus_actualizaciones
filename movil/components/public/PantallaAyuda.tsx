@@ -2,8 +2,8 @@ import LocalizedNotificationText from "@/components/common/LocalizedNotification
 // ─────────────────────────────────────────────────────────────
 // Pantalla Ayuda (Centro de Ayuda) — adaptación móvil de la
 // AyudaPage WEB. Compartida por el TAB Ayuda y la ruta apilada /ayuda.
-// Mismos 4 tabs: Preguntas frecuentes · Asistente virtual ·
-// Contacto · Enviar consulta. FAQs literales (con intento a
+// Mismos tabs que la web: FAQ · asistente · contacto · consulta y,
+// para clientes autenticados, seguimiento de solicitudes. FAQs con
 // /faq como la web, que cae al fallback), contactos literales.
 // ─────────────────────────────────────────────────────────────
 
@@ -17,7 +17,8 @@ import {
   Text,
   View,
 } from "react-native";
-import type { ScrollViewInstance, TextInputInstance } from "react-native";import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import type { ScrollViewInstance } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import PublicScreen from "@/components/public/PublicScreen";
@@ -30,7 +31,13 @@ import {
 import { apiFetch } from "@/services/api";
 import { useScrollTopAlEntrar } from "@/hooks/useScrollTopAlEntrar";
 import { useIdioma } from "@/contexts/IdiomaContext";
-type TabAyuda = "faq" | "asistente" | "contacto" | "consulta";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  listarSolicitudesCliente,
+  marcarRespuestaSolicitudLeida,
+  type SolicitudCliente,
+} from "@/services/solicitudes.service";
+type TabAyuda = "faq" | "asistente" | "contacto" | "consulta" | "solicitudes";
 
 interface FAQ {
   id: number;
@@ -57,10 +64,12 @@ const TABS: { id: TabAyuda; clave: string; icono: string }[] = [
   { id: "contacto", clave: "publico.contacto", icono: "headset" },
   { id: "consulta", clave: "publico.enviarConsulta", icono: "paper-plane" },
 ];
+const TAB_SOLICITUDES = { id: "solicitudes" as const, clave: "ayuda.solicitudes.titulo", icono: "message" };
 
 // Comunica con el backend mediante API "/faq".
 export default function PantallaAyuda() {
-  const { t } = useIdioma();
+  const { t, idioma } = useIdioma();
+  const { autenticado } = useAuth();
   const scrollRef = useRef<ScrollViewInstance | null>(null);
   // Entrar a Ayuda desde otra sección → empezar arriba.
   useScrollTopAlEntrar(scrollRef);
@@ -75,16 +84,43 @@ export default function PantallaAyuda() {
       })),
     [t],
   );
-  const [faqs, setFaqs] = useState<FAQ[]>(faqsMock);
-  const [faqsRemotos, setFaqsRemotos] = useState(false);
+  const [faqsRemotos, setFaqsRemotos] = useState<FAQ[] | null>(null);
+  const faqs = faqsRemotos ?? faqsMock;
   const [cargandoFaqs, setCargandoFaqs] = useState(true);
   const [faqAbierta, setFaqAbierta] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: "success" | "error" } | null>(null);
+  const [solicitudes, setSolicitudes] = useState<SolicitudCliente[]>([]);
+  const [cargandoSolicitudes, setCargandoSolicitudes] = useState(false);
+  const [solicitudAbierta, setSolicitudAbierta] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!faqsRemotos) setFaqs(faqsMock);
-    // El fallback sigue el idioma activo; las FAQs recibidas del servidor conservan su contenido.
-  }, [faqsMock, faqsRemotos]);
+  const cargarSolicitudes = async () => {
+    if (!autenticado) return;
+    setCargandoSolicitudes(true);
+    try {
+      setSolicitudes(await listarSolicitudesCliente());
+    } catch {
+      setToast({ msg: t("ayuda.solicitudes.errorCarga"), tipo: "error" });
+    } finally {
+      setCargandoSolicitudes(false);
+    }
+  };
+
+  const abrirSolicitud = async (solicitud: SolicitudCliente) => {
+    const abrir = solicitudAbierta !== solicitud.id;
+    setSolicitudAbierta(abrir ? solicitud.id : null);
+    if (!abrir || !solicitud.respuesta_no_leida) return;
+    try {
+      await marcarRespuestaSolicitudLeida(solicitud.id);
+      setSolicitudes((actuales) => actuales.map((item) =>
+        item.id === solicitud.id ? { ...item, respuesta_no_leida: false } : item,
+      ));
+    } catch {
+      setToast({ msg: t("ayuda.solicitudes.errorLeida"), tipo: "error" });
+    }
+  };
+
+  const tabsAyuda = autenticado ? [...TABS, TAB_SOLICITUDES] : TABS;
+
 
   useEffect(() => {
     let activo = true;
@@ -94,8 +130,7 @@ export default function PantallaAyuda() {
         if (!activo) return;
         const lista = Array.isArray(datos) ? datos : (datos.data ?? []);
         if (lista.length > 0) {
-          setFaqs(lista);
-          setFaqsRemotos(true);
+          setFaqsRemotos(lista);
         }
       })
       .catch(() => {})
@@ -135,10 +170,13 @@ export default function PantallaAyuda() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabs}
         >
-          {TABS.map((tab) => (
+          {tabsAyuda.map((tab) => (
             <Pressable
               key={tab.id}
-              onPress={() => setTabActivo(tab.id)}
+              onPress={() => {
+                setTabActivo(tab.id);
+                if (tab.id === "solicitudes") void cargarSolicitudes();
+              }}
               style={[styles.tab, tabActivo === tab.id && styles.tabActivo]}
             >
               <FontAwesome6
@@ -286,6 +324,92 @@ export default function PantallaAyuda() {
             alEnviado={(msg, tipo) => setToast({ msg, tipo })}
           />
         )}
+
+        {tabActivo === "solicitudes" && autenticado && (
+          <View style={styles.solicitudesSeccion}>
+            <View style={styles.solicitudesCabecera}>
+              <Text style={styles.solicitudesTitulo}>{t("ayuda.solicitudes.titulo")}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void cargarSolicitudes()}
+                disabled={cargandoSolicitudes}
+                style={styles.botonActualizar}
+              >
+                <FontAwesome6 name="arrows-rotate" size={13} color={C.oroSuave} />
+                <Text style={styles.botonActualizarTexto}>{t("ayuda.solicitudes.actualizar")}</Text>
+              </Pressable>
+            </View>
+            {cargandoSolicitudes ? (
+              <View style={styles.centro}>
+                <ActivityIndicator color={C.oro} />
+                <Text style={styles.cargandoTexto}>{t("ayuda.solicitudes.cargando")}</Text>
+              </View>
+            ) : solicitudes.length === 0 ? (
+              <View style={styles.solicitudVacia}>
+                <FontAwesome6 name="message" size={24} color={C.oroSuave} />
+                <Text style={styles.solicitudVaciaTitulo}>{t("ayuda.solicitudes.vacio")}</Text>
+                <Text style={styles.contactoDetalle}>{t("ayuda.solicitudes.vacioDesc")}</Text>
+              </View>
+            ) : (
+              solicitudes.map((solicitud) => {
+                const abierta = solicitudAbierta === solicitud.id;
+                const fecha = solicitud.created_at
+                  ? new Date(solicitud.created_at).toLocaleDateString(idioma === "en" ? "en-US" : "es-CO", {
+                    day: "2-digit", month: "short", year: "numeric",
+                  })
+                  : "";
+                const estadoKey: Record<string, string> = {
+                  pendiente: "ayuda.solicitudes.estadoPendiente",
+                  en_proceso: "ayuda.solicitudes.estadoProceso",
+                  respondida: "ayuda.solicitudes.estadoResuelta",
+                  resuelta: "ayuda.solicitudes.estadoResuelta",
+                };
+                return (
+                  <View key={solicitud.id} style={styles.solicitudTarjeta}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: abierta }}
+                      onPress={() => void abrirSolicitud(solicitud)}
+                      style={styles.solicitudBoton}
+                    >
+                      <View style={{ flex: 1, gap: 6 }}>
+                        <Text style={styles.solicitudAsunto}>{solicitud.asunto}</Text>
+                        <View style={styles.solicitudMeta}>
+                          {!!fecha && <Text style={styles.solicitudMetaTexto}>{fecha}</Text>}
+                          <Text style={styles.solicitudEstado}>
+                            {t(estadoKey[solicitud.estado] || "ayuda.solicitudes.estadoPendiente")}
+                          </Text>
+                          {solicitud.respuesta_no_leida && (
+                            <Text style={styles.solicitudNueva}>{t("ayuda.solicitudes.nuevaRespuesta")}</Text>
+                          )}
+                        </View>
+                      </View>
+                      <FontAwesome6 name={abierta ? "chevron-up" : "chevron-down"} size={13} color={C.oroSuave} />
+                    </Pressable>
+                    {abierta && (
+                      <View style={styles.solicitudDetalle}>
+                        <Text style={styles.solicitudMensaje}>{solicitud.mensaje}</Text>
+                        {solicitud.respuesta ? (
+                          <View style={styles.solicitudRespuesta}>
+                            <Text style={styles.solicitudRespuestaTitulo}>{t("ayuda.solicitudes.respuesta")}</Text>
+                            <Text style={styles.solicitudMensaje}>{solicitud.respuesta}</Text>
+                            {!!solicitud.responded_at && (
+                              <Text style={styles.solicitudMetaTexto}>
+                                {new Date(solicitud.responded_at).toLocaleDateString(idioma === "en" ? "en-US" : "es-CO")}
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
+                          <Text style={styles.contactoDetalle}>{t("ayuda.solicitudes.sinRespuesta")}</Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
+        )}
       </View>
 
       {toast && (
@@ -362,6 +486,25 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 10,
   },
+
+  solicitudesSeccion: { gap: 10, paddingBottom: 12 },
+  solicitudesCabecera: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  solicitudesTitulo: { color: C.blanco, fontSize: 17, fontFamily: FontFamilies.bodyBold },
+  botonActualizar: { flexDirection: "row", alignItems: "center", gap: 7, padding: 8 },
+  botonActualizarTexto: { color: C.oroSuave, fontSize: 12.5, fontFamily: FontFamilies.bodyMedium },
+  solicitudVacia: { alignItems: "center", gap: 9, padding: 24, backgroundColor: C.cardOscura, borderRadius: 16, borderWidth: 1, borderColor: C.grisBorde },
+  solicitudVaciaTitulo: { color: C.blanco, fontSize: 15, fontFamily: FontFamilies.bodyBold, textAlign: "center" },
+  solicitudTarjeta: { borderRadius: 14, borderWidth: 1, borderColor: C.grisBorde, backgroundColor: C.cardOscura, overflow: "hidden" },
+  solicitudBoton: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, padding: 14 },
+  solicitudAsunto: { color: C.blanco, fontSize: 14, fontFamily: FontFamilies.bodyBold },
+  solicitudMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
+  solicitudMetaTexto: { color: C.grisTexto, fontSize: 11.5 },
+  solicitudEstado: { color: C.oroSuave, fontSize: 11.5, fontFamily: FontFamilies.bodyMedium },
+  solicitudNueva: { color: C.verdeExito, fontSize: 11.5, fontFamily: FontFamilies.bodyBold },
+  solicitudDetalle: { borderTopWidth: 1, borderTopColor: C.grisBorde, padding: 14, gap: 12 },
+  solicitudMensaje: { color: C.blanco, fontSize: 13.5, lineHeight: 20 },
+  solicitudRespuesta: { borderLeftWidth: 3, borderLeftColor: C.oro, paddingLeft: 11, gap: 6 },
+  solicitudRespuestaTitulo: { color: C.oroSuave, fontSize: 13, fontFamily: FontFamilies.bodyBold },
 
   grupoFaq: { gap: 8 },
 
