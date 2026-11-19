@@ -22,7 +22,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import GateCliente from "@/components/app/GateCliente";
 import { useScrollTopAlEntrar } from "@/hooks/useScrollTopAlEntrar";
-import EvidenciaImagen from "@/components/EvidenciaImagen";
+import { COLORES_ESTADO_NOVEDAD, NovedadCard } from "@/components/public/NovedadCard";
+import { NovedadEvidencias } from "@/components/public/NovedadEvidencias";
+import { formatearFechaNovedad as fmtFecha } from "@/utils/novedades";
 import {
   Novedad,
   NovedadDetalle,
@@ -31,21 +33,7 @@ import {
   type CuponCliente,
 } from "@/services/novedades.service";
 
-const fmtFecha = (f?: string | null) => {
-  if (!f) return "—";
-  return new Date(f).toLocaleDateString("es-CO", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-};
 
-const COLOR_ESTADO: Record<string, { bg: string; border: string }> = {
-  Pendiente: { bg: "rgba(246,195,68,0.12)", border: "rgba(246,195,68,0.25)" },
-  "En revisión": { bg: "rgba(131,165,233,0.12)", border: "rgba(131,165,233,0.25)" },
-  Aprobada: { bg: "rgba(126,226,154,0.12)", border: "rgba(126,226,154,0.25)" },
-  Resuelta: { bg: "rgba(126,226,154,0.15)", border: "rgba(126,226,154,0.3)" },
-  Cerrada: { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.1)" },
-  Rechazada: { bg: "rgba(240,133,138,0.12)", border: "rgba(240,133,138,0.25)" },
-};
 
 // programa una actualización periódica.
 function NovedadesClienteScreen() {
@@ -113,7 +101,6 @@ function NovedadesClienteScreen() {
       setDetalle(data);
     } catch {
       setToast({ msg: "Error al cargar detalle", tipo: "err" });
-    } finally {
     }
   };
 
@@ -196,61 +183,13 @@ function NovedadesClienteScreen() {
               <Text style={s.centerText}>{novedades.length ? "No hay novedades que coincidan con tus filtros." : "No hay novedades visibles para tu cuenta"}</Text>
             </View>
           ) : novedadesFiltradas.map((n) => (
-            <Pressable
+            <NovedadCard
               key={n.id_novedad}
-              style={s.card}
+              novedad={n}
               onPress={() => abrirDetalle(n.id_novedad)}
-            >
-              <View style={s.cardTop}>
-                <Text style={s.cardId}>#{n.id_novedad}</Text>
-                <View style={[s.badge, { backgroundColor: COLOR_ESTADO[n.estado_novedad]?.bg || "#222", borderColor: COLOR_ESTADO[n.estado_novedad]?.border || "#444" }]}>
-                  <Text style={[s.badgeText, { color: C.oro }]}>{n.estado_novedad_label || n.estado_novedad}</Text>
-                </View>
-              </View>
-              <Text style={s.cardTipo}>{n.tipo_novedad_label || n.tipo_novedad}</Text>
-              <View style={s.cardMeta}>
-                {n.cliente_nombre && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="user" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>{n.cliente_nombre}</Text>
-                  </View>
-                )}
-                {n.id_pedido && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="file-invoice" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>#{n.id_pedido}</Text>
-                  </View>
-                )}
-                {n.id_cita && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="calendar-check" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>Cita #{n.id_cita}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={s.cardBottom}>
-                <Text style={s.cardFecha}>{fmtFecha(n.fecha_reporte)}</Text>
-                <View style={[s.prioridadDot, { backgroundColor: C.oro }]} />
-              </View>
-              {n.evidencias && n.evidencias.length > 0 && (
-                <View style={s.evidenciaCount}>
-                  <FontAwesome6 name="camera" size={10} color={C.oro} />
-                  <Text style={s.evidenciaCountText}>{n.evidencias.length} evidencia(s)</Text>
-                </View>
-              )}
-              {n.mensaje_cliente && (
-                <View style={s.cardMensaje}>
-                  <FontAwesome6 name="paper-plane" size={10} color="#d4a54b" />
-                  <Text style={s.cardMensajeText}>Mensaje del admin</Text>
-                </View>
-              )}
-              {n.solucion_cliente && (
-                <View style={s.cardSolucion}>
-                  <FontAwesome6 name="check-circle" size={10} color="#46d06f" />
-                  <Text style={s.cardSolucionText}>Solución disponible</Text>
-                </View>
-              )}
-            </Pressable>
+              colorPrioridad={C.oro}
+              mostrarMensajesCliente
+            />
           ))}
         </ScrollView>
       )}
@@ -268,7 +207,7 @@ function NovedadesClienteScreen() {
 
           {detalle && (
             <ScrollView style={s.modalBody} contentContainerStyle={{ paddingBottom: 40 }}>
-              <View style={[s.badgeModal, { backgroundColor: COLOR_ESTADO[detalle.estado_novedad]?.bg || "#222", borderColor: COLOR_ESTADO[detalle.estado_novedad]?.border || "#444" }]}>
+              <View style={[s.badgeModal, { backgroundColor: COLORES_ESTADO_NOVEDAD[detalle.estado_novedad]?.fondo || "#222", borderColor: COLORES_ESTADO_NOVEDAD[detalle.estado_novedad]?.borde || "#444" }]}>
                 <Text style={[s.badgeText, { color: C.oro }]}>{detalle.estado_novedad_label || detalle.estado_novedad}</Text>
               </View>
 
@@ -335,21 +274,7 @@ function NovedadesClienteScreen() {
                 </View>
               )}
 
-              {detalle.evidencias && detalle.evidencias.length > 0 && (
-                <View style={s.detalleSection}>
-                  <Text style={s.detalleSectionTitle}>Evidencia</Text>
-                  <View style={s.evidenciasGrid}>
-                    {detalle.evidencias.map((e) => (
-                      <Pressable key={e.id_evidencia_n} style={s.evidenciaThumb}>
-                        <EvidenciaImagen url={e.url} estilo={s.evidenciaThumbImg} />
-                        {e.fecha_subida && (
-                          <Text style={s.evidenciaThumbFecha}>{fmtFecha(e.fecha_subida)}</Text>
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
+              <NovedadEvidencias evidencias={detalle.evidencias ?? []} />
 
               {detalle.historial && detalle.historial.length > 0 && (
                 <View style={s.detalleSection}>
@@ -395,20 +320,8 @@ const s = StyleSheet.create({
   centerTitle: { fontFamily: FontFamilies.bodyBold, fontSize: 16, color: "#fff", marginTop: 12 },
   centerText: { fontFamily: FontFamilies.body, fontSize: 13, color: "#8a8a8a", textAlign: "center", marginTop: 6 },
   list: { flex: 1, paddingHorizontal: 20 },
-  card: { backgroundColor: "rgba(24,24,24,0.9)", borderWidth: 1, borderColor: "rgba(211,172,77,0.2)", borderRadius: 14, padding: 14, marginBottom: 10 },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  cardId: { fontFamily: FontFamilies.bodyBold, fontSize: 14, color: C.oro },
   badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1 },
   badgeText: { fontFamily: FontFamilies.bodyBold, fontSize: 10 },
-  cardTipo: { fontFamily: FontFamilies.bodyBold, fontSize: 13, color: "#fff", marginBottom: 6 },
-  cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 6 },
-  cardMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardMetaText: { fontFamily: FontFamilies.body, fontSize: 11, color: "#8a8a8a" },
-  cardBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardFecha: { fontFamily: FontFamilies.body, fontSize: 11, color: "#666" },
-  prioridadDot: { width: 8, height: 8, borderRadius: 4 },
-  evidenciaCount: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
-  evidenciaCountText: { fontFamily: FontFamilies.body, fontSize: 11, color: C.oro },
   cupones: { marginHorizontal: 20, marginTop: 6, marginBottom: 14, padding: 14, borderRadius: 14, backgroundColor: "rgba(212,165,75,0.07)", borderWidth: 1, borderColor: "rgba(212,165,75,0.22)" },
   cuponesHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   cuponesTitle: { fontFamily: FontFamilies.bodyBold, fontSize: 15, color: "#f1d27b" },
@@ -424,10 +337,6 @@ const s = StyleSheet.create({
   filtroActivo: { backgroundColor: C.oro, borderColor: C.oro },
   filtroTexto: { color: "#aaa", fontSize: 11 },
   filtroTextoActivo: { color: "#000", fontFamily: FontFamilies.bodyBold },
-  cardMensaje: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
-  cardMensajeText: { fontFamily: FontFamilies.body, fontSize: 10, color: "#d4a54b" },
-  cardSolucion: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  cardSolucionText: { fontFamily: FontFamilies.body, fontSize: 10, color: "#46d06f" },
   modal: { flex: 1, backgroundColor: "#0a0a0a" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
   modalTitle: { fontFamily: FontFamilies.bodyBold, fontSize: 16, color: "#fff" },
@@ -441,10 +350,6 @@ const s = StyleSheet.create({
   detalleSection: { marginBottom: 16, padding: 12, backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)", borderRadius: 12 },
   detalleSectionTitle: { fontFamily: FontFamilies.bodyBold, fontSize: 13, color: C.oro, marginBottom: 8 },
   detalleDesc: { fontFamily: FontFamilies.body, fontSize: 13, color: "#ccc", lineHeight: 20 },
-  evidenciasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  evidenciaThumb: { width: 90, borderRadius: 10, overflow: "hidden", backgroundColor: "#222" },
-  evidenciaThumbImg: { width: "100%", height: 90 },
-  evidenciaThumbFecha: { fontFamily: FontFamilies.body, fontSize: 9, color: "#8a8a8a", textAlign: "center", padding: 4 },
   historialItem: { flexDirection: "row", gap: 10, padding: 10, borderLeftWidth: 2, borderLeftColor: "rgba(255,255,255,0.08)", marginBottom: 6, borderRadius: 6 },
   historialItemActive: { borderLeftColor: C.oro, backgroundColor: "rgba(212,165,75,0.04)" },
   historialDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#555", marginTop: 4 },
