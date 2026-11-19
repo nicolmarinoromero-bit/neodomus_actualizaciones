@@ -10,6 +10,10 @@
 
 module.exports = {
   preset: "jest-expo",
+  globals: {
+    IS_REACT_ACT_ENVIRONMENT: true,
+  },
+  testTimeout: 15000,
 
   // Solo se descubren pruebas dentro de __tests__ (árbol espejo de la fuente).
   roots: ["<rootDir>/__tests__"],
@@ -19,7 +23,7 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/$1",
   },
 
-  setupFiles: ["<rootDir>/jest.setup.js"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 
   // Limpia registros de llamadas entre pruebas sin tocar las implementaciones
   // del mock global de AsyncStorage (definidas en jest.setup.js).
