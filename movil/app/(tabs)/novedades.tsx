@@ -8,26 +8,27 @@ import LocalizedNotificationText from "@/components/common/LocalizedNotification
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
+import GateCliente from "@/components/app/GateCliente";
 import { useScrollTopAlEntrar } from "@/hooks/useScrollTopAlEntrar";
 import EvidenciaImagen from "@/components/EvidenciaImagen";
 import {
   Novedad,
   NovedadDetalle,
-  TIPOS_NOVEDAD,
   listarNovedadesCliente,
+  listarCuponesCliente,
+  type CuponCliente,
 } from "@/services/novedades.service";
 
 const fmtFecha = (f?: string | null) => {
@@ -35,28 +36,6 @@ const fmtFecha = (f?: string | null) => {
   return new Date(f).toLocaleDateString("es-CO", {
     day: "2-digit", month: "short", year: "numeric",
   });
-};
-
-const ICONO_TIPO: Record<string, string> = {
-  "Retraso en entrega": "clock",
-  "Cliente ausente": "user-slash",
-  "Cliente no recibió el pedido": "user-xmark",
-  "Dirección incorrecta": "map-pin",
-  "Producto dañado": "triangle-exclamation",
-  "Producto faltante": "box-open",
-  "Producto equivocado": "arrows-rotate",
-  "Pérdida de producto": "magnifying-glass",
-  "Robo de productos": "shield-halved",
-  Accidente: "car-burst",
-  "Problema con el vehículo/transporte": "truck",
-  "Problema técnico": "wrench",
-  "Problema durante una cita": "calendar-xmark",
-  "Cita no realizada": "calendar-xmark",
-  "Cita reprogramada": "calendar-plus",
-  "Cliente solicita reprogramación": "calendar-day",
-  "Problema con instalación": "screwdriver-wrench",
-  "Retraso que afecta cita": "clock",
-  Otro: "ellipsis",
 };
 
 const COLOR_ESTADO: Record<string, { bg: string; border: string }> = {
@@ -69,7 +48,7 @@ const COLOR_ESTADO: Record<string, { bg: string; border: string }> = {
 };
 
 // programa una actualización periódica.
-export default function NovedadesClienteScreen() {
+function NovedadesClienteScreen() {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   useScrollTopAlEntrar(scrollRef);
@@ -78,10 +57,11 @@ export default function NovedadesClienteScreen() {
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const [detalle, setDetalle] = useState<NovedadDetalle | null>(null);
-  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [cupones, setCupones] = useState<CuponCliente[]>([]);
 
   const cargar = useCallback(async (silencioso = false) => {
-    if (!silencioso) setCargando(true);
     try {
       const data = await listarNovedadesCliente();
       setNovedades(data);
@@ -93,10 +73,32 @@ export default function NovedadesClienteScreen() {
   }, []);
 
   useEffect(() => {
-    void cargar();
-    const i = setInterval(() => void cargar(true), 30000);
-    return () => clearInterval(i);
+    const inicioId = setTimeout(() => { void cargar(); }, 0);
+    const actualizarCupones = () => {
+      void listarCuponesCliente().then(setCupones).catch(() => setCupones([]));
+    };
+    actualizarCupones();
+    const i = setInterval(() => {
+      void cargar(true);
+      actualizarCupones();
+    }, 30000);
+    return () => { clearTimeout(inicioId); clearInterval(i); };
   }, [cargar]);
+
+  const novedadesFiltradas = novedades.filter((n) => {
+    if (filtroEstado && n.estado_novedad !== filtroEstado) return false;
+    const consulta = busqueda.trim().toLocaleLowerCase();
+    if (!consulta) return true;
+    const campos = [
+      n.tipo_novedad_label || n.tipo_novedad,
+      n.descripcion_novedad,
+      n.lugar_ocurrencia,
+      n.tecnico_nombre,
+      n.id_pedido ? `#${n.id_pedido}` : "",
+      n.id_cita ? `#${n.id_cita}` : "",
+    ];
+    return campos.some((campo) => campo?.toLocaleLowerCase().includes(consulta));
+  });
 
   useEffect(() => {
     if (!toast) return;
@@ -105,7 +107,6 @@ export default function NovedadesClienteScreen() {
   }, [toast]);
 
   const abrirDetalle = async (id: number) => {
-    setCargandoDetalle(true);
     try {
       const { obtenerNovedad } = await import("@/services/novedades.service");
       const data = await obtenerNovedad(id);
@@ -113,7 +114,6 @@ export default function NovedadesClienteScreen() {
     } catch {
       setToast({ msg: "Error al cargar detalle", tipo: "err" });
     } finally {
-      setCargandoDetalle(false);
     }
   };
 
@@ -137,19 +137,65 @@ export default function NovedadesClienteScreen() {
           <ActivityIndicator size="large" color={C.oro} />
           <Text style={s.centerText}>Cargando novedades...</Text>
         </View>
-      ) : novedades.length === 0 ? (
-        <View style={s.center}>
-          <FontAwesome6 name="shield-halved" size={40} color={C.oro + "50"} />
-          <Text style={s.centerTitle}>Sin novedades</Text>
-          <Text style={s.centerText}>No hay novedades visibles para tu cuenta</Text>
-        </View>
       ) : (
         <ScrollView
           ref={scrollRef}
           style={s.list}
           contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         >
-          {novedades.map((n) => (
+          <View style={s.cupones}>
+            <View style={s.cuponesHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cuponesTitle}>Mis cupones disponibles</Text>
+                <Text style={s.centerText}>Puedes aplicarlos al finalizar tu compra.</Text>
+              </View>
+              {cupones.length > 0 && (
+                <Pressable onPress={() => router.push("/(tabs)/checkout" as never)} style={s.cuponUsar}>
+                  <Text style={s.cuponUsarText}>Usar</Text>
+                </Pressable>
+              )}
+            </View>
+            {cupones.length === 0 ? (
+              <Text style={s.cuponVacio}>Todavía no tienes cupones disponibles.</Text>
+            ) : cupones.map((cupon) => (
+              <View key={cupon.id_cupon} style={s.cuponCard}>
+                <Text style={s.cuponCodigo}>{cupon.codigo}</Text>
+                <Text style={s.cuponDetalle}>
+                  {cupon.tipo_descuento === "porcentaje"
+                    ? `${cupon.valor_descuento}% de descuento`
+                    : `${Number(cupon.valor_descuento).toLocaleString("es-CO")} COP de descuento`}
+                </Text>
+                <Text style={s.cuponDetalle}>
+                  {cupon.fecha_vencimiento ? `Vence ${fmtFecha(cupon.fecha_vencimiento)}` : "Sin vencimiento"}
+                  {` · ${Math.max(0, cupon.usos_maximos - cupon.usos_realizados)} uso(s) disponible(s)`}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <TextInput
+            value={busqueda}
+            onChangeText={setBusqueda}
+            placeholder="Buscar en tus novedades"
+            placeholderTextColor="#777"
+            style={s.searchInput}
+            accessibilityLabel="Buscar novedades"
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
+            {["", "Pendiente", "En revisión", "Aprobada", "Rechazada", "Resuelta", "Cerrada"].map((estado) => (
+              <Pressable key={estado || "Todas"} onPress={() => setFiltroEstado(estado)} style={[s.filtro, filtroEstado === estado && s.filtroActivo]}>
+                <Text style={[s.filtroTexto, filtroEstado === estado && s.filtroTextoActivo]}>{estado || "Todas"}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {novedadesFiltradas.length === 0 ? (
+            <View style={s.center}>
+              <FontAwesome6 name="shield-halved" size={40} color={C.oro + "50"} />
+              <Text style={s.centerTitle}>{novedades.length ? "Sin resultados" : "Sin novedades"}</Text>
+              <Text style={s.centerText}>{novedades.length ? "No hay novedades que coincidan con tus filtros." : "No hay novedades visibles para tu cuenta"}</Text>
+            </View>
+          ) : novedadesFiltradas.map((n) => (
             <Pressable
               key={n.id_novedad}
               style={s.card}
@@ -273,6 +319,22 @@ export default function NovedadesClienteScreen() {
                 </View>
               )}
 
+              {detalle.cupon && (
+                <View style={[s.detalleSection, { backgroundColor: "rgba(212,165,75,0.08)", borderRadius: 10, padding: 12 }]}>
+                  <Text style={[s.detalleSectionTitle, { color: "#f1d27b" }]}>Cupón de compensación: {detalle.cupon.codigo}</Text>
+                  <Text style={s.detalleDesc}>
+                    {detalle.cupon.tipo_descuento === "porcentaje"
+                      ? `${detalle.cupon.valor_descuento}% de descuento`
+                      : `${Number(detalle.cupon.valor_descuento).toLocaleString("es-CO")} COP de descuento`}
+                  </Text>
+                  <Text style={s.cuponDetalle}>
+                    {detalle.cupon.activo && detalle.cupon.usos_realizados < detalle.cupon.usos_maximos
+                      ? "Disponible para usar en tu próxima compra."
+                      : "Este cupón ya no está disponible."}
+                  </Text>
+                </View>
+              )}
+
               {detalle.evidencias && detalle.evidencias.length > 0 && (
                 <View style={s.detalleSection}>
                   <Text style={s.detalleSectionTitle}>Evidencia</Text>
@@ -312,6 +374,14 @@ export default function NovedadesClienteScreen() {
   );
 }
 
+export default function NovedadesClienteRoute() {
+  return (
+    <GateCliente titulo="Mis novedades">
+      <NovedadesClienteScreen />
+    </GateCliente>
+  );
+}
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   header: { paddingHorizontal: 20, paddingBottom: 12 },
@@ -339,6 +409,21 @@ const s = StyleSheet.create({
   prioridadDot: { width: 8, height: 8, borderRadius: 4 },
   evidenciaCount: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
   evidenciaCountText: { fontFamily: FontFamilies.body, fontSize: 11, color: C.oro },
+  cupones: { marginHorizontal: 20, marginTop: 6, marginBottom: 14, padding: 14, borderRadius: 14, backgroundColor: "rgba(212,165,75,0.07)", borderWidth: 1, borderColor: "rgba(212,165,75,0.22)" },
+  cuponesHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  cuponesTitle: { fontFamily: FontFamilies.bodyBold, fontSize: 15, color: "#f1d27b" },
+  cuponVacio: { color: "#999", fontSize: 12 },
+  cuponCard: { padding: 10, marginTop: 7, borderRadius: 10, borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(212,165,75,0.4)" },
+  cuponCodigo: { color: "#f1d27b", fontFamily: FontFamilies.bodyBold, fontSize: 15, letterSpacing: 1 },
+  cuponDetalle: { color: "#aaa", fontSize: 11, marginTop: 4 },
+  cuponUsar: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 9, backgroundColor: C.oro },
+  cuponUsarText: { color: "#000", fontFamily: FontFamilies.bodyBold, fontSize: 12 },
+  searchInput: { marginHorizontal: 20, marginBottom: 10, padding: 12, borderRadius: 10, backgroundColor: "#161616", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13 },
+  filtros: { gap: 6, paddingHorizontal: 20, paddingBottom: 12 },
+  filtro: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.04)" },
+  filtroActivo: { backgroundColor: C.oro, borderColor: C.oro },
+  filtroTexto: { color: "#aaa", fontSize: 11 },
+  filtroTextoActivo: { color: "#000", fontFamily: FontFamilies.bodyBold },
   cardMensaje: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   cardMensajeText: { fontFamily: FontFamilies.body, fontSize: 10, color: "#d4a54b" },
   cardSolucion: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
