@@ -18,7 +18,7 @@ import { tabGet, tabSet } from '@utils/tabStorage';
 
 import SectionHeader from '@components/profile/SectionHeader';
 import PerfilCuenta from '@components/profile/PerfilCuenta';
-import { AvatarZone } from '@components/profile/AvatarZone';
+import ProfileAccountSection from '@components/profile/ProfileAccountSection';
 
 import ReembolsosCliente from '@components/profile/ReembolsosCliente';
 import OrdersTab from '@components/profile/OrdersTab';
@@ -354,27 +354,24 @@ const Perfil = () => {
   };
 
   const renderPerfilTab = () => (
-    <div className="pf-tab">
-      <SectionHeader
-        icon={<FaUserPen />}
-        title={t('perfil.miPerfil')}
-        subtitle={t('perfil.perfilTabSub')}
-      />
-
-      <AvatarZone
-        avatar={avatar}
-        nombreCompleto={nombreCompleto}
-        fileInputRef={fileInputRef}
-        onFileChange={handleAvatarChange}
-        onEliminar={handleEliminarFoto}
-        altFoto={t('perfil.fotoPerfil')}
-        ariaCambiar={t('perfil.cambiarFotoAria')}
-        titulo={t('perfil.fotoPerfil')}
-        hint={t('perfil.fotoPerfilHint')}
-        cambiar={t('perfil.cambiarFoto')}
-        eliminar={t('perfil.eliminarFoto')}
-      />
-
+    <ProfileAccountSection
+      icon={<FaUserPen />}
+      title={t('perfil.miPerfil')}
+      subtitle={t('perfil.perfilTabSub')}
+      avatar={{
+        avatar,
+        nombreCompleto,
+        fileInputRef,
+        onFileChange: handleAvatarChange,
+        onEliminar: handleEliminarFoto,
+        altFoto: t('perfil.fotoPerfil'),
+        ariaCambiar: t('perfil.cambiarFotoAria'),
+        titulo: t('perfil.fotoPerfil'),
+        hint: t('perfil.fotoPerfilHint'),
+        cambiar: t('perfil.cambiarFoto'),
+        eliminar: t('perfil.eliminarFoto'),
+      }}
+    >
       <PerfilCuenta
         campos={[
           {
@@ -471,7 +468,7 @@ const Perfil = () => {
           <FaUserSlash /> {t('perfil.inhabilitarCuenta')}
         </button>
       </div>
-    </div>
+    </ProfileAccountSection>
   );
 
   const renderFavoritosTab = () => (
