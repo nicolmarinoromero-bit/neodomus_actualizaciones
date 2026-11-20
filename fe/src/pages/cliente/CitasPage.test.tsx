@@ -35,7 +35,9 @@ const TECNICO = {
 
 const CITA_FUTURA = {
   id_cita: 12, tipo_servicio: 'Instalación', estado: 'Confirmada',
-  fecha: '2026-11-20', hora: '10:00', direccion: 'Calle 1',
+  // La tarjeta debe seguir siendo futura sin depender del día de ejecución.
+  fecha: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  hora: '10:00', direccion: 'Calle 1',
   descripcion: 'Instalar sensor', estado_pago: 'aprobado', costo_cita: 60000,
   nombre_tecnico: 'Ana Técnica',
 };
