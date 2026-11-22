@@ -46,6 +46,7 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 
 ## Validación y operación
 
+- [Plan de Respaldo y Recuperación](plan-respaldo.md)
 - [Runbook API no disponible](runbooks/RB-01-api-no-disponible.md)
 - [Runbook respaldo atrasado](runbooks/RB-02-respaldo-atrasado.md)
 
