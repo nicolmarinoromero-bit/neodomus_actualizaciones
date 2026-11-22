@@ -402,7 +402,7 @@ const ProductoDetalle = () => {
     return (
       <div className="detalle-error">
         <p>{error || t('productos.noEncontrado')}</p>
-        <button type="button" className="detalle-back-btn" onClick={() => navigate('/productos')}>
+        <button type="button" className="detalle-back-btn" onClick={() => void navigate('/productos')}>
           <FaArrowLeft /> {t('productos.volverCatalogo')}
         </button>
       </div>
@@ -474,7 +474,7 @@ const ProductoDetalle = () => {
       );
       if (error) { showToast(error); return; }
       if (editarKey) {
-        navigate('/carrito');
+        void navigate('/carrito');
       } else {
         showToast(`${unidadesMetros} × ${metros} m (${totalSolicitado} m) — ${nombreVisible} ${t('productos.agregadoAlCarrito')}`);
       }
@@ -500,7 +500,7 @@ const ProductoDetalle = () => {
     );
     if (error) { showToast(error); return; }
     if (editarKey) {
-      navigate('/carrito');
+      void navigate('/carrito');
     } else {
       showToast(`${cantidadFinal} × ${nombreVisible} ${t('productos.agregadoAlCarrito')}`);
     }
@@ -510,7 +510,7 @@ const ProductoDetalle = () => {
     <div className="detalle-page app-glass">
       {toast && <div className="detalle-toast"><LocalizedNotificationText message={toast} /></div>}
       <main className="detalle-main">
-        <button type="button" className="detalle-back-btn" onClick={() => navigate(editarKey ? '/carrito' : '/productos')}>
+        <button type="button" className="detalle-back-btn" onClick={() => void navigate(editarKey ? '/carrito' : '/productos')}>
           <FaArrowLeft /> {editarKey ? 'Volver al carrito' : t('carrito.volverProductos')}
         </button>
 

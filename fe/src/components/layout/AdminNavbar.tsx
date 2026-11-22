@@ -58,8 +58,8 @@ const avatar = getAdminAvatar();
   })();
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    void logout();
+    void navigate('/login');
   };
 
   return (

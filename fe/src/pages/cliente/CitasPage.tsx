@@ -708,7 +708,7 @@ const CitasPage = () => {
   const cambiarTecnico = () => {
     // Si se llegó desde la página de técnicos, volvemos allí para elegir otro.
     if (deTecnicosPage) {
-      navigate('/cliente/tecnicos');
+      void navigate('/cliente/tecnicos');
       return;
     }
     setTecnicoSel(null);
@@ -1062,7 +1062,7 @@ const CitasPage = () => {
     <div className="citas-page app-glass">
       <main className="citas-main">
         <header className="citas-header">
-          <button className="citas-back-btn" onClick={() => navigate('/productos')}>
+          <button className="citas-back-btn" onClick={() => void navigate('/productos')}>
             <FaArrowLeft /> {t('citas.volverProductos')}
           </button>
           <div className="citas-header-content">
@@ -1516,7 +1516,7 @@ const CitasPage = () => {
             )}
 
             <div className="citas-form-actions">
-              <button type="button" className="citas-btn citas-btn-ghost" onClick={() => navigate('/productos')}>
+              <button type="button" className="citas-btn citas-btn-ghost" onClick={() => void navigate('/productos')}>
                 <FaArrowLeft /> {t('common.cancelar')}
               </button>
               <button type="submit" className="citas-btn citas-btn-primary" disabled={submitting}>
