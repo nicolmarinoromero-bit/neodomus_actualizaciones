@@ -194,7 +194,7 @@ const TechnicianDashboard = () => {
 
   useEffect(() => {
     void fetchCitas();
-    const interval = setInterval(fetchCitas, 60000);
+    const interval = setInterval(() => { void fetchCitas(); }, 60000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -772,7 +772,7 @@ const TechnicianDashboard = () => {
                         type="button"
                         className="ap-btn ap-btn-primary"
                         disabled={updatingEntrega === e.id_pedido}
-                        onClick={() => actualizarEntrega(e.id_pedido, 'Recogido')}
+                        onClick={() => { void actualizarEntrega(e.id_pedido, 'Recogido'); }}
                       >
                         {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.yaRecogido')}
                       </button>
@@ -782,7 +782,7 @@ const TechnicianDashboard = () => {
                         type="button"
                         className="ap-btn ap-btn-primary"
                         disabled={updatingEntrega === e.id_pedido}
-                        onClick={() => actualizarEntrega(e.id_pedido, 'En camino')}
+                        onClick={() => { void actualizarEntrega(e.id_pedido, 'En camino'); }}
                       >
                         {updatingEntrega === e.id_pedido ? t('tec.procesando') : t('tec.enCamino')}
                       </button>
@@ -1223,7 +1223,7 @@ const TechnicianDashboard = () => {
                           className="ap-evidencia-borrar"
                           title="Eliminar evidencia"
                           disabled={eliminandoEvidencia === ev.id_evidencia}
-                          onClick={() => eliminarEvidencia(selectedCita.id_cita, ev.id_evidencia)}
+                          onClick={() => { void eliminarEvidencia(selectedCita.id_cita, ev.id_evidencia); }}
                         >
                           <FaTrashCan />
                         </button>
@@ -1277,7 +1277,7 @@ const TechnicianDashboard = () => {
                           className={`ap-cita-estado-btn ${activo ? 'activo' : ''} ${est === 'Finalizada' ? 'final' : ''} ${est === 'Cancelada' ? 'cancel' : ''}`}
                           disabled={updatingId === selectedCita.id_cita || sinEvidencia}
                           title={sinEvidencia ? t('tec.evidenciaRequerida') : undefined}
-                          onClick={() => actualizarEstado(selectedCita.id_cita, est)}
+                          onClick={() => { void actualizarEstado(selectedCita.id_cita, est); }}
                         >
                           {t(`citas.${est.toLowerCase()}`)}
                         </button>
