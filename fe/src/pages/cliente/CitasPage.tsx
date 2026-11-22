@@ -287,9 +287,9 @@ const CitasPage = () => {
     void fetchTecnicos();
     // Tiempo real: si otro usuario reserva a un técnico en la misma hora,
     // deja de aparecer como disponible sin recargar la página.
-    const interval = setInterval(fetchTecnicos, 10000);
+    const interval = setInterval(() => { void fetchTecnicos(); }, 10000);
     // Cambios del administrador (crear/editar/habilitar/desactivar técnicos).
-    const cancelarSuscripcion = suscribirCambiosTecnicos(() => fetchTecnicos());
+    const cancelarSuscripcion = suscribirCambiosTecnicos(() => { void fetchTecnicos(); });
     return () => {
       activo = false;
       clearInterval(interval);
@@ -407,7 +407,7 @@ const CitasPage = () => {
     void cargarHoras();
     // Actualización en tiempo real: si otro usuario agenda/edita una cita con
     // este técnico, las horas ocupadas cambian sin recargar la página.
-    const interval = setInterval(cargarHoras, 10000);
+    const interval = setInterval(() => { void cargarHoras(); }, 10000);
     return () => {
       activo = false;
       clearInterval(interval);
@@ -449,7 +449,7 @@ const CitasPage = () => {
       }
     };
     void cargar();
-    const interval = setInterval(cargar, 10000);
+    const interval = setInterval(() => { void cargar(); }, 10000);
     return () => { activo = false; clearInterval(interval); };
   }, [aplazandoId, aplazandoFecha, citas, horasRefreshKey]);
 
@@ -708,7 +708,7 @@ const CitasPage = () => {
   const cambiarTecnico = () => {
     // Si se llegó desde la página de técnicos, volvemos allí para elegir otro.
     if (deTecnicosPage) {
-      navigate('/cliente/tecnicos');
+      void navigate('/cliente/tecnicos');
       return;
     }
     setTecnicoSel(null);
@@ -946,7 +946,7 @@ const CitasPage = () => {
                               type="button"
                               className="citas-btn citas-btn-primary"
                               disabled={!aplazandoFecha || !aplazandoHora || aplazando}
-                              onClick={() => confirmarAplazo(cita.id_cita)}
+                              onClick={() => { void confirmarAplazo(cita.id_cita); }}
                             >
                               {aplazando ? t('citas.guardando') : t('citas.confirmar')}
                             </button>
@@ -1062,7 +1062,7 @@ const CitasPage = () => {
     <div className="citas-page app-glass">
       <main className="citas-main">
         <header className="citas-header">
-          <button className="citas-back-btn" onClick={() => navigate('/productos')}>
+          <button className="citas-back-btn" onClick={() => void navigate('/productos')}>
             <FaArrowLeft /> {t('citas.volverProductos')}
           </button>
           <div className="citas-header-content">
@@ -1155,7 +1155,7 @@ const CitasPage = () => {
                       type="button"
                       className="citas-btn citas-btn-primary"
                       disabled={aceptandoOferta === o.id_oferta}
-                      onClick={() => aceptarOferta(o.id_oferta)}
+                      onClick={() => { void aceptarOferta(o.id_oferta); }}
                     >
                       {aceptandoOferta === o.id_oferta ? 'Moviendo...' : 'Adelantar mi cita'}
                     </button>
@@ -1516,7 +1516,7 @@ const CitasPage = () => {
             )}
 
             <div className="citas-form-actions">
-              <button type="button" className="citas-btn citas-btn-ghost" onClick={() => navigate('/productos')}>
+              <button type="button" className="citas-btn citas-btn-ghost" onClick={() => void navigate('/productos')}>
                 <FaArrowLeft /> {t('common.cancelar')}
               </button>
               <button type="submit" className="citas-btn citas-btn-primary" disabled={submitting}>
@@ -1651,7 +1651,7 @@ const CitasPage = () => {
                   type="button"
                   className="citas-btn citas-btn-danger citas-btn-confirmar-cancelacion"
                   disabled={cancelandoId !== null}
-                  onClick={() => cancelarCita(citaACancelar.id_cita)}
+                  onClick={() => { void cancelarCita(citaACancelar.id_cita); }}
                 >
                   <FaXmark aria-hidden="true" /> <span>{cancelandoId === citaACancelar.id_cita ? 'Cancelando...' : 'Sí, cancelar cita'}</span>
                 </button>

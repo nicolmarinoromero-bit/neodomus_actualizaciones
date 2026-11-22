@@ -47,8 +47,8 @@ const userData = (() => {
   })();
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    void logout();
+    void navigate('/login');
   };
 
   return (

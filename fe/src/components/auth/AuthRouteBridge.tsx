@@ -12,7 +12,7 @@ const AuthRouteBridge = ({ step }: { step: AuthStep }) => {
     const email = searchParams.get('email') || undefined;
     const token = searchParams.get('token') || undefined;
     openAuth(step, { email, token });
-    navigate('/', { replace: true });
+    void navigate('/', { replace: true });
     // Solo se ejecuta una vez al montar el puente
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

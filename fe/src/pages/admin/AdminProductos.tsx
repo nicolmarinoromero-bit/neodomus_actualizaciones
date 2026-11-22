@@ -322,7 +322,7 @@ const AdminProductos = () => {
           onChange={(e) => {
             const v = e.target.value;
             setBusqueda('');
-            navigate(v ? `/admin/productos?proveedor=${v}` : '/admin/productos');
+            void navigate(v ? `/admin/productos?proveedor=${v}` : '/admin/productos');
           }}
           title={t('adm.productos.filtroProveedorTitle')}
         >
@@ -340,7 +340,7 @@ const AdminProductos = () => {
             style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}
             onClick={() => {
               setBusqueda('');
-              navigate('/admin/productos');
+              void navigate('/admin/productos');
             }}
             title={t('adm.productos.quitarFiltroCategoriaTitle')}
           >

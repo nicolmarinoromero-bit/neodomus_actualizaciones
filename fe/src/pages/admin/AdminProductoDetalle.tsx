@@ -430,7 +430,7 @@ const AdminProductoDetalle = () => {
         }
         notify(t('adm.productoDetalle.notifyProductoCreado'));
         window.dispatchEvent(new CustomEvent('admin-producto-updated'));
-        navigate(`/admin/productos/${nuevoId}${queryFiltros ? `?${queryFiltros}` : ''}`, { replace: true });
+        void navigate(`/admin/productos/${nuevoId}${queryFiltros ? `?${queryFiltros}` : ''}`, { replace: true });
         return;
       } else {
         await api.put(`/productos/${id}`, payload);
@@ -525,7 +525,7 @@ const AdminProductoDetalle = () => {
       const res = await api.delete(`/productos/${id}`);
       window.dispatchEvent(new CustomEvent('admin-producto-updated'));
       notify(res.data?.msg || t('adm.productoDetalle.notifyProductoEliminado'));
-      window.setTimeout(() => navigate(volverUrl, { replace: true }), 600);
+      window.setTimeout(() => void navigate(volverUrl, { replace: true }), 600);
     } catch (err: any) {
       const msg = err.response?.data?.detail;
       notify(typeof msg === 'string' ? msg : t('adm.productoDetalle.notifyEliminarError'), 'err');
@@ -1290,7 +1290,7 @@ const AdminProductoDetalle = () => {
               className="ap-btn ap-btn-ghost"
               onClick={() => {
                 setEditar(esNuevo);
-                if (!esNuevo) navigate(volverUrl, { replace: true });
+                if (!esNuevo) void navigate(volverUrl, { replace: true });
               }}
               disabled={guardando}
             >

@@ -44,9 +44,9 @@ const Login = () => {
     const rol = user.rol;
     if (passwordResetRequired && rol !== 'cliente') {
       if (rol === 'tecnico') {
-        navigate('/dashboard/tecnico', { replace: true });
+        void navigate('/dashboard/tecnico', { replace: true });
       } else {
-        navigate('/cambiar-password-obligatorio', { replace: true });
+        void navigate('/cambiar-password-obligatorio', { replace: true });
       }
       return;
     }
@@ -54,16 +54,16 @@ const Login = () => {
     if (destino) {
       sessionStorage.removeItem(PF_REDIRECT_AFTER_LOGIN_KEY);
       if (rol === 'cliente') {
-        navigate(destino, { replace: true });
+        void navigate(destino, { replace: true });
         return;
       }
     }
     if (rol === 'administrador' || rol === 'admin') {
-      navigate('/dashboard/admin', { replace: true });
+      void navigate('/dashboard/admin', { replace: true });
     } else if (rol === 'cliente') {
-      navigate('/productos', { replace: true });
+      void navigate('/productos', { replace: true });
     } else if (rol === 'tecnico') {
-      navigate('/dashboard/tecnico', { replace: true });
+      void navigate('/dashboard/tecnico', { replace: true });
     }
   }, [isAuthenticated, user, sesionIniciadaAqui, navigate, closeAuth]);
 
