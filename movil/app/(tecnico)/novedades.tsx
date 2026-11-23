@@ -4,7 +4,7 @@ import LocalizedNotificationText from "@/components/common/LocalizedNotification
 // Flujo: Buscar cliente → Seleccionar pedido/cita → Registrar → Evidencia
 // ─────────────────────────────────────────────────────────────
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,25 +25,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIdioma } from "@/contexts/IdiomaContext";
 import { NeodomusColors as C, FontFamilies } from "@/constants/theme";
 import { useScrollTopAlEntrar } from "@/hooks/useScrollTopAlEntrar";
-import EvidenciaImagen from "@/components/EvidenciaImagen";
-import {
-  SearchBar,
-  FilterChip,
-  FilterRow,
-  ClearFiltersBtn,
-  PickerModal,
-  Tabs,
-} from "@/components/tecnico/Filtros";
+import { COLORES_ESTADO_NOVEDAD, NovedadCard } from "@/components/public/NovedadCard";
+import { formatearFechaNovedad as fmtFecha } from "@/utils/novedades";
+import { NovedadEvidencias } from "@/components/public/NovedadEvidencias";
+import { SearchBar } from "@/components/tecnico/Filtros";
 import {
   Novedad,
   NovedadDetalle,
   TIPOS_NOVEDAD,
-  ESTADOS_NOVEDAD,
   PRIORIDADES,
   ClienteBusqueda,
   PedidoCliente,
   CitaCliente,
-  EvidenciaNovedad,
   crearNovedad,
   listarMisNovedades,
   listarNovedadesCliente,
@@ -57,14 +50,6 @@ import {
 
 // ── Colores de estado y prioridad ────────────────────────────
 
-const COLOR_ESTADO: Record<string, { bg: string; border: string }> = {
-  Pendiente: { bg: "rgba(246,195,68,0.12)", border: "rgba(246,195,68,0.25)" },
-  "En revisión": { bg: "rgba(131,165,233,0.12)", border: "rgba(131,165,233,0.25)" },
-  Aprobada: { bg: "rgba(126,226,154,0.12)", border: "rgba(126,226,154,0.25)" },
-  Resuelta: { bg: "rgba(126,226,154,0.15)", border: "rgba(126,226,154,0.3)" },
-  Cerrada: { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.1)" },
-  Rechazada: { bg: "rgba(240,133,138,0.12)", border: "rgba(240,133,138,0.25)" },
-};
 
 const COLOR_PRIORIDAD: Record<string, string> = {
   baja: "#8a8a8a",
@@ -95,14 +80,6 @@ const ICONO_TIPO: Record<string, string> = {
   Otro: "ellipsis",
 };
 
-const fmtFecha = (f?: string | null) => {
-  if (!f) return "—";
-  return new Date(f).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const fmtFechaHora = (f?: string | null) => {
   if (!f) return "—";
@@ -204,17 +181,15 @@ export default function NovedadesScreen() {
   }, []);
 
   useEffect(() => {
-    void cargar();
-    const i = setInterval(() => void cargar(true), 30000);
-    return () => clearInterval(i);
+    const initialLoadId = setTimeout(() => { void cargar(); }, 0);
+    const intervalId = setInterval(() => void cargar(true), 30000);
+    return () => { clearTimeout(initialLoadId); clearInterval(intervalId); };
   }, [cargar]);
-
   useEffect(() => {
-    if (vistaCliente) {
-      void cargarNovedadesCliente();
-      const i = setInterval(() => void cargarNovedadesCliente(), 30000);
-      return () => clearInterval(i);
-    }
+    if (!vistaCliente) return;
+    const initialLoadId = setTimeout(() => { void cargarNovedadesCliente(); }, 0);
+    const intervalId = setInterval(() => void cargarNovedadesCliente(), 30000);
+    return () => { clearTimeout(initialLoadId); clearInterval(intervalId); };
   }, [vistaCliente, cargarNovedadesCliente]);
 
   useEffect(() => {
@@ -370,7 +345,7 @@ export default function NovedadesScreen() {
             resultado.id_novedad,
             { uri: evidenciaUri, name: evidenciaNombre, type: evidenciaTipo },
           );
-        } catch (e: any) {
+        } catch {
           setToast({ msg: "Novedad creada pero error al subir evidencia", tipo: "err" });
         } finally {
           setSubiendoEvidencia(false);
@@ -546,45 +521,12 @@ export default function NovedadesScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         >
           {filtradas.map((n) => (
-            <Pressable key={n.id_novedad} style={s.card} onPress={() => abrirDetalle(n.id_novedad)}>
-              <View style={s.cardTop}>
-                <Text style={s.cardId}>#{n.id_novedad}</Text>
-                <View style={[s.badge, { backgroundColor: COLOR_ESTADO[n.estado_novedad]?.bg || "#222", borderColor: COLOR_ESTADO[n.estado_novedad]?.border || "#444" }]}>
-                  <Text style={[s.badgeText, { color: C.oro }]}>{n.estado_novedad_label || n.estado_novedad}</Text>
-                </View>
-              </View>
-              <Text style={s.cardTipo}>{n.tipo_novedad_label || n.tipo_novedad}</Text>
-              <View style={s.cardMeta}>
-                {n.cliente_nombre && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="user" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>{n.cliente_nombre}</Text>
-                  </View>
-                )}
-                {n.id_pedido && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="file-invoice" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>#{n.id_pedido}</Text>
-                  </View>
-                )}
-                {n.id_cita && (
-                  <View style={s.cardMetaItem}>
-                    <FontAwesome6 name="calendar-check" size={10} color="#8a8a8a" />
-                    <Text style={s.cardMetaText}>Cita #{n.id_cita}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={s.cardBottom}>
-                <Text style={s.cardFecha}>{fmtFecha(n.fecha_reporte)}</Text>
-                <View style={[s.prioridadDot, { backgroundColor: COLOR_PRIORIDAD[n.prioridad] || "#8a8a8a" }]} />
-              </View>
-              {n.evidencias && n.evidencias.length > 0 && (
-                <View style={s.evidenciaCount}>
-                  <FontAwesome6 name="camera" size={10} color={C.oro} />
-                  <Text style={s.evidenciaCountText}>{n.evidencias.length} evidencia(s)</Text>
-                </View>
-              )}
-            </Pressable>
+            <NovedadCard
+              key={n.id_novedad}
+              novedad={n}
+              onPress={() => abrirDetalle(n.id_novedad)}
+              colorPrioridad={COLOR_PRIORIDAD[n.prioridad] || "#8a8a8a"}
+            />
           ))}
         </ScrollView>
       )}
@@ -714,7 +656,7 @@ export default function NovedadesScreen() {
                             >
                               <View style={s.origenCardHeader}>
                                 <Text style={s.origenCardTitle}>Pedido #{p.id_pedido}</Text>
-                                <View style={[s.miniBadge, { backgroundColor: COLOR_ESTADO[p.estado_pedido || ""]?.bg || "#222" }]}>
+                                <View style={[s.miniBadge, { backgroundColor: COLORES_ESTADO_NOVEDAD[p.estado_pedido || ""]?.fondo || "#222" }]}>
                                   <Text style={s.miniBadgeText}>{p.estado_pedido || "—"}</Text>
                                 </View>
                               </View>
@@ -749,7 +691,7 @@ export default function NovedadesScreen() {
                             >
                               <View style={s.origenCardHeader}>
                                 <Text style={s.origenCardTitle}>Cita #{c.id_cita}</Text>
-                                <View style={[s.miniBadge, { backgroundColor: COLOR_ESTADO[c.estado]?.bg || "#222" }]}>
+                                <View style={[s.miniBadge, { backgroundColor: COLORES_ESTADO_NOVEDAD[c.estado]?.fondo || "#222" }]}>
                                   <Text style={s.miniBadgeText}>{c.estado}</Text>
                                 </View>
                               </View>
@@ -975,7 +917,7 @@ export default function NovedadesScreen() {
           {detalle && (
             <ScrollView style={s.modalBody} contentContainerStyle={{ paddingBottom: 40 }}>
               {/* Estado */}
-              <View style={[s.badge, { backgroundColor: COLOR_ESTADO[detalle.estado_novedad]?.bg || "#222", borderColor: COLOR_ESTADO[detalle.estado_novedad]?.border || "#444", alignSelf: "flex-start" }]}>
+              <View style={[s.badge, { backgroundColor: COLORES_ESTADO_NOVEDAD[detalle.estado_novedad]?.fondo || "#222", borderColor: COLORES_ESTADO_NOVEDAD[detalle.estado_novedad]?.borde || "#444", alignSelf: "flex-start" }]}>
                 <Text style={[s.badgeText, { color: C.oro }]}>{detalle.estado_novedad_label || detalle.estado_novedad}</Text>
               </View>
 
@@ -1030,21 +972,7 @@ export default function NovedadesScreen() {
               </View>
 
               {/* Evidencias */}
-              {detalle.evidencias && detalle.evidencias.length > 0 && (
-                <View style={s.detalleSection}>
-                  <Text style={s.detalleSectionTitle}>Evidencia</Text>
-                  <View style={s.evidenciasGrid}>
-                    {detalle.evidencias.map((e) => (
-                      <Pressable key={e.id_evidencia_n} style={s.evidenciaThumb}>
-                        <EvidenciaImagen url={e.url} estilo={s.evidenciaThumbImg} />
-                        {e.fecha_subida && (
-                          <Text style={s.evidenciaThumbFecha}>{fmtFecha(e.fecha_subida)}</Text>
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
+              <NovedadEvidencias evidencias={detalle.evidencias ?? []} />
 
               {/* Historial */}
               {detalle.historial && detalle.historial.length > 0 && (
@@ -1210,20 +1138,8 @@ const s = StyleSheet.create({
   list: { flex: 1, paddingHorizontal: 20 },
 
   // Card
-  card: { backgroundColor: "rgba(24,24,24,0.9)", borderWidth: 1, borderColor: "rgba(211,172,77,0.2)", borderRadius: 14, padding: 14, marginBottom: 10 },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  cardId: { fontFamily: FontFamilies.bodyBold, fontSize: 14, color: C.oro },
   badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1 },
   badgeText: { fontFamily: FontFamilies.bodyBold, fontSize: 10 },
-  cardTipo: { fontFamily: FontFamilies.bodyBold, fontSize: 13, color: "#fff", marginBottom: 6 },
-  cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 6 },
-  cardMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardMetaText: { fontFamily: FontFamilies.body, fontSize: 11, color: "#8a8a8a" },
-  cardBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardFecha: { fontFamily: FontFamilies.body, fontSize: 11, color: "#666" },
-  prioridadDot: { width: 8, height: 8, borderRadius: 4 },
-  evidenciaCount: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
-  evidenciaCountText: { fontFamily: FontFamilies.body, fontSize: 11, color: C.oro },
 
   // Modal
   modal: { flex: 1, backgroundColor: "#0a0a0a" },
@@ -1327,10 +1243,6 @@ const s = StyleSheet.create({
   detalleDesc: { fontFamily: FontFamilies.body, fontSize: 13, color: "#ccc", lineHeight: 20 },
 
   // Evidencias grid
-  evidenciasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  evidenciaThumb: { width: 90, borderRadius: 10, overflow: "hidden", backgroundColor: "#222" },
-  evidenciaThumbImg: { width: "100%", height: 90 },
-  evidenciaThumbFecha: { fontFamily: FontFamilies.body, fontSize: 9, color: "#8a8a8a", textAlign: "center", padding: 4 },
 
   // Historial
   historialItem: { flexDirection: "row", gap: 10, padding: 10, borderLeftWidth: 2, borderLeftColor: "rgba(255,255,255,0.08)", marginBottom: 6, borderRadius: 6 },

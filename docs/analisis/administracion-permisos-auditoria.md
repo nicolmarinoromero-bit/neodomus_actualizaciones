@@ -35,8 +35,8 @@ Por ello, no se declara auditada cada consulta, alta, edición, eliminación, au
 ## Información sensible y hallazgos
 
 - La autorización por rol y propiedad está cubierta por pruebas descritas en `docs/T1_identidad_permisos.md`; revisar su alcance antes de extrapolarlo a nuevas rutas.
-- El mismo informe documenta que el bucket MinIO conserva lectura pública de objetos, por lo que no debe suponerse privacidad solo por proteger una ruta de API.
-- Logout borra cookies, pero la documentación de T1 indica que los JWT previos no quedan revocados hasta expirar; cambio de contraseña tampoco revoca sesiones existentes.
+- La configuración actual separa un bucket público para medios públicos y uno privado para evidencias. Las evidencias privadas nuevas se sirven desde el backend después de comprobar rol y asignación. El informe T1 describe el estado observado en su propia revisión; consulta docs/security/almacenamiento-compartido-replicas.md para el diseño vigente.
+- POST /api/v1/auth/logout revoca el token de renovación y limpia las cookies. El token de acceso JWT ya emitido no tiene revocación individual y permanece válido hasta expirar. No se verificó en esta revisión el efecto de un cambio de contraseña sobre todas las sesiones existentes.
 - No se detectó una matriz de permisos granulares administrable desde UI. La matriz de este documento es una síntesis por actor y dominio, no un contrato por endpoint exhaustivo.
 - Las acciones de borrado físico, retención legal y anonimización deben tratarse como pendientes donde no estén explícitas en el código.
 

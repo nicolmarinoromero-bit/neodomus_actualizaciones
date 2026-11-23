@@ -2,7 +2,8 @@
 // La sesión y los datos se sirven con `page.route`: el recorrido valida la UI
 // real de AdminInstalaciones sin depender de fixtures en la base de datos.
 // Ejecutar mediante scripts/e2e_semana5.py (Vite efímero + Playwright).
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { interceptarApiJson, prepararSesion, type LlamadaApi } from './support/apiMock';
 
 const USER = {
   id: 1,
@@ -89,28 +90,8 @@ const HISTORIAL = [
   },
 ];
 
-type Llamada = { metodo: string; ruta: string; cuerpo: any };
-
-async function prepararSesion(page: Page) {
-  await page.addInitScript((usuario) => {
-    sessionStorage.setItem('neodomus_tab_session_id', 'e2e');
-    localStorage.setItem('e2e__tab__access_token', 'e2e-access-token');
-    localStorage.setItem('e2e__tab__refresh_token', 'e2e-refresh-token');
-    localStorage.setItem('e2e__tab__user', JSON.stringify(usuario));
-    localStorage.setItem('pf_idioma', 'es');
-  }, USER);
-}
-
-async function interceptarApi(page: Page, llamadas: Llamada[]) {
-  await page.route('**/api/v1/**', async (route: Route) => {
-    const peticion = route.request();
-    const url = new URL(peticion.url());
-    const ruta = url.pathname.replace('/api/v1', '');
-    const metodo = peticion.method();
-    const tipoContenido = peticion.headers()['content-type'] || '';
-    const cuerpo = tipoContenido.includes('application/json') ? peticion.postDataJSON() : null;
-    const responder = (json: unknown, status = 200) =>
-      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(json) });
+async function interceptarApi(page: Page, llamadas: LlamadaApi[]) {
+  await interceptarApiJson(page, async ({ ruta, metodo, cuerpo, responder }) => {
 
     if (ruta === '/auth/session' && metodo === 'GET') {
       return responder({ user_type: 'employee', rol: 'administrador' });
@@ -170,12 +151,12 @@ async function interceptarApi(page: Page, llamadas: Llamada[]) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await prepararSesion(page);
+  await prepararSesion(page, USER);
 });
 
 test('el admin filtra citas y cancela una con reembolso del 100%', async ({ page }) => {
   // ── Arrange ──────────────────────────────────────────────────────────
-  const llamadas: Llamada[] = [];
+  const llamadas: LlamadaApi[] = [];
   await interceptarApi(page, llamadas);
   await page.goto('/admin/instalaciones');
 
@@ -213,7 +194,7 @@ test('el admin filtra citas y cancela una con reembolso del 100%', async ({ page
 
 test('el admin actualiza una tarifa, cambia el estado y reasigna la cita', async ({ page }) => {
   // ── Arrange ──────────────────────────────────────────────────────────
-  const llamadas: Llamada[] = [];
+  const llamadas: LlamadaApi[] = [];
   await interceptarApi(page, llamadas);
   await page.goto('/admin/instalaciones');
   await expect(page.getByText('Carolina Méndez')).toBeVisible();

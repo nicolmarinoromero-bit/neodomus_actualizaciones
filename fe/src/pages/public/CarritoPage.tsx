@@ -138,7 +138,7 @@ const CarritoPage = () => {
     // La cantidad se transmite igual para corte por metros o por unidades.
     params.set('cantidad', String(item.cantidad));
     if (item.venta_por_metros) params.set('unidades', String(item.cantidad));
-    navigate(`/producto/${item.id_producto}?${params.toString()}`);
+    void navigate(`/producto/${item.id_producto}?${params.toString()}`);
   };
 
   // accede a sessionStorage para conservar o recuperar datos locales.
@@ -157,11 +157,11 @@ const CarritoPage = () => {
       return;
     }
     if (isAuthenticated && rol === 'cliente') {
-      navigate('/checkout');
+      void navigate('/checkout');
       return;
     }
     sessionStorage.setItem(PF_REDIRECT_AFTER_LOGIN_KEY, '/checkout');
-    navigate('/login');
+    void navigate('/login');
   };
 
   const handleCantidadChange = (item: CartItem, delta: number) => {
@@ -196,7 +196,7 @@ const CarritoPage = () => {
                 : t('carrito.aunVacio')}
             </p>
           </div>
-          <button type="button" className="carrito-back-btn" onClick={() => navigate('/productos')}>
+          <button type="button" className="carrito-back-btn" onClick={() => void navigate('/productos')}>
             <FaArrowLeft /> {t('carrito.volverProductos')}
           </button>
         </header>
@@ -206,7 +206,7 @@ const CarritoPage = () => {
             <FaCartShopping className="carrito-vacio-icon" />
             <h2>{t('carrito.vacio')}</h2>
             <p>{t('carrito.vacioExterior')}</p>
-            <button type="button" className="carrito-vacio-btn" onClick={() => navigate('/productos')}>
+            <button type="button" className="carrito-vacio-btn" onClick={() => void navigate('/productos')}>
               {t('carrito.explorar')}
             </button>
           </div>

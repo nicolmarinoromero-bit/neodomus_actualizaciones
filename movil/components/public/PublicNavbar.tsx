@@ -197,6 +197,11 @@ export default function PublicNavbar() {
               texto={t("nav.notificaciones")}
               onPress={() => ir("/(tabs)/notificaciones")}
             />
+            <ItemMenu
+              icono="shield-halved"
+              texto={t("menu.misNovedades")}
+              onPress={() => ir("/(tabs)/novedades")}
+            />
 
             {/* Idioma ES/EN funcional */}
             <SelectorIdioma />

@@ -3,7 +3,7 @@
 // de la WEB, replicados 1:1 (fe/src/pages/cliente + Checkout).
 // ─────────────────────────────────────────────────────────────
 
-import { apiFetch, ApiError } from "./api";
+import { apiFetch } from "./api";
 import { API_BASE_URL } from "@/constants/api";
 // API clásica de FileSystem (cacheDirectory/downloadAsync) estable en SDK 54.
 import * as FileSystem from "expo-file-system/legacy";
@@ -258,6 +258,26 @@ export interface Cita {
 // Comunica con el backend mediante API "/citas/mis-citas".
 export const listarMisCitas = () => apiFetch<Cita[]>("/citas/mis-citas");
 
+export interface OfertaHorarioCliente {
+  id_oferta: number;
+  fecha_nueva: string;
+  hora_nueva: string;
+  tipo_servicio: string;
+  tecnico?: string | null;
+  mi_cita_id: number;
+  mi_fecha_actual: string;
+  mi_hora_actual: string;
+  expira_en: string;
+}
+
+export const listarOfertasHorarioPendientes = () =>
+  apiFetch<OfertaHorarioCliente[]>("/citas/ofertas-pendientes");
+
+export const aceptarOfertaHorario = (idOferta: number) =>
+  apiFetch<{ fecha_nueva: string; hora_nueva: string }>(`/citas/ofertas/${idOferta}/aceptar`, {
+    method: "POST",
+  });
+
 // Comunica con el backend mediante API "/citas".
 export const crearCita = (datos: {
   tipo_servicio: string;
@@ -460,6 +480,7 @@ export const crearPedido = (payload: {
     id_tecnico_2?: number;
     id_tecnico_3?: number;
   }[];
+  codigo_cupon?: string;
   pago: Record<string, unknown>;
 }) =>
   apiFetch<{

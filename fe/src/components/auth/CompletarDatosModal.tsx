@@ -76,7 +76,7 @@ const CompletarDatosModal = () => {
       marcarPerfilCompleto();
       setMessage(t('auth.data.guardado'));
       window.setTimeout(() => {
-        navigate('/', { replace: true });
+        void navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || t('auth.data.errorGuardar');

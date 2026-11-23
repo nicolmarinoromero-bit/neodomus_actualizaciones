@@ -7,7 +7,7 @@ import '@styles/auth-modal.css';
 const AuthModalLayout = () => {
   const navigate = useNavigate();
 
-  const close = () => navigate('/productos');
+  const close = () => void navigate('/productos');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';

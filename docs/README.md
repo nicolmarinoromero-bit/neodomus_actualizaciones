@@ -21,7 +21,7 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 - [Design system](referencia-tecnica/design-system.md)
 - [Funciones críticas documentadas](documentacion-funciones-criticas.md)
 
-> API interactiva: con el backend corriendo en `http://localhost:8000`, la documentación de los 186 endpoints queda disponible en `/docs` (Swagger UI), `/redoc` y `/openapi.json`.
+> API interactiva: con el backend corriendo en `http://localhost:8000`, la especificación generada para la versión activa queda disponible en `/docs` (Swagger UI), `/redoc` y `/openapi.json`. El número de rutas puede cambiar con el código.
 
 ## Requisitos
 
@@ -46,6 +46,7 @@ Este índice conserva las áreas existentes de documentación. Los requisitos ex
 
 ## Validación y operación
 
+- [Plan de Respaldo y Recuperación](plan-respaldo.md)
 - [Runbook API no disponible](runbooks/RB-01-api-no-disponible.md)
 - [Runbook respaldo atrasado](runbooks/RB-02-respaldo-atrasado.md)
 

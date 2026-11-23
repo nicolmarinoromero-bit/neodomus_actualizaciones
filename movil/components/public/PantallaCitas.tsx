@@ -4,6 +4,7 @@
 // (editar/cancelar regla 48 h, calificar técnico obligatorio).
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -23,16 +24,19 @@ import { FontFamilies } from "@/constants/theme";
 import { ApiError } from "@/services/api";
 import {
   actualizarCita,
+  aceptarOfertaHorario,
   cancelarCita,
   calificarTecnico,
   crearCita,
   listarHorasDisponibles,
   listarMisCitas,
+  listarOfertasHorarioPendientes,
   listarTarifas,
   obtenerPerfilCliente,
   obtenerMetodosPago,
   type Cita,
   type Tarifa,
+  type OfertaHorarioCliente,
 } from "@/services/cliente.services";
 
 const TIPOS = ["instalacion", "mantenimiento", "reparacion", "revision", "soporte"];
@@ -58,7 +62,9 @@ export default function PantallaCitas({
     vista?: string;
   }>();
 
-  const [vista, setVista] = useState<"agendar" | "mis">(params.vista === "mis-citas" ? "mis" : "agendar");
+  const [vista, setVista] = useState<"agendar" | "mis" | "historial">(
+    params.vista === "historial" ? "historial" : params.vista === "mis-citas" ? "mis" : "agendar",
+  );
   const [tipoServicio, setTipoServicio] = useState("instalacion");
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
@@ -72,6 +78,12 @@ export default function PantallaCitas({
   })();
   const nombreTecnico = params.nombre ? decodeURIComponent(params.nombre) : null;
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
+  const [ahoraMs, setAhoraMs] = useState(() => new Date().getTime());
+
+  useEffect(() => {
+    const intervalId = setInterval(() => setAhoraMs(new Date().getTime()), 60_000);
+    return () => clearInterval(intervalId);
+  }, []);
   const [horasRefreshKey, setHorasRefreshKey] = useState(0);
     const [tarifas, setTarifas] = useState<Tarifa[]>([]);
   const [bancos, setBancos] = useState<string[]>([]);
@@ -88,6 +100,9 @@ export default function PantallaCitas({
   const [simulacion, setSimulacion] = useState("");
 
   const [misCitas, setMisCitas] = useState<Cita[]>([]);
+  const [ofertasHorario, setOfertasHorario] = useState<OfertaHorarioCliente[]>([]);
+  const [aceptandoOferta, setAceptandoOferta] = useState<number | null>(null);
+  const [busquedaCitas, setBusquedaCitas] = useState("");
   const [editandoId, setEditandoId] = useState<number | null>(null);
   // Confirmación de cancelación con MODAL: la cita NO se toca hasta que
   // el usuario pulse "Aceptar".
@@ -117,10 +132,32 @@ export default function PantallaCitas({
   }, []);
 
   const cargarMisCitas = useCallback(() => {
-    listarMisCitas()
-      .then(setMisCitas)
+    Promise.all([
+      listarMisCitas(),
+      listarOfertasHorarioPendientes().catch(() => [] as OfertaHorarioCliente[]),
+    ])
+      .then(([citas, ofertas]) => {
+        setMisCitas(citas);
+        setOfertasHorario(ofertas);
+      })
       .catch(() => {});
   }, []);
+
+  const aceptarOferta = async (idOferta: number) => {
+    setAceptandoOferta(idOferta);
+    setError(null);
+    try {
+      const resultado = await aceptarOfertaHorario(idOferta);
+      const fechaLegible = new Date(`${resultado.fecha_nueva}T00:00:00`).toLocaleDateString("es-CO");
+      setExito(`Tu cita se adelantó al ${fechaLegible} a las ${resultado.hora_nueva}`);
+      cargarMisCitas();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "No se pudo aceptar la oferta.");
+      cargarMisCitas();
+    } finally {
+      setAceptandoOferta(null);
+    }
+  };
 
   useEffect(() => {
     cargarMisCitas();
@@ -130,10 +167,7 @@ export default function PantallaCitas({
   // Domingo NO disponible: ni se consultan horas. Sábado SÍ disponible.
   useEffect(() => {
     const diaSemana = fecha ? new Date(fecha + "T12:00:00").getDay() : null;
-    if (!fecha || diaSemana === 0) {
-      setHorasDisponibles([]);
-      return;
-    }
+    if (!fecha || diaSemana === 0) return;
     let activo = true;
     listarHorasDisponibles({
       fecha,
@@ -302,6 +336,7 @@ export default function PantallaCitas({
     setEditandoId(cita.id_cita);
     setTipoServicio(cita.tipo_servicio);
     setFecha(String(cita.fecha).slice(0, 10));
+    setHorasDisponibles([]);
     setHora(String(cita.hora).slice(0, 5));
     setDireccion(cita.direccion);
     setDescripcion(cita.descripcion ?? "");
@@ -311,7 +346,7 @@ export default function PantallaCitas({
   const puedeModificar = (cita: Cita): boolean => {
     if (cita.estado === "Finalizada" || cita.estado === "Cancelada") return false;
     const fechaHora = new Date(`${cita.fecha}T${cita.hora}:00`);
-    return fechaHora.getTime() - Date.now() >= 48 * 60 * 60 * 1000; // regla 48 h
+    return fechaHora.getTime() - ahoraMs >= 48 * 60 * 60 * 1000; // regla 48 h
   };
 
   const confirmarCancelar = async () => {
@@ -359,6 +394,18 @@ export default function PantallaCitas({
     minHeight: 46,
   } as const;
 
+  const esHistorial = (cita: Cita) =>
+    cita.estado === "Finalizada" || cita.estado === "Cancelada" ||
+    new Date(`${cita.fecha}T${cita.hora}:00`).getTime() < ahoraMs;
+  const citasVisibles = [...misCitas]
+    .filter((cita) => esHistorial(cita) === (vista === "historial"))
+    .filter((cita) => {
+      const consulta = busquedaCitas.trim().toLocaleLowerCase();
+      return !consulta || [cita.tipo_servicio, cita.estado, cita.nombre_tecnico, cita.direccion]
+        .some((dato) => dato?.toLocaleLowerCase().includes(consulta));
+    })
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+
   return (
     <AppScreen titulo="Citas" ocultarVolver={enTab}>
       {/* Vistas */}
@@ -370,6 +417,9 @@ export default function PantallaCitas({
         </Pressable>
         <Pressable style={[S.tab, vista === "mis" && S.tabActivo]} onPress={() => { setVista("mis"); setEditandoId(null); }}>
           <Text style={[S.tabTexto, vista === "mis" && S.tabTextoActivo]}>Mis citas</Text>
+        </Pressable>
+        <Pressable style={[S.tab, vista === "historial" && S.tabActivo]} onPress={() => { setVista("historial"); setEditandoId(null); }}>
+          <Text style={[S.tabTexto, vista === "historial" && S.tabTextoActivo]}>Historial</Text>
         </Pressable>
       </View>
 
@@ -390,7 +440,7 @@ export default function PantallaCitas({
             {TIPOS.map((tipo) => (
               <Pressable
                 key={tipo}
-                onPress={() => setTipoServicio(tipo)}
+                onPress={() => { setTipoServicio(tipo); setHorasDisponibles([]); }}
                 style={[S.chip, tipoServicio === tipo && S.chipActivo]}
               >
                 <Text style={[S.chipTexto, tipoServicio === tipo && S.chipTextoActivo]}>
@@ -407,7 +457,7 @@ export default function PantallaCitas({
           )}
 
           <Text style={S.label}>Fecha * (lunes a sábado)</Text>
-          <CalendarioMes valor={fecha} onChange={setFecha} minFecha={hoyIso()} />
+          <CalendarioMes valor={fecha} onChange={(nuevaFecha) => { setFecha(nuevaFecha); setHorasDisponibles([]); }} minFecha={hoyIso()} />
           {esFinDeSemana && (
             <Text style={S.error}>
               Los domingos no están disponibles. Selecciona de lunes a sábado.
@@ -604,15 +654,59 @@ export default function PantallaCitas({
       )}
 
       {/* ── MIS CITAS ── */}
-      {vista === "mis" && (
+      {(vista === "mis" || vista === "historial") && (
         <View style={{ gap: 12 }}>
-          {misCitas.length === 0 && (
-            <Text style={S.gris}>No tienes citas agendadas.</Text>
+          {vista === "mis" && ofertasHorario.length > 0 && (
+            <View style={S.ofertasCard}>
+              <Text style={S.ofertasTitulo}>Se liberó un horario más cercano contigo</Text>
+              {ofertasHorario.map((oferta) => (
+                <View key={oferta.id_oferta} style={S.ofertaFila}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={S.ofertaFecha}>
+                      {new Date(`${oferta.fecha_nueva}T00:00:00`).toLocaleDateString("es-CO", {
+                        weekday: "long", day: "numeric", month: "long",
+                      })} · {oferta.hora_nueva}
+                    </Text>
+                    <Text style={S.ofertaDetalle}>Con {oferta.tecnico || "tu técnico"} · {oferta.tipo_servicio}</Text>
+                    <Text style={S.ofertaDetalle}>
+                      Tu cita actual: {new Date(`${oferta.mi_fecha_actual}T00:00:00`).toLocaleDateString("es-CO")} · {oferta.mi_hora_actual}
+                    </Text>
+                    <Text style={S.ofertaDetalle}>
+                      Expira: {new Date(oferta.expira_en).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+                    </Text>
+                  </View>
+                  <Pressable
+                    disabled={aceptandoOferta === oferta.id_oferta}
+                    style={({ pressed }) => [S.botonPrimario, pressed && S.presionado, aceptandoOferta === oferta.id_oferta && { opacity: 0.6 }]}
+                    onPress={() => void aceptarOferta(oferta.id_oferta)}
+                  >
+                    <Text style={S.textoBotonPrimario}>
+                      {aceptandoOferta === oferta.id_oferta ? "Moviendo..." : "Adelantar mi cita"}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+          {misCitas.length > 0 && (
+            <TextInput
+              style={inputEstilo}
+              placeholder="Buscar por servicio, estado, técnico o dirección"
+              placeholderTextColor="#8a8a8a"
+              value={busquedaCitas}
+              onChangeText={setBusquedaCitas}
+              accessibilityLabel="Buscar citas"
+            />
+          )}
+          {citasVisibles.length === 0 && (
+            <Text style={S.gris}>
+              {busquedaCitas.trim()
+                ? "No hay citas que coincidan con la búsqueda."
+                : vista === "historial" ? "No tienes citas en el historial." : "No tienes citas próximas."}
+            </Text>
           )}
 
-          {[...misCitas]
-            .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
-            .map((cita) => {
+          {citasVisibles.map((cita) => {
               const modificable = puedeModificar(cita);
               return (
                 <View key={cita.id_cita} style={S.tarjeta}>
@@ -629,6 +723,19 @@ export default function PantallaCitas({
                   {cita.descripcion && <Text style={S.gris}>{cita.descripcion}</Text>}
                   {cita.nombre_tecnico && (
                     <Text style={S.tecnico}>Técnico: {cita.nombre_tecnico}</Text>
+                  )}
+                  {cita.tecnico_telefono && (
+                    <Pressable onPress={() => Linking.openURL(`tel:${cita.tecnico_telefono}`).catch(() => {})}>
+                      <Text style={S.tecnico}>Teléfono: {cita.tecnico_telefono}</Text>
+                    </Pressable>
+                  )}
+                  {cita.tecnico_email && (
+                    <Pressable onPress={() => Linking.openURL(`mailto:${cita.tecnico_email}`).catch(() => {})}>
+                      <Text style={S.tecnico}>{cita.tecnico_email}</Text>
+                    </Pressable>
+                  )}
+                  {cita.costo_cita != null && (
+                    <Text style={S.gris}>Costo: ${Number(cita.costo_cita).toLocaleString("es-CO")} COP</Text>
                   )}
                   {cita.estado_pago && (
                     <Text style={S.gris}>Pago: {cita.estado_pago}</Text>
@@ -788,6 +895,11 @@ const S = StyleSheet.create({
   deshabilitado: { opacity: 0.55 },
   presionado: { opacity: 0.85 },
   textoBotonPrimario: { color: "#141414", fontFamily: FontFamilies.button, fontSize: 14.5 },
+  ofertasCard: { backgroundColor: "#14221f", borderRadius: 14, borderWidth: 1, borderColor: "#2f5b50", padding: 14, gap: 10 },
+  ofertasTitulo: { color: "#eafff7", fontSize: 14, fontFamily: FontFamilies.bodyBold },
+  ofertaFila: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, borderTopWidth: 1, borderTopColor: "#2f5b50", paddingTop: 10 },
+  ofertaFecha: { color: "#eafff7", fontSize: 13, fontFamily: FontFamilies.bodyBold, textTransform: "capitalize" },
+  ofertaDetalle: { color: "#b9c9c4", fontSize: 11.5 },
   botonOutline: { borderRadius: 10, borderWidth: 1, borderColor: "rgba(212,165,75,0.45)", paddingVertical: 9, paddingHorizontal: 13, alignItems: "center" },
   textoOutline: { color: "#f0c96f", fontFamily: FontFamilies.button, fontSize: 12.5 },
   botonOutlineRojo: { borderRadius: 10, borderWidth: 1, borderColor: "rgba(240,133,138,0.55)", paddingVertical: 9, paddingHorizontal: 13, alignItems: "center" },

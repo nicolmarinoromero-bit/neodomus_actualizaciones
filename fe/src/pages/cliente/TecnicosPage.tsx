@@ -107,7 +107,7 @@ const TecnicosPage = () => {
       return;
     }
     const nombre = `${tecnico.nombre} ${tecnico.apellido}`;
-    navigate(`/cliente/citas?tecnico=${tecnico.id}&nombre=${encodeURIComponent(nombre)}`);
+    void navigate(`/cliente/citas?tecnico=${tecnico.id}&nombre=${encodeURIComponent(nombre)}`);
   };
 
   if (loading) return <div className="tecnicos-page-loading">{t('common.cargando')}</div>;
@@ -116,7 +116,7 @@ const TecnicosPage = () => {
     <div className="tecnicos-page app-glass">
       <main className="tecnicos-main">
         <header className="tecnicos-header">
-          <button type="button" className="tecnicos-back-btn" onClick={() => navigate('/productos')}>
+          <button type="button" className="tecnicos-back-btn" onClick={() => void navigate('/productos')}>
             <FaArrowLeft /> {t('citas.volverProductos')}
           </button>
           <div className="tecnicos-header-content">

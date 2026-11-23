@@ -1,72 +1,48 @@
 # Auditoría documental de NeoDomus
 
-**Fecha de revisión:** 30 de octubre de 2026  
-**Alcance:** documentación Markdown y configuración/fuentes usadas para corregir las referencias centrales. Se revisaron inventario, README, guías de instalación, arquitectura, rutas principales, manifiestos, Compose, configuración, modelos/migraciones y navegación web/móvil. No se ejecutó la aplicación ni la suite de pruebas. No se hizo cotejo exhaustivo de cada criterio de las 88 historias/requisitos funcionales; se preservan como especificaciones, no como prueba de implementación.
+**Fecha de revisión:** 18 de noviembre de 2026
 
-## Inventario
+**Alcance:** revisión documental frente al checkout disponible. Se cotejaron los manuales de usuario y técnico, el índice, la arquitectura, las referencias de API y datos, las guías locales, los planes y documentos de auditoría/permisos con manifiestos, configuración, rutas, servicios, modelos y migraciones relevantes.
 
-Antes de esta actualización, `docs/` tenía 106 archivos distribuidos así:
+## Resultado
 
-| Área | Contenido |
-|---|---|
-| `docs/requisitos/RFs/` | 44 requisitos funcionales (`RF-001` a `RF-044`) |
-| `docs/requisitos/HUs/` | 44 historias de usuario (`HU-001` a `HU-044`) |
-| `docs/requisitos/RNs/` | 6 requisitos no funcionales |
-| `docs/requisitos/` | Restricciones |
-| `docs/referencia-tecnica/` | Arquitectura, endpoints API, esquema, diccionario y design system |
-| `docs/setup/` | Instalación con/sin Docker |
-| `docs/conceptos/` | Patrones, OWASP y accesibilidad |
-| Raíz de `docs/` | Plan de trabajo |
+Los manuales de usuario y técnico fueron revisados y actualizados con datos presentes en el repositorio. Describen capacidades identificadas en código y configuración; no certifican que estén habilitadas o funcionando en un despliegue concreto. La revisión fue estática: no se inició la aplicación, no se accedió a una base de datos o entorno productivo y no se ejecutaron pruebas.
 
-También existen documentos de proyecto en la raíz: `DOCUMENTACION_PROYECTO.md`, `INFORME_FINAL_EVALUACION_NEODOMUS.md` y `INFORME_DISENO_NEODOMUS_CON_LOGO_SENA_Y_DICCIONARIO.docx`. Además existe una segunda área `fe/doc/requirements/` y `fe/doc/PLAN_TRABAJO.md`. Se conservan para no borrar evidencia ni mover documentación específica del frontend sin una decisión del equipo.
+Se actualizaron referencias centrales de stack, autenticación, almacenamiento, pagos, migraciones y devoluciones. Los requisitos e historias conservan carácter normativo: su presencia no demuestra que cada función esté implementada o validada.
 
-## Hallazgos principales
+## Hechos cotejados
 
-1. **Rutas de carpetas obsoletas.** Algunas guías apuntaban a `backend/`, `frontend/`, puertos 3000/8025 y scripts de arranque que no corresponden a la raíz actual. El layout observado es `be/`, `fe/`, `movil/` y `scripts/`.
-2. **Stack móvil desactualizado en documentos.** `movil/package.json` declara Expo 57.0.22, React Native 0.86.3, React 19.2.3 y Expo Router 57.0.21. `movil/AGENTS.md`, algunos documentos y reportes anteriores mencionan Expo 54.
-3. **Tecnología backend.** `be/pyproject.toml` declara Python `>=3.10`; `be/Dockerfile` usa Python 3.12. No se debe presentar Python 3.12 como requisito local estricto sin explicar esa diferencia.
-4. **Referencias API antiguas.** La tabla anterior de endpoints incluía rutas como `/servicios`, `/pagos/iniciar` y `/tech/mis-tareas`, que no corresponden a los routers actuales. `be/app/main.py` monta 17 routers bajo `/api/v1`; la referencia se cambió a módulos y rutas representativas verificadas.
-5. **URLs de producción no verificadas.** Algunos documentos afirmaban dominios públicos `app.neodomus.com` y `api.neodomus.com`; no hay evidencia de despliegue activo en la configuración revisada. Se retiraron como instrucciones de acceso.
-6. **Esquema en evolución.** La secuencia visible llega a la revisión Alembic `0060`; el documento antiguo citaba 48 migraciones y cantidades/tipos anteriores. Se actualizó la referencia principal y se advirtió que el diccionario heredado requiere sincronización campo por campo.
-7. **Requisitos no son implementación.** Los 44 RF y 44 HU se conservaron. Su existencia no demuestra que la función esté completa. La navegación incluye pantallas y roles, pero el estado de cada operación depende de los routers/servicios conectados.
-8. **Pagos.** `PAYMENT_PROVIDER` tiene simulador por defecto y `be/app/services/pagos_service.py` describe respuestas simuladas. No debe afirmarse que exista procesamiento real de tarjeta/PSE/PayPal.
-9. **Archivos MinIO.** `be/app/services/minio_service.py` fija lectura pública para los objetos del bucket. Es un comportamiento confirmado con implicaciones de privacidad que debe revisarse antes de guardar archivos sensibles.
-10. **Material histórico y duplicado.** El plan de trabajo y el informe final contienen estados/fechas de agosto de 2026 y números/versiones ya desactualizados. Se añadió aviso histórico al plan. Los requisitos en `fe/doc/` se mantienen separados de `docs/requisitos/` para no asumir cuál colección es oficial.
+- El repositorio separa backend `be/`, web `fe/` y móvil `movil/`. La API FastAPI registra routers bajo `/api/v1`; OpenAPI se genera desde la aplicación activa.
+- Los manifiestos revisados declaran FastAPI 0.163.1 y Python mínimo `>=3.11`; la web declara React 18.3.1 y Vite 5.4.21; móvil declara Expo 58.0.23, Expo Router 58.0.30, React Native 0.88.1 y React 19.3.0. Son versiones de este checkout y pueden cambiar.
+- El backend genera tokens y también establece cookies `HttpOnly`; los clientes web y móvil observados envían el token de acceso como `Authorization: Bearer`. La autorización del backend prioriza ese encabezado y admite cookie como alternativa.
+- El acceso con Google depende de credenciales y configuración por entorno. Su presencia en el código no confirma que esté habilitado en producción.
+- `PAYMENT_PROVIDER` usa `simulator` como valor predeterminado del Compose. Las pantallas o registros de pago no prueban procesamiento financiero real.
+- El almacenamiento distingue un bucket público para medios públicos y uno privado para evidencias. Hay rutas de compatibilidad y referencias históricas; no se afirma que todos los objetos heredados hayan sido migrados.
+- El archivo de migración más reciente visible es `0066_reparar_refresh_tokens.py`. Esto no demuestra que una base desplegada esté actualizada a esa revisión.
+- Las devoluciones contemplan solicitud, revisión administrativa, resolución y operaciones de recogida con técnico. Los detalles exactos por entorno deben consultarse en OpenAPI y en la versión desplegada.
+- La matriz de trazabilidad conserva resultados de pruebas con fecha 12/11/2026. Son evidencia histórica; no se volvieron a ejecutar para esta revisión.
 
-## Estado funcional que puede afirmarse a partir de la estructura
+## Estado de los manuales
 
-| Área | Evidencia consultada | Estado documental |
-|---|---|---|
-| Autenticación | `be/app/routers/auth.py`, `fe/src/App.tsx`, `fe/src/contexts/AuthContext.tsx` | Endpoints y pantallas presentes; correo/OAuth dependen de configuración. No se ejecutó el flujo. |
-| Catálogo/carrito/checkout | `be/app/routers/productos.py`, `be/app/routers/pedidos.py`, pantallas `fe/src/pages/public/` | Rutas/componentes y lógica de pedido presentes; pago predeterminado simulado. |
-| Citas y trabajo técnico | Routers `citas.py`, `tecnicos.py`; rutas web y `movil/app/(tecnico)/` | Módulos presentes; no se certificó cada transición ni disponibilidad del servicio. |
-| Administración | rutas del grupo administrador en `fe/src/App.tsx` y routers backend | Panel web con módulos registrados; no se halló área administrativa móvil equivalente. |
-| BD y archivos | modelos, Alembic, `database.py`, `minio_service.py` | Configuración presente; no se conectó a una base de datos ni se inspeccionó un entorno productivo. |
-| Pruebas | `be/app/tests/test_auth.py`, scripts de componentes | Existen archivos de prueba; no se ejecutaron y no se declara cobertura ni aprobación. |
+- **Manual de usuario:** organizado por perfiles y acciones; explica cuenta, catálogo, pedidos, citas, devoluciones, pagos simulados y orientación ante incidencias. La disponibilidad puede depender del rol y de la configuración.
+- **Manual técnico:** actualizado con arquitectura, versiones declaradas, autenticación, Google, pedidos/pagos, devoluciones, datos, almacenamiento y operación local. Distingue configuración local de producción.
+- **Referencias técnicas:** arquitectura, API, esquema, guías de instalación y varios documentos relacionados fueron sincronizados o anotados como históricos cuando correspondía.
+- **Diccionario de datos:** continúa siendo heredado y no se cotejó columna por columna con todas las migraciones. No debe tratarse como definición física completa del esquema vigente.
+- **Planes, reportes y documentación QA:** algunos conservan cronologías, herramientas y versiones de sus cortes. Deben leerse como registros fechados, no como estado presente, salvo que indiquen una revisión reciente.
 
-## Cambios realizados
+## Diferencias y pendientes documentales
 
-- Se simplificó el README de raíz para servir como punto de entrada y usar las rutas/tecnologías actuales.
-- Se creó `docs/README.md` como índice navegable.
-- Se crearon `MANUAL_DE_USUARIO.md` y `MANUAL_TECNICO.md` en la raíz.
-- Se corrigieron las guías con/sin Docker y el README móvil.
-- Se reescribieron arquitectura, referencia de API y resumen de esquema para eliminar rutas, hosts y versiones no verificadas.
-- Se advirtió que el diccionario de datos requiere actualización completa contra modelos/migraciones.
-- Se añadió advertencia de vigencia al plan de trabajo y se corrigieron algunas menciones explícitas a carpetas/Expo obsoletas.
-- No se movieron ni eliminaron requisitos, historias, conceptos o informes históricos.
-
-## Pendientes de información/equipo
-
-- Definir URL de producción, navegadores soportados y requisitos mínimos del cliente.
-- Definir canal, responsables, horarios y tiempos de soporte/ANS.
-- Confirmar proveedores externos activos (correo, Google OAuth y pagos reales) por entorno.
-- Decidir política de privacidad para objetos MinIO públicos.
-- Sincronizar `docs/referencia-tecnica/diccionario-de-datos.md` columna por columna con modelos y migraciones hasta `0060`, idealmente contra una BD limpia creada desde migraciones.
-- Determinar si `fe/doc/requirements/` es duplicado histórico o documentación que debe mantenerse, y alinear su relación con `docs/requisitos/`.
-- Revisar afirmaciones y estados de `DOCUMENTACION_PROYECTO.md`, el informe de evaluación y el DOCX de diseño, que no se actualizaron en esta tarea.
-- Obtener capturas reales de las pantallas si se requieren para entrega académica.
+1. En `docs/requisitos/restricciones.md`, la restricción normativa sobre OAuth/cookies difiere de la implementación observada. La nota documenta la diferencia sin cambiar la regla ni el software. El equipo debe decidir si revisa el requisito.
+2. El diccionario de datos requiere reconciliación detallada entre modelos, migraciones y, si se necesita describir un entorno concreto, el esquema desplegado.
+3. La documentación histórica T1 y otros reportes QA describen estados de archivos, dependencias y tareas en su fecha de corte. No son un inventario actual de producción; deben mantenerse identificados como históricos.
+4. La documentación no aporta URL productiva confirmada, propietarios de soporte, horarios ni acuerdos de servicio. Estos datos deben proporcionarlos los responsables del entorno.
+5. Los documentos de requisitos y planes incluyen estados de avance que no se revalidaron uno a uno durante esta auditoría.
+6. La existencia de rutas, pantallas o pruebas no sustituye una comprobación funcional de los flujos ni una validación del despliegue.
 
 ## Validación y límites
 
-Se cotejaron las rutas y puertos de Compose, los nombres de servicios, las rutas registradas por FastAPI, las rutas de navegación, las versiones declaradas en manifiestos y las revisiones/modelos consultados. No se levantaron contenedores, no se ejecutaron pruebas automatizadas, no se validó un despliegue y no se verificó el render de diagramas en un visor Mermaid específico. El código de aplicación no se modificó.
+La comparación se hizo mediante lectura de archivos y control de diferencias documental. No se modificó código, configuración, base de datos, dependencias ni pruebas; no se instalaron paquetes ni se ejecutaron procesos de la aplicación. Esta revisión no certifica seguridad, disponibilidad, cobertura de requisitos, datos productivos ni comportamiento en un entorno desplegado.
 
+## Control de cambios documentales
+
+Esta revisión actualiza los manuales técnico y de usuario y corrige referencias documentales centrales para reflejar el checkout consultado. Los cambios están limitados a `docs/`. La lista definitiva de archivos se confirma con Git al cierre.

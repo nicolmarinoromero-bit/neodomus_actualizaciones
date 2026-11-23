@@ -26,6 +26,13 @@ const pasarFrames = async () => {
   });
 };
 
+function activarFramesSincronos() {
+  return jest.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 0;
+  });
+}
+
 function dispararFoco() {
   const callback = useFocusEffectMock.mock.calls.at(-1)?.[0];
   if (!callback) throw new Error("useFocusEffect no recibió callback");
@@ -110,20 +117,32 @@ it("componente sin métodos de scroll no lanza error", async () => {
   const ref = { current: { hola: "mundo" } };
   await renderHook(() => useScrollTopAlEntrar(ref));
 
-  await act(async () => {
-    dispararFoco()();
-  });
-  await pasarFrames();
+  const raf = activarFramesSincronos();
+  try {
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
+    expect(raf).toHaveBeenCalledTimes(2);
+  } finally {
+    raf.mockRestore();
+  }
 });
 
 it("ref vacío no lanza error", async () => {
   const ref: { current: unknown } = { current: null };
   await renderHook(() => useScrollTopAlEntrar(ref));
 
-  await act(async () => {
-    dispararFoco()();
-  });
-  await pasarFrames();
+  const raf = activarFramesSincronos();
+  try {
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
+    expect(raf).toHaveBeenCalledTimes(2);
+  } finally {
+    raf.mockRestore();
+  }
 });
 
 it("ref nativo sin scrollTo ni scrollToOffset no lanza error", async () => {
@@ -133,8 +152,15 @@ it("ref nativo sin scrollTo ni scrollToOffset no lanza error", async () => {
   const ref = { current: envuelta };
   await renderHook(() => useScrollTopAlEntrar(ref));
 
-  await act(async () => {
-    dispararFoco()();
-  });
-  await pasarFrames();
+  const raf = activarFramesSincronos();
+  try {
+    const callbackDeFoco = dispararFoco();
+    await act(async () => {
+      callbackDeFoco();
+    });
+    expect(raf).toHaveBeenCalledTimes(2);
+    expect(envuelta.getNativeScrollRef).toHaveBeenCalledTimes(1);
+  } finally {
+    raf.mockRestore();
+  }
 });

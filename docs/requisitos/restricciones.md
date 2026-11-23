@@ -38,6 +38,8 @@ La base de datos debe ser **MySQL 8.0+** (con soporte de JSON, triggers, procedi
 ### RT-004 — Método de autenticación
 La autenticación debe implementarse exclusivamente mediante **JWT (JSON Web Tokens)** con enfoque stateless. Los tokens JWT deben contener el rol del usuario (`usuario`, `tecnico`, `admin`) para autorización rápida. No se permiten sesiones basadas en cookies de servidor, OAuth de terceros ni integración con proveedores de identidad externos.
 
+> **Diferencia entre requisito e implementación observada (18/11/2026):** esta restricción expresa el diseño solicitado; no describe el comportamiento actual. El código incluye acceso con Google y establece cookies HttpOnly, además de devolver JWT que los clientes envían mediante Authorization: Bearer. La presencia de estas funciones no cambia el requisito ni demuestra conformidad con él. La decisión de producto sobre cuál debe prevalecer no queda resuelta por el código.
+
 ### RT-005 — Algoritmo de hashing
 Las contraseñas deben hashearse exclusivamente con **bcrypt** (vía `passlib`). No se permiten otros algoritmos de hashing (MD5, SHA-256, argon2, etc.) salvo aprobación explícita.
 

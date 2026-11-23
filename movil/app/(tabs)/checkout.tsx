@@ -3,7 +3,7 @@
 // anticipación) · dirección del perfil (solo lectura) · métodos de
 // pago reales con simulador · POST /pedidos · aprobado/pendiente/
 // rechazado · modal de éxito con factura PDF real.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Linking,
   Modal,
@@ -25,7 +25,7 @@ import PaymentMethodCards from "@/components/public/PaymentMethodCards";
 import { FontFamilies } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { ApiError } from "@/services/api";
+import { ApiError, apiFetch } from "@/services/api";
 import {
   crearPedido,
   descargarFacturaPdf,
@@ -52,13 +52,38 @@ interface ServicioElegido {
   precio: number;
   fecha: string;
   hora: string;
-  id_tecnico: number | null;
+  id_tecnico?: number;
+  id_tecnico_2?: number;
+  id_tecnico_3?: number;
 }
+
+interface RecomendacionTecnicos {
+  horas_por_tecnico?: number;
+  tecnicos_necesarios: number;
+  especializaciones_requeridas: { id_especializacion: number; nombre: string }[];
+  tecnicos_sugeridos: { id_tecnico: number; nombre: string; cubiertas: number }[];
+}
+
+interface CuponCheckout {
+  id_cupon: number;
+  codigo: string;
+  tipo_descuento: string;
+  valor_descuento: number;
+  fecha_vencimiento: string | null;
+  compra_minima: number;
+  usos_maximos: number;
+  usos_realizados: number;
+}
+
+const hoyLocal = () => {
+  const fecha = new Date();
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+};
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { autenticado, userType, usuario } = useAuth();
+  const { autenticado, userType } = useAuth();
   const { items, totalPrice, clearCart } = useCart();
 
   const [paso, setPaso] = useState<"servicio" | "pago">("servicio");
@@ -71,7 +96,16 @@ export default function CheckoutScreen() {
   const [fechaServicio, setFechaServicio] = useState("");
   const [horaServicio, setHoraServicio] = useState("");
   const [tecnicosDisponibles, setTecnicosDisponibles] = useState<TecnicoPublico[]>([]);
-  const [idTecnicoSel, setIdTecnicoSel] = useState<number | null>(null);
+  const [tecnicosSeleccionados, setTecnicosSeleccionados] = useState<number[]>([]);
+  const [modoAsignacion, setModoAsignacion] = useState<"auto" | "lista">("auto");
+  const [recomendacion, setRecomendacion] = useState<RecomendacionTecnicos | null>(null);
+  const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
+  const [cargandoHoras, setCargandoHoras] = useState(false);
+  const [cuponesDisponibles, setCuponesDisponibles] = useState<CuponCheckout[]>([]);
+  const [codigoCupon, setCodigoCupon] = useState("");
+  const [cuponAplicado, setCuponAplicado] = useState<CuponCheckout | null>(null);
+  const [mensajeCupon, setMensajeCupon] = useState("");
+  const [validandoCupon, setValidandoCupon] = useState(false);
 
   // Pago — estado independiente por método (igual que web)
   const [metodoPago, setMetodoPago] = useState<string>("tarjeta_credito");
@@ -110,7 +144,58 @@ export default function CheckoutScreen() {
     obtenerMetodosPago()
       .then(setMetodosPagoInfo)
       .catch(() => {});
+    apiFetch<CuponCheckout[]>("/novedades/cliente/mis-cupones")
+      .then(setCuponesDisponibles)
+      .catch(() => setCuponesDisponibles([]));
   }, [autenticado, userType]);
+
+  const totalServicios = serviciosElegidos.reduce((s, x) => s + x.precio, 0);
+  const subtotal = totalPrice + totalServicios;
+  const cuponCumpleCompraMinima = Boolean(cuponAplicado && subtotal >= Number(cuponAplicado.compra_minima || 0));
+  const recomendacionActiva = items.length > 0 ? recomendacion : null;
+  const descuentoCupon = cuponCumpleCompraMinima && cuponAplicado
+    ? Math.min(subtotal, cuponAplicado.tipo_descuento === "porcentaje"
+      ? Math.round(subtotal * Number(cuponAplicado.valor_descuento) / 100)
+      : Number(cuponAplicado.valor_descuento))
+    : 0;
+  const totalGeneral = Math.max(0, subtotal - descuentoCupon);
+  const tecnicosNecesarios = Math.max(
+    1,
+    Math.min(3, recomendacionActiva?.tecnicos_necesarios ?? Math.max(1, ...items.map((item) => Number(item.tecnicos_requeridos) || 1))),
+  );
+  const tecnicosElegibles = useMemo(() => tecnicosDisponibles.filter((tecnico) => {
+    if (tecnico.disponible === false) return false;
+    if (tipoActivo !== "instalacion" || !recomendacionActiva?.tecnicos_sugeridos?.length) return true;
+    return recomendacionActiva.tecnicos_sugeridos.some(
+      (sugerido) => sugerido.id_tecnico === tecnico.id_tecnico && sugerido.cubiertas > 0,
+    );
+  }), [tecnicosDisponibles, tipoActivo, recomendacionActiva]);
+
+  const aplicarCupon = async (codigo = codigoCupon) => {
+    const normalizado = codigo.trim().toUpperCase();
+    if (!normalizado) {
+      setMensajeCupon("Escribe el código del cupón.");
+      return;
+    }
+    setValidandoCupon(true);
+    setMensajeCupon("");
+    try {
+      const cupon = await apiFetch<CuponCheckout>(`/novedades/cupones/validar?codigo=${encodeURIComponent(normalizado)}`);
+      if (subtotal < Number(cupon.compra_minima || 0)) {
+        setCuponAplicado(null);
+        setMensajeCupon(`La compra mínima para este cupón es $${Number(cupon.compra_minima).toLocaleString("es-CO")} COP.`);
+        return;
+      }
+      setCuponAplicado(cupon);
+      setCodigoCupon(cupon.codigo);
+      setMensajeCupon("Cupón aplicado.");
+    } catch (e) {
+      setCuponAplicado(null);
+      setMensajeCupon(e instanceof ApiError ? e.message : "No se pudo validar el cupón.");
+    } finally {
+      setValidandoCupon(false);
+    }
+  };
 
   // Al entrar a checkout para una nueva compra, limpiar estados residuales de una compra anterior.
   // Evita que "Pago exitoso" aparezca directamente al pulsar Finalizar compra.
@@ -133,7 +218,6 @@ export default function CheckoutScreen() {
   // Técnicos disponibles cuando hay servicio con fecha/hora.
   useEffect(() => {
     if (!tipoActivo || !fechaServicio || !horaServicio) {
-      setTecnicosDisponibles([]);
       return;
     }
     let activo = true;
@@ -149,17 +233,65 @@ export default function CheckoutScreen() {
     };
   }, [tipoActivo, fechaServicio, horaServicio]);
 
-  const totalServicios = serviciosElegidos.reduce((s, x) => s + x.precio, 0);
+  useEffect(() => {
+    if (!tipoActivo || !fechaServicio) {
+      return;
+    }
+    let activo = true;
+    const params = new URLSearchParams({ fecha: fechaServicio, tipo_servicio: tipoActivo });
+    if (items.length) {
+      params.set("items", JSON.stringify(items.map((item) => ({
+        id_producto: item.id_producto,
+        cantidad: item.venta_por_metros ? 1 : item.cantidad,
+        ...(item.venta_por_metros ? { metros: (item.metros || 0) * item.cantidad } : {}),
+      }))));
+    }
+    apiFetch<string[]>(`/citas/horas-disponibles?${params.toString()}`)
+      .then((horas) => activo && setHorasDisponibles(Array.isArray(horas) ? horas : []))
+      .catch(() => activo && setHorasDisponibles([]))
+      .finally(() => activo && setCargandoHoras(false));
+    return () => { activo = false; };
+  }, [tipoActivo, fechaServicio, items]);
+
+  useEffect(() => {
+    if (!items.length) {
+      return;
+    }
+    let activo = true;
+    apiFetch<RecomendacionTecnicos>("/pedidos/recomendacion-tecnicos", {
+      method: "POST",
+      body: JSON.stringify({
+        items: items.map((item) => ({
+          id_producto: item.id_producto,
+          cantidad: item.venta_por_metros ? 1 : item.cantidad,
+          ...(item.venta_por_metros ? { metros: (item.metros || 0) * item.cantidad } : {}),
+        })),
+        fecha: tipoActivo === "instalacion" ? fechaServicio || undefined : undefined,
+        hora: tipoActivo === "instalacion" ? horaServicio || undefined : undefined,
+      }),
+    }).then((resultado) => {
+      if (activo) setRecomendacion(resultado);
+    }).catch(() => {
+      if (activo) setRecomendacion(null);
+    });
+    return () => { activo = false; };
+  }, [items, tipoActivo, fechaServicio, horaServicio]);
 
   const agregarServicio = () => {
     if (!tipoActivo || !fechaServicio || !horaServicio) return;
 
-    // Reglas WEB: mínimo HOY + 3 días y hora futura.
-    const minFecha = new Date();
-    minFecha.setDate(minFecha.getDate() + 3);
-    const fechaMinStr = minFecha.toISOString().slice(0, 10);
-    if (fechaServicio < fechaMinStr) {
-      setError("Los servicios se agendan con al menos 3 días de anticipación.");
+    // La web permite reservar desde hoy si el horario tiene 3 horas de anticipación.
+    const fechaHora = new Date(`${fechaServicio}T${horaServicio}:00`);
+    if (Number.isNaN(fechaHora.getTime()) || fechaHora < new Date(Date.now() + 3 * 60 * 60 * 1000)) {
+      setError("Selecciona un horario con al menos 3 horas de anticipación.");
+      return;
+    }
+    if (!horasDisponibles.includes(horaServicio)) {
+      setError("Ese horario ya no está disponible. Selecciona otra hora.");
+      return;
+    }
+    if (modoAsignacion === "lista" && tecnicosSeleccionados.length !== (tipoActivo === "instalacion" ? tecnicosNecesarios : 1)) {
+      setError(`Selecciona ${tipoActivo === "instalacion" ? tecnicosNecesarios : 1} técnico(s) o usa la asignación automática.`);
       return;
     }
 
@@ -172,13 +304,16 @@ export default function CheckoutScreen() {
         precio: def.precio,
         fecha: fechaServicio,
         hora: horaServicio,
-        id_tecnico: idTecnicoSel,
+        ...(modoAsignacion === "lista" && tecnicosSeleccionados[0] ? { id_tecnico: tecnicosSeleccionados[0] } : {}),
+        ...(modoAsignacion === "lista" && tecnicosSeleccionados[1] ? { id_tecnico_2: tecnicosSeleccionados[1] } : {}),
+        ...(modoAsignacion === "lista" && tecnicosSeleccionados[2] ? { id_tecnico_3: tecnicosSeleccionados[2] } : {}),
       },
     ]);
     setTipoActivo(null);
     setFechaServicio("");
     setHoraServicio("");
-    setIdTecnicoSel(null);
+    setTecnicosSeleccionados([]);
+    setModoAsignacion("auto");
     setError(null);
   };
 
@@ -278,8 +413,11 @@ export default function CheckoutScreen() {
           fecha: s.fecha,
           hora: s.hora,
           ...(s.id_tecnico ? { id_tecnico: s.id_tecnico } : {}),
+          ...(s.id_tecnico_2 ? { id_tecnico_2: s.id_tecnico_2 } : {}),
+          ...(s.id_tecnico_3 ? { id_tecnico_3: s.id_tecnico_3 } : {}),
         })),
         pago,
+        ...(cuponCumpleCompraMinima && cuponAplicado ? { codigo_cupon: cuponAplicado.codigo } : {}),
       });
 
       if (respuesta.redirect_url) {
@@ -390,8 +528,6 @@ export default function CheckoutScreen() {
     minHeight: 46,
   } as const;
 
-  const totalGeneral = totalPrice + totalServicios;
-
   return (
     <AppScreen titulo="Finalizar compra">
       {/* Dirección (solo lectura desde perfil, como la web) */}
@@ -426,15 +562,23 @@ export default function CheckoutScreen() {
         <View style={S.tarjeta}>
           <Text style={S.subtitulo}>¿Deseas agregar servicio técnico?</Text>
           <Text style={S.gris}>
-            Opcional. Los servicios se agendan con al menos 3 días de
-            anticipación, de lunes a viernes.
+            Opcional. Selecciona una fecha y un horario disponible de lunes a sábado.
           </Text>
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
             {SERVICIOS.map((s) => (
               <Pressable
                 key={s.tipo}
-                onPress={() => setTipoActivo(s.tipo)}
+                onPress={() => {
+                  setTipoActivo(s.tipo);
+                  setHorasDisponibles([]);
+                  setTecnicosDisponibles([]);
+                  setCargandoHoras(false);
+                  setFechaServicio("");
+                  setHoraServicio("");
+                  setTecnicosSeleccionados([]);
+                  setModoAsignacion("auto");
+                }}
                 style={[S.chip, tipoActivo === s.tipo && S.chipActivo]}
               >
                 <Text style={[S.chipTexto, tipoActivo === s.tipo && S.chipTextoActivo]}>
@@ -448,14 +592,26 @@ export default function CheckoutScreen() {
             <View style={{ gap: 8 }}>
               <CalendarioMes
                 valor={fechaServicio}
-                onChange={setFechaServicio}
-                minFecha={new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)}
+                onChange={(fecha) => {
+                  setFechaServicio(fecha);
+                  setHorasDisponibles([]);
+                  setTecnicosDisponibles([]);
+                  setCargandoHoras(true);
+                  setHoraServicio("");
+                  setTecnicosSeleccionados([]);
+                }}
+                minFecha={hoyLocal()}
               />
+              {cargandoHoras ? <Text style={S.gris}>Buscando horarios disponibles...</Text> : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {Array.from({ length: 11 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`).map((h) => (
+                {horasDisponibles.map((h) => (
                   <Pressable
                     key={h}
-                    onPress={() => setHoraServicio(h)}
+                    onPress={() => {
+                      setHoraServicio(h);
+                      setTecnicosDisponibles([]);
+                      setTecnicosSeleccionados([]);
+                    }}
                     style={[S.chip, horaServicio === h && S.chipActivo]}
                   >
                     <Text style={[S.chipTexto, horaServicio === h && S.chipTextoActivo]}>{h}</Text>
@@ -463,27 +619,62 @@ export default function CheckoutScreen() {
                 ))}
               </View>
 
-              {tecnicosDisponibles.length > 0 && (
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  <Pressable
-                    onPress={() => setIdTecnicoSel(null)}
-                    style={[S.chip, idTecnicoSel === null && S.chipActivo]}
-                  >
-                    <Text style={[S.chipTexto, idTecnicoSel === null && S.chipTextoActivo]}>
-                      Asignación automática
+              {!cargandoHoras && fechaServicio && horasDisponibles.length === 0 ? (
+                <Text style={S.avisoAmarillo}>No hay horarios disponibles para esta fecha.</Text>
+              ) : null}
+
+              {tipoActivo === "instalacion" ? (
+                <View style={S.recomendacion}>
+                  <Text style={S.recomendacionTitulo}>
+                    {`Esta instalación requiere ${tecnicosNecesarios} técnico${tecnicosNecesarios === 1 ? "" : "s"}`}
+                    {recomendacionActiva?.horas_por_tecnico ? ` · ${recomendacionActiva.horas_por_tecnico} h por técnico` : ""}
+                  </Text>
+                  {recomendacionActiva?.especializaciones_requeridas?.length ? (
+                    <Text style={S.gris}>Especialidades: {recomendacionActiva.especializaciones_requeridas.map((x) => x.nombre).join(", ")}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                {(["auto", "lista"] as const).map((modo) => (
+                  <Pressable key={modo} onPress={() => setModoAsignacion(modo)} style={[S.chip, modoAsignacion === modo && S.chipActivo]}>
+                    <Text style={[S.chipTexto, modoAsignacion === modo && S.chipTextoActivo]}>
+                      {modo === "auto"
+                        ? tipoActivo === "instalacion" && tecnicosNecesarios > 1
+                          ? `Asignar ${tecnicosNecesarios} técnicos automáticamente`
+                          : "Asignación automática"
+                        : "Elegir técnicos"}
                     </Text>
                   </Pressable>
-                  {tecnicosDisponibles.map((tecnico) => (
-                    <Pressable
-                      key={tecnico.id_tecnico}
-                      onPress={() => setIdTecnicoSel(tecnico.id_tecnico)}
-                      style={[S.chip, idTecnicoSel === tecnico.id_tecnico && S.chipActivo]}
-                    >
-                      <Text style={[S.chipTexto, idTecnicoSel === tecnico.id_tecnico && S.chipTextoActivo]}>
-                        {tecnico.first_name} {tecnico.last_name}
-                      </Text>
-                    </Pressable>
-                  ))}
+                ))}
+              </View>
+
+              {modoAsignacion === "lista" && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {tecnicosElegibles.map((tecnico) => {
+                      const seleccionado = tecnicosSeleccionados.includes(tecnico.id_tecnico);
+                      return (
+                        <Pressable
+                          key={tecnico.id_tecnico}
+                          onPress={() => setTecnicosSeleccionados((prev) => seleccionado
+                            ? prev.filter((id) => id !== tecnico.id_tecnico)
+                            : prev.length < (tipoActivo === "instalacion" ? tecnicosNecesarios : 1)
+                              ? [...prev, tecnico.id_tecnico]
+                              : prev)}
+                          style={[S.chip, seleccionado && S.chipActivo]}
+                        >
+                          <Text style={[S.chipTexto, seleccionado && S.chipTextoActivo]}>
+                            {tecnico.first_name} {tecnico.last_name}{tecnico.calificacion ? ` · ★ ${Number(tecnico.calificacion).toFixed(1)}` : ""}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  <Text style={S.gris}>
+                    {tecnicosSeleccionados.length}/{tipoActivo === "instalacion" ? tecnicosNecesarios : 1} seleccionados
+                  </Text>
+                  {tecnicosElegibles.length === 0 ? (
+                    <Text style={S.avisoAmarillo}>No hay técnicos sugeridos y disponibles para ese horario. Prueba otro o usa la asignación automática.</Text>
+                  ) : null}
                 </View>
               )}
 
@@ -537,6 +728,42 @@ export default function CheckoutScreen() {
               setSimulacion("");
             }}
           />
+
+          <View style={S.cuponCard}>
+            <Text style={S.subtitulo}>Cupón de descuento</Text>
+            {cuponCumpleCompraMinima && cuponAplicado ? (
+              <View style={S.fila}>
+                <Text style={S.gris}>{cuponAplicado.codigo} · Ahorro ${descuentoCupon.toLocaleString("es-CO")} COP</Text>
+                <Pressable onPress={() => { setCuponAplicado(null); setCodigoCupon(""); setMensajeCupon(""); }}>
+                  <Text style={S.quitarCupon}>Quitar</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TextInput
+                  style={[inputEstilo, { flex: 1 }]}
+                  placeholder="Ingresa tu código"
+                  placeholderTextColor="#8a8a8a"
+                  autoCapitalize="characters"
+                  value={codigoCupon}
+                  onChangeText={setCodigoCupon}
+                />
+                <Pressable disabled={validandoCupon} onPress={() => void aplicarCupon()} style={[S.botonOro, validandoCupon && S.deshabilitado]}>
+                  <Text style={S.textoBotonOro}>{validandoCupon ? "Validando..." : "Aplicar"}</Text>
+                </Pressable>
+              </View>
+            )}
+            {mensajeCupon ? <Text style={cuponAplicado ? S.cuponOk : S.error}>{mensajeCupon}</Text> : null}
+            {cuponesDisponibles.length > 0 && !cuponCumpleCompraMinima ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {cuponesDisponibles.map((cupon) => (
+                  <Pressable key={cupon.id_cupon} onPress={() => { setCodigoCupon(cupon.codigo); void aplicarCupon(cupon.codigo); }} style={S.chip}>
+                    <Text style={S.chipTexto}>{cupon.codigo}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
 
           {(metodoPago === "tarjeta_debito" || metodoPago === "tarjeta_credito") && (
             <View style={{ gap: 10, marginTop: 6 }}>
@@ -673,7 +900,7 @@ export default function CheckoutScreen() {
           </View>
           <Text style={S.totalLinea}>
             Productos: ${Math.round(totalPrice).toLocaleString("es-CO")} COP · Servicios: $
-            {Math.round(totalServicios).toLocaleString("es-CO")} COP · Total: $
+            {Math.round(totalServicios).toLocaleString("es-CO")} COP{descuentoCupon > 0 ? ` · Descuento: -$${descuentoCupon.toLocaleString("es-CO")} COP` : ""} · Total: $
             {Math.round(totalGeneral).toLocaleString("es-CO")} COP
           </Text>
         </>
@@ -849,6 +1076,25 @@ const S = StyleSheet.create({
     padding: 14,
     gap: 9,
   },
+  recomendacion: {
+    gap: 5,
+    padding: 11,
+    borderRadius: 10,
+    backgroundColor: "rgba(212,165,75,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(212,165,75,0.2)",
+  },
+  recomendacionTitulo: { color: "#f0c96f", fontSize: 12.5, fontFamily: FontFamilies.bodyBold },
+  cuponCard: {
+    gap: 9,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(212,165,75,0.24)",
+    backgroundColor: "rgba(212,165,75,0.05)",
+  },
+  cuponOk: { color: "#7ee29a", fontSize: 12 },
+  quitarCupon: { color: "#f0858a", fontSize: 12, fontFamily: FontFamilies.bodyBold },
   subtitulo: { color: "#f0c96f", fontSize: 13.5, fontFamily: FontFamilies.bodyBold },
   label: { color: "#ffffff", fontSize: 13, fontFamily: FontFamilies.bodyMedium, marginTop: 4 },
   texto: { color: "#ffffff", fontSize: 13.5, flexShrink: 1 },

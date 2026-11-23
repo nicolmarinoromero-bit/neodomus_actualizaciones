@@ -1,5 +1,6 @@
 // Componente de navegación y estructura visual: TechnicianNavbar. Se reutiliza en las pantallas de su área.
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useOutsideDismiss } from '../../hooks/useOutsideDismiss';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaBars, FaChevronDown, FaRightFromBracket, FaUserGear } from 'react-icons/fa6';
 import { useAuth } from '@contexts/AuthContext';
@@ -20,8 +21,7 @@ const TechnicianNavbar = ({ onMenuToggle }: TechnicianNavbarProps) => {
   const { logout } = useAuth();
   const { t } = useIdioma();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { open, setOpen, rootRef: dropdownRef } = useOutsideDismiss<HTMLDivElement>();
   const [, forceUpdate] = useState(0);
   const { notificaciones, cargando, error, recargar, marcarLeida } = useTecnicoNotificaciones();
 
@@ -31,17 +31,7 @@ const TechnicianNavbar = ({ onMenuToggle }: TechnicianNavbarProps) => {
     return () => window.removeEventListener('technical-profile-updated', handler);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const avatar = getTechnicalAvatar();
+const avatar = getTechnicalAvatar();
 const userData = (() => {
     try {
       const stored = tabGet('user');
@@ -57,8 +47,8 @@ const userData = (() => {
   })();
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    void logout();
+    void navigate('/login');
   };
 
   return (

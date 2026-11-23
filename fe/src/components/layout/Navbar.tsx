@@ -81,8 +81,8 @@ const Navbar = () => {
   }, [rol]);
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    void logout();
+    void navigate("/login");
     setShowDropdown(false);
   };
 
@@ -168,7 +168,7 @@ const Navbar = () => {
                 <button
                   type="button"
                   className="cart-button"
-                  onClick={() => navigate('/carrito')}
+                  onClick={() => void navigate('/carrito')}
                   aria-label={t('nav.verCarrito')}
                   title={t('nav.verCarrito')}
                 >

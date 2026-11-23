@@ -120,7 +120,9 @@ export default function TechnicianDrawer({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, flexDirection: "row" },
+  // El panel va primero para que quede anclado al borde izquierdo;
+  // el fondo ocupa el espacio restante a su derecha.
+  overlay: { flex: 1, flexDirection: "row-reverse" },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   drawer: {
     width: 280,

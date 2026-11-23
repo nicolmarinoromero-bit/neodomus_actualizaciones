@@ -17,11 +17,10 @@ import '@styles/admin-panel.css';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { getAdminAvatar, setAdminAvatar, removeAdminAvatar, getIniciales } from '@utils/profileStorage';
 
-import SectionHeader from '@components/profile/SectionHeader';
+import ProfileAccountSection from '@components/profile/ProfileAccountSection';
 import PasswordTab from '@components/profile/PasswordTab';
 import LanguageTab from '@components/profile/LanguageTab';
 import PerfilCuenta from '@components/profile/PerfilCuenta';
-import { AvatarZone } from '@components/profile/AvatarZone';
 
 type TabAdmin = 'cuenta' | 'contrasena' | 'idioma';
 
@@ -136,27 +135,24 @@ const AdminPerfil = () => {
   };
 
   const renderCuenta = () => (
-    <div className="pf-tab">
-      <SectionHeader
-        icon={<FaUserPen />}
-        title={t('adm.perfil.informacionPersonal')}
-        subtitle={t('adm.perfil.subInformacionPersonal')}
-      />
-
-      <AvatarZone
-        avatar={avatar}
-        nombreCompleto={nombreCompleto}
-        fileInputRef={fileInputRef}
-        onFileChange={handleAvatarChange}
-        onEliminar={handleEliminarFoto}
-        altFoto={t('adm.perfil.fotoPerfil')}
-        ariaCambiar={t('adm.perfil.cambiarFoto')}
-        titulo={t('adm.perfil.fotoPerfil')}
-        hint={t('adm.perfil.fotoPerfilHint')}
-        cambiar={t('adm.perfil.cambiarFoto')}
-        eliminar={t('adm.perfil.eliminarFoto')}
-      />
-
+    <ProfileAccountSection
+      icon={<FaUserPen />}
+      title={t('adm.perfil.informacionPersonal')}
+      subtitle={t('adm.perfil.subInformacionPersonal')}
+      avatar={{
+        avatar,
+        nombreCompleto,
+        fileInputRef,
+        onFileChange: handleAvatarChange,
+        onEliminar: handleEliminarFoto,
+        altFoto: t('adm.perfil.fotoPerfil'),
+        ariaCambiar: t('adm.perfil.cambiarFoto'),
+        titulo: t('adm.perfil.fotoPerfil'),
+        hint: t('adm.perfil.fotoPerfilHint'),
+        cambiar: t('adm.perfil.cambiarFoto'),
+        eliminar: t('adm.perfil.eliminarFoto'),
+      }}
+    >
       {cargando ? (
         <div className="ap-states">
           <div className="ap-loader" />
@@ -212,7 +208,7 @@ const AdminPerfil = () => {
           }}
         />
       )}
-    </div>
+    </ProfileAccountSection>
   );
 
   const paneContent = () => {

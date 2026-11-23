@@ -1,5 +1,5 @@
 // Componente de navegación y estructura visual: NotificacionesBell. Se reutiliza en las pantallas de su área.
-import { useEffect, useRef, useState } from 'react';
+import { useOutsideDismiss } from '../../hooks/useOutsideDismiss';
 import { Link } from 'react-router-dom';
 import {
   FaArrowRight,
@@ -90,20 +90,9 @@ const NotificacionesBell = ({
   onRetry,
 }: NotificacionesBellProps) => {
   const { t } = useIdioma();
-  const [open, setOpen] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
+  const { open, setOpen, rootRef: notifRef } = useOutsideDismiss<HTMLDivElement>();
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const noLeidas = notificaciones.filter((n) => !n.leida).length;
+const noLeidas = notificaciones.filter((n) => !n.leida).length;
   const recientes = notificaciones.slice(0, 8);
 
   return (

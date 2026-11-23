@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import { FaCamera, FaTrashCan } from 'react-icons/fa6';
 import { getIniciales } from '@utils/profileStorage';
 
-interface AvatarZoneProps {
+export interface AvatarZoneProps {
   avatar: string | null;
   /** Nombre completo del usuario del que se derivan las iniciales. */
   nombreCompleto: string;

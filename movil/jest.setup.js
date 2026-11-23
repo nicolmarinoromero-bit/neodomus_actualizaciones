@@ -6,6 +6,8 @@
 // el contrato real (getItem/multiGet/multiSet/multiRemove) sin tocar disco.
 // ─────────────────────────────────────────────────────────────
 
+/* global jest */
+
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
@@ -22,4 +24,4 @@ if (typeof globalThis.requestAnimationFrame !== "function") {
 
 // Requisito de React 19 para que act() funcione en pruebas (los helpers de
 // @testing-library/react-native lo asumen).
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+global.IS_REACT_ACT_ENVIRONMENT = true;

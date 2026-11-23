@@ -30,9 +30,9 @@ const CambioPasswordObligatorio = () => {
     onSuccess: () => {
       setPasswordResetRequired(false);
       if (rol === 'administrador' || rol === 'admin') {
-        navigate('/dashboard/admin', { replace: true });
+        void navigate('/dashboard/admin', { replace: true });
       } else {
-        navigate('/dashboard/tecnico', { replace: true });
+        void navigate('/dashboard/tecnico', { replace: true });
       }
     },
   });
