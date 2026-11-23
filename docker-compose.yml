@@ -35,7 +35,7 @@ services:
       - .env
     environment:
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:?MYSQL_USER requerido}:${MYSQL_PASSWORD:?MYSQL_PASSWORD requerido}@db:3306/neodomus?charset=utf8mb4
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY requerido}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
@@ -67,10 +67,8 @@ services:
       # Controla si el seed de usuarios de prueba se ejecuta al arrancar (solo desarrollo)
       EJECUTAR_SEED_AL_ARRANCAR: ${EJECUTAR_SEED_AL_ARRANCAR:-true}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-neodomus}
-      # Con defecto igual al del servicio 'minio': sin él, si MINIO_ROOT_PASSWORD
-      # no está definida, la API recibe una secret key vacía y TODAS las subidas
-      # a MinIO (fotos de perfil, imágenes de producto) fallan con 500.
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER requerido}
+      # Comparte las credenciales obligatorias del servicio 'minio'.
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD requerido}
       MINIO_BUCKET: ${MINIO_BUCKET:-neodomus-media}
       MINIO_PRIVATE_BUCKET: ${MINIO_PRIVATE_BUCKET:-neodomus-private}
@@ -95,7 +93,7 @@ services:
     container_name: neodomus_minio
     restart: always
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-neodomus}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER requerido}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD requerido}
     ports:
       - "9000:9000"

@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     
     # --- JWT y seguridad ---
-    SECRET_KEY: str = "clave_super_segura_para_desarrollo_cambiar_en_produccion"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -73,8 +73,8 @@ class Settings(BaseSettings):
     # MINIO_ENDPOINT: host:puerto para conectar desde la API (dentro de Docker: minio:9000).
     # MINIO_PUBLIC_ENDPOINT: URL que reciben los navegadores para cargar las imágenes.
     MINIO_ENDPOINT: str = "minio:9000"
-    MINIO_ACCESS_KEY: str = "neodomus"
-    MINIO_SECRET_KEY: str = "neodomus12345"
+    MINIO_ACCESS_KEY: str = ""
+    MINIO_SECRET_KEY: str = ""
     MINIO_BUCKET: str = "neodomus-media"
     MINIO_PUBLIC_ENDPOINT: str = "http://localhost:9000"
     MINIO_SECURE: bool = False
@@ -121,8 +121,7 @@ class Settings(BaseSettings):
     def _validate_production_secrets(self):
         """Fail-fast en producción si quedan secretos de desarrollo."""
         if self.ENVIRONMENT == "production":
-            insecure_key = "clave_super_segura_para_desarrollo_cambiar_en_produccion"
-            if self.SECRET_KEY == insecure_key or len(self.SECRET_KEY) < 32:
+            if len(self.SECRET_KEY) < 32:
                 raise ValueError(
                     "SECRET_KEY insegura en producción: genera con `openssl rand -hex 32` y configura en .env"
                 )
@@ -137,7 +136,6 @@ class Settings(BaseSettings):
             if (
                 len(self.MINIO_SECRET_KEY) < 32
                 or self.MINIO_SECRET_KEY.strip().lower().startswith(("change_me", "cambiar", "replace_me"))
-                or self.MINIO_SECRET_KEY == "neodomus12345"
             ):
                 raise ValueError("MINIO_SECRET_KEY insegura o placeholder en producción; usa una clave aleatoria de al menos 32 caracteres")
         return self
@@ -159,6 +157,8 @@ def validate_startup_settings() -> None:
     required = {
         "DATABASE_URL": settings.DATABASE_URL,
         "SECRET_KEY": settings.SECRET_KEY,
+        "MINIO_ACCESS_KEY": settings.MINIO_ACCESS_KEY,
+        "MINIO_SECRET_KEY": settings.MINIO_SECRET_KEY,
     }
     missing = [name for name, value in required.items() if not value or not value.strip()]
     if missing:
@@ -174,9 +174,8 @@ def validate_startup_settings() -> None:
             "el esquema y las migraciones antes de usarlo."
         )
     secret_key = settings.SECRET_KEY.strip()
-    if (
-        secret_key == "clave_super_segura_para_desarrollo_cambiar_en_produccion"
-        or secret_key.lower().startswith(("genera_", "cambiar", "change_me", "replace_me"))
+    if secret_key.lower().startswith(
+        ("clave_super_segura_para_", "genera_", "cambiar", "change_me", "replace_me")
     ):
         raise RuntimeError(
             "SECRET_KEY conserva el valor de ejemplo. Genera una clave aleatoria "
@@ -184,8 +183,13 @@ def validate_startup_settings() -> None:
         )
     if settings.ENVIRONMENT == "production" and not settings.MYSQL_PASSWORD:
         raise RuntimeError("MYSQL_PASSWORD es obligatoria en producción.")
-    if settings.ENVIRONMENT == "production" and len(settings.MINIO_SECRET_KEY) < 12:
-        raise RuntimeError("MINIO_SECRET_KEY debe tener al menos 12 caracteres en producción.")
+    minio_secret = settings.MINIO_SECRET_KEY.strip()
+    if minio_secret.lower().startswith(("cambiar", "change_me", "replace_me")):
+        raise RuntimeError(
+            "MINIO_SECRET_KEY conserva un valor de ejemplo. Configura una clave aleatoria en .env."
+        )
+    if settings.ENVIRONMENT == "production" and len(minio_secret) < 32:
+        raise RuntimeError("MINIO_SECRET_KEY debe tener al menos 32 caracteres en producción.")
     if settings.ENVIRONMENT == "production" and not settings.CORS_ORIGINS.strip():
         raise RuntimeError("CORS_ORIGINS es obligatoria en producción.")
     if settings.ENVIRONMENT == "production" and "*" in settings.CORS_ORIGINS:
