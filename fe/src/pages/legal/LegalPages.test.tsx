@@ -10,6 +10,7 @@ import { FaCircleCheck } from 'react-icons/fa6';
 import LegalPage from '@components/legal/LegalPage';
 import PoliticaPrivacidad from './PoliticaPrivacidad';
 import TerminosUso from './TerminosUso';
+import Contacto from './Contacto';
 
 function montar(ui: React.ReactNode) {
   return render(
@@ -42,6 +43,16 @@ describe('Páginas legales', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThanOrEqual(7);
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(4);
     expect(screen.getByRole('link', { name: /Volver al inicio/i }).getAttribute('href')).toBe('/');
+  });
+
+  it('Contacto muestra canales, horarios y acceso al centro de ayuda', () => {
+    montar(<Contacto />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
+    expect(screen.getByText('soporte@neodomus.com')).toBeTruthy();
+    expect(screen.getByText('+57 601 123 4567')).toBeTruthy();
+    expect(screen.getByText('Cra 15 #93-47, Bogotá')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /centro de ayuda/i }).getAttribute('href')).toBe('/ayuda');
   });
 
   it('LegalPage admite secciones sin numerar, párrafos y tarjetas', () => {
