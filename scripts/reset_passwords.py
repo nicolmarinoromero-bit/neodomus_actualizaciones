@@ -1,20 +1,23 @@
 """
-Resetea las contraseñas de usuarios existentes (clientes y empleados)
-con el patrón:
+Resetea las contraseñas de TODOS los usuarios existentes (clientes y empleados,
+independientemente del rol) con el patrón:
 
-    12345678 + inicial del nombre en MAYÚSCULA + inicial del primer apellido
-    en minúscula + "."
+    iniciales del correo (minúsculas) + 12345678
+
+Las iniciales son la primera letra de cada segmento de la parte local del
+correo (separada por puntos, guiones, guiones bajos o "+").
 
 Ejemplos:
-    LAURA GARCÍA ROJAS   ->  12345678Lg.
-    CARLOS ANDRÉS GÓMEZ   ->  12345678Cg.
+    carlos.andres.gomez@gmail.com  ->  cag12345678
+    admin@neodomus.com             ->  a12345678
+    demo001@example.com            ->  d12345678
 
 Solo se guarda el hash bcrypt (nunca texto plano).
 Es idempotente: puede ejecutarse varias veces con el mismo resultado.
 
-Por defecto, SOLO establece contraseña en usuarios que NO tienen password_hash
-(así no sobrescribe contraseñas ya establecidas por los usuarios).
-Usa --forzar para reestablecer contraseñas en todos los usuarios.
+Usa --forzar para reestablecer contraseñas en todos los usuarios (sobrescribe
+las contraseñas ya establecidas). Sin --forzar solo afecta a los usuarios sin
+contraseña.
 
 Uso (dentro del contenedor api):
 
@@ -25,6 +28,7 @@ Uso (dentro del contenedor api):
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -56,18 +60,28 @@ from app.models.cliente import Cliente
 from app.models.user import User
 from app.utils.security import hash_password
 
-PASSWORD_PREFIX = "12345678"
+PASSWORD_SUFFIX = "12345678"
 
 
-def password_temporal_de(first_name: str, last_name: str) -> str:
-    """Construye la contraseña temporal: prefijo + inicial del nombre (MAYÚS) +
-    inicial del primer apellido (minúscula) + punto."""
-    nombre = (first_name or "").strip()
-    apellido = (last_name or "").strip()
-    inicial_nombre = (nombre[:1] or "").upper()
-    primer_apellido = apellido.split()[0] if apellido else ""
-    inicial_apellido = (primer_apellido[:1] or "").lower()
-    return f"{PASSWORD_PREFIX}{inicial_nombre}{inicial_apellido}."
+def iniciales_de_correo(email: str) -> str:
+    """Extrae las iniciales de la parte local del correo (minúsculas).
+
+    Toma la primera letra de cada segmento separado por ".", "-", "_" o "+".
+    Ej: "carlos.andres.gomez" -> "cag"; "demo001" -> "d".
+    """
+    local = (email or "").split("@")[0].strip().lower()
+    iniciales = []
+    for parte in re.split(r"[._\-+]+", local):
+        coincidencia = re.search(r"[a-z]", parte)
+        if coincidencia:
+            iniciales.append(coincidencia.group(0))
+    return "".join(iniciales)
+
+
+def password_temporal_de(email: str) -> str:
+    """Construye la contraseña temporal: iniciales del correo + 12345678."""
+    iniciales = iniciales_de_correo(email)
+    return f"{iniciales}{PASSWORD_SUFFIX}"
 
 
 def run(mostrar_claves: bool = False, forzar: bool = False) -> int:
@@ -88,7 +102,7 @@ def run(mostrar_claves: bool = False, forzar: bool = False) -> int:
                 if not forzar and registro.password_hash:
                     omitidos += 1
                     continue
-                pwd = password_temporal_de(registro.first_name, registro.last_name)
+                pwd = password_temporal_de(registro.email)
                 registro.password_hash = hash_password(pwd)
                 actualizados += 1
                 print(f"[actualizado] {tabla:10s} {registro.email} -> {pwd if mostrar_claves else ''}")

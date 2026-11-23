@@ -41,4 +41,10 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Arranque de producción SIN migraciones: Railway ejecuta `alembic upgrade
+# head` como comando pre-deploy (fallo del pre-deploy aborta el deploy).
+# Ejecutarlas también en cada arranque duplicaría el trabajo y, con más de
+# una réplica, lanzaría migraciones concurrentes contra la misma base.
+# API_PORT fija el puerto de escucha (Railway: Target Port = 8000); el
+# despliegue local (docker-compose.yml) ya define su propio `command:`.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${API_PORT:-8000}"]

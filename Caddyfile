@@ -11,3 +11,21 @@ api.neodomus.local {
 	encode zstd gzip
 	reverse_proxy api:8000
 }
+
+# Túnel de desarrollo móvil (cloudflared): enruta API y MinIO en UN solo origen
+# HTTP. El teléfono llega por https://<tunel>.trycloudflare.com (quick tunnel,
+# solo mientras el proceso está corriendo) y Caddy separa por ruta:
+#   /neodomus-media/* y /neodomus-private/* → MinIO (9000, buckets)
+#   resto (/api/*, /uploads/*, etc.)        → API (8000)
+:8090 {
+	encode zstd gzip
+	handle /neodomus-media/* {
+		reverse_proxy minio:9000
+	}
+	handle /neodomus-private/* {
+		reverse_proxy minio:9000
+	}
+	handle {
+		reverse_proxy api:8000
+	}
+}

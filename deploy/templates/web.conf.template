@@ -1,0 +1,49 @@
+# Plantilla nginx para el frontend web en producción (Railway).
+# El entrypoint de la imagen nginx oficial la procesa con envsubst:
+# sustituye SOLO las variables de entorno definidas (BACKEND_PROXY_URL) y
+# deja intactas las variables propias de nginx ($uri, $host, …).
+# El TLS lo termina el proxy de Railway; dentro de la red todo es HTTP.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Salud del propio contenedor web para el healthcheck de Railway:
+    # 200 estático, sin depender del backend.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok\n';
+    }
+
+    # SPA: cualquier ruta desconocida cae en index.html (react-router).
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Assets con hash de contenido: cache larga en el navegador/CDN.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # API por el mismo origen (VITE_API_URL=/api/v1 se hornea en el build).
+    # BACKEND_PROXY_URL es la URL INTERNA del servicio API en Railway
+    # (proxy_pass estático: se resuelve al arrancar, sin resolver runtime).
+    location /api/v1/ {
+        proxy_pass ${BACKEND_PROXY_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Subida de imágenes/evidencias (límite por encima de los 5 MB y
+        # 10 MB que valida el backend).
+        client_max_body_size 12m;
+        proxy_request_buffering off;
+        proxy_read_timeout 60s;
+    }
+}
