@@ -6,7 +6,9 @@
 
 server {
     listen 80;
-    server_name _;
+    # localhost cubre el nombre del block stock (por si reviviera) y `_` el
+    # resto: CUALQUIER Host (incl. healthcheck.railway.app) cae aquí.
+    server_name localhost _;
 
     root /usr/share/nginx/html;
     index index.html;
