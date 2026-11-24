@@ -1,0 +1,85 @@
+# Imagen de PRODUCCIÓN del frontend web para Railway.
+#
+# Contexto de build = RAÍZ del repositorio (Railway: Root Directory = "/" y
+# Dockerfile Path = deploy/Dockerfile.web). El frontend importa
+# ../../../shared/metros desde fe/src/utils/metros.ts, así que el contexto
+# NUNCA puede fijarse en fe/: un build con contexto fe/ falla porque Rollup
+# no puede resolver shared/ fuera del contexto. Aquí se replica el layout
+# del repositorio (/app/fe + /app/shared) para que tsc y Vite resuelvan
+# exactamente igual que en desarrollo y CI.
+
+FROM node:22-alpine AS build
+
+# COREPACK_HOME compartido: corepack enable/prepare corren como root y su
+# caché quedaría en /root; el build (usuario root) sí la ve, pero se
+# conserva el patrón probado de fe/Dockerfile por si algún paso hereda
+# permisos distintos. Con ENV compartido y legible, corepack usa el mismo
+# pnpm@11.4.0 del build, sin red.
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate \
+ && chmod -R a+rX "$COREPACK_HOME"
+
+ENV CI=true
+
+WORKDIR /app
+
+# pnpm-workspace.yaml es parte de la instalación: contiene 'allowBuilds'
+# (aprobación de scripts de build, p. ej. esbuild). Sin copiarlo, pnpm 11
+# aborta en CI con ERR_PNPM_IGNORED_BUILDS.
+COPY fe/package.json fe/pnpm-lock.yaml fe/pnpm-workspace.yaml ./fe/
+# --frozen-lockfile (S8544): instala estrictamente lo resuelto en
+# pnpm-lock.yaml; nunca re-resuelve versiones nuevas en el build.
+RUN cd fe && pnpm install --frozen-lockfile
+
+# Copia el resto del proyecto en el MISMO layout que el repositorio. El
+# .dockerignore de la raíz excluye node_modules/dist/.env para no
+# sobreescribir la instalación ni filtrar secretos.
+COPY fe/ ./fe/
+COPY shared/ ./shared/
+
+# Variables VITE horneadas en el bundle en tiempo de build:
+# - VITE_API_URL=/api/v1: la web llama al API por el MISMO origen y nginx
+#   hace el proxy (/api/v1/ → BACKEND_PROXY_URL). Sin CORS ni dominios
+#   duplicados.
+# - VITE_GOOGLE_CLIENT_ID: Client ID OAuth público (viaja en el bundle).
+#   Vacío → fallback público definido en fe/src/utils/google.ts. NUNCA es
+#   un secreto y no debe pasarse ningún secret como build arg.
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_API_URL=/api/v1 \
+    VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
+RUN cd fe && pnpm run build
+
+FROM nginx:1.27-alpine
+
+COPY --from=build /app/fe/dist/ /usr/share/nginx/html/
+# Plantilla procesada por el entrypoint de la imagen nginx oficial: genera
+# /etc/nginx/conf.d/web.conf sustituyendo SOLO las variables de entorno
+# definidas (BACKEND_PROXY_URL); las variables nginx ($uri, $host…) quedan
+# intactas. PORT no se usa: el puerto es fijo (80), determinista.
+COPY deploy/templates/web.conf.template /etc/nginx/templates/web.conf.template
+
+# Proxy al backend interno. En Railway se sobreescribe con la referencia
+# interna del servicio API (p. ej.
+# http://neodomusactualizaciones.railway.internal:8000). El valor por
+# defecto permite ejecutar la imagen aislada en pruebas locales.
+ENV BACKEND_PROXY_URL=http://backend.railway.internal:8000
+
+# La imagen nginx:alpine arranca como root por defecto. El master solo
+# necesita escribir su PID y los directorios temporales; el entrypoint
+# además genera conf.d/web.conf en el arranque, así que /etc/nginx/conf.d
+# y /var/lib/nginx (buffers de proxy) deben ser suyos. Los workers corren
+# como nginx (UID 101).
+# default.conf de la imagen stock se elimina: dos server en el mismo puerto
+# dejarían el stock como servidor por defecto y la plantilla jamás recibiría
+# tráfico (SPA/proxy con 404).
+RUN rm -f /etc/nginx/conf.d/default.conf \
+ && touch /var/run/nginx.pid \
+ && mkdir -p /var/lib/nginx \
+ && chown -R nginx:nginx /var/cache/nginx /var/lib/nginx /etc/nginx/conf.d /var/run/nginx.pid
+USER nginx
+
+EXPOSE 80
+
+# Railway hace el healthcheck HTTP contra el puerto expuesto; /healthz es
+# un endpoint estático del propio nginx (no depende del backend).

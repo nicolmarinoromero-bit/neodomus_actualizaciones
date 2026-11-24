@@ -1,53 +1,29 @@
 """
 Resetea las contraseñas de usuarios existentes (clientes y empleados)
-con el patrón:
+con contraseñas ALEATORIAS (secrets.token_urlsafe), nunca predecibles.
 
-    12345678 + inicial del nombre en MAYÚSCULA + inicial del primer apellido
-    en minúscula + "."
-
-Ejemplos:
-    LAURA GARCÍA ROJAS   ->  12345678Lg.
-    CARLOS ANDRÉS GÓMEZ   ->  12345678Cg.
-
-Solo se guarda el hash bcrypt (nunca texto plano).
-Es idempotente: puede ejecutarse varias veces con el mismo resultado.
-
-Por defecto, SOLO establece contraseña en usuarios que NO tienen password_hash
-(así no sobrescribe contraseñas ya establecidas por los usuarios).
-Usa --forzar para reestablecer contraseñas en todos los usuarios.
+- Cada contraseña se genera aleatoriamente por usuario (≈18 caracteres).
+- El script solo se ejecuta en desarrollo (aborta en otros entornos sin
+  --forzar) y NUNCA debe usarse en producción.
+- Solo se guarda el hash bcrypt (nunca texto plano).
+- --mostrar-claves imprime la contraseña temporal UNA vez, para entrega
+  directa al usuario; quien la capture es responsable de repartirla.
+- Idempotente: se puede reejecutar; cada usuario sin contraseña recibe una
+  aleatoria nueva.
 
 Uso (dentro del contenedor api):
 
-    docker exec -it neodomus_api uv run python /app/scripts/reset_passwords.py
-    docker exec -it neodomus_api uv run python /app/scripts/reset_passwords.py --forzar
+    python scripts/reset_passwords.py [--mostrar-claves] [--forzar]
 """
 
 from __future__ import annotations
 
 import os
+import secrets
 import sys
 from pathlib import Path
 
-
-def _agregar_backend_al_path() -> None:
-    candidatos = [
-        Path.cwd(),
-        Path(__file__).resolve().parent.parent / "be",
-        Path(__file__).resolve().parent.parent,
-        Path("/app"),
-    ]
-    for candidato in candidatos:
-        ruta = str(candidato.resolve())
-        if ruta not in sys.path:
-            sys.path.insert(0, ruta)
-        try:
-            import app  # noqa: F401
-            return
-        except ImportError:
-            continue
-
-
-_agregar_backend_al_path()
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
 
@@ -56,23 +32,15 @@ from app.models.cliente import Cliente
 from app.models.user import User
 from app.utils.security import hash_password
 
-PASSWORD_PREFIX = "12345678"
 
-
-def password_temporal_de(first_name: str, last_name: str) -> str:
-    """Construye la contraseña temporal: prefijo + inicial del nombre (MAYÚS) +
-    inicial del primer apellido (minúscula) + punto."""
-    nombre = (first_name or "").strip()
-    apellido = (last_name or "").strip()
-    inicial_nombre = (nombre[:1] or "").upper()
-    primer_apellido = apellido.split()[0] if apellido else ""
-    inicial_apellido = (primer_apellido[:1] or "").lower()
-    return f"{PASSWORD_PREFIX}{inicial_nombre}{inicial_apellido}."
+def generar_password_temporal() -> str:
+    """Contraseña temporal aleatoria e impredecible (~18 caracteres)."""
+    return secrets.token_urlsafe(12)
 
 
 def run(mostrar_claves: bool = False, forzar: bool = False) -> int:
     """
-    Establece contraseñas temporales.
+    Establece contraseñas temporales aleatorias.
 
     - Si forzar=False (por defecto): solo establece contraseña en usuarios
       que actualmente tienen password_hash nulo o vacío (no sobrescribe
@@ -88,7 +56,7 @@ def run(mostrar_claves: bool = False, forzar: bool = False) -> int:
                 if not forzar and registro.password_hash:
                     omitidos += 1
                     continue
-                pwd = password_temporal_de(registro.first_name, registro.last_name)
+                pwd = generar_password_temporal()
                 registro.password_hash = hash_password(pwd)
                 actualizados += 1
                 print(f"[actualizado] {tabla:10s} {registro.email} -> {pwd if mostrar_claves else ''}")

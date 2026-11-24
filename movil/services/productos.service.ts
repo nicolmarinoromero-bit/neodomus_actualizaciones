@@ -96,8 +96,16 @@ function normalizarUrlImagen(url: string): string {
   let hostBackend = "";
   try {
     const u = new URL(BACKEND_HOST_URL);
-    hostMinio = `${u.protocol}//${u.hostname}:9000`;
-    hostBackend = `${u.protocol}//${u.hostname}:8000`;
+    if (u.port) {
+      // LAN: hostname accesible desde el celular + puerto dedicado de cada servicio.
+      hostMinio = `${u.protocol}//${u.hostname}:9000`;
+      hostBackend = `${u.protocol}//${u.hostname}:8000`;
+    } else {
+      // Origen sin puerto explícito (p. ej. túnel HTTPS): un solo origen que
+      // enruta por ruta (/api/* y /uploads/* → API; buckets de MinIO → MinIO).
+      hostMinio = u.origin;
+      hostBackend = u.origin;
+    }
   } catch {
     return url;
   }

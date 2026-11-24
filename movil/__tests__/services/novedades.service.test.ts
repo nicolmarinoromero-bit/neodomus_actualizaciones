@@ -157,4 +157,12 @@ describe("subirEvidencia", () => {
       "Error al subir evidencia",
     );
   });
+
+  it("usa el texto por defecto cuando el detail viene vacío (rama del OR)", async () => {
+    instalarFetch({ status: 500, cuerpo: {} });
+
+    await expect(novedades.subirEvidencia(6, archivo)).rejects.toThrow(
+      "Error al subir evidencia",
+    );
+  });
 });

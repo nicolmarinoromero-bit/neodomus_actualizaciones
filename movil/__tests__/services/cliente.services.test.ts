@@ -214,4 +214,191 @@ describe("descargarFacturaPdf", () => {
       .calls[0] as unknown as [string, string, { headers: Record<string, string> }];
     expect(opciones.headers.Authorization).toBeUndefined();
   });
+
+  it("avisa por consola y continúa cuando el PDF queda vacío (comportamiento actual)", async () => {
+    prepararDescarga();
+    jest.mocked(FileSystem.getInfoAsync).mockResolvedValue({
+      exists: false,
+      uri: "/cache/factura_9.pdf",
+      isDirectory: false,
+    } as never);
+    const consola = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    const uri = await cliente.descargarFacturaPdf("/api/v1/pedidos/9/factura", "tok");
+
+    expect(uri).toBe("/cache/factura_9.pdf");
+    expect(Sharing.shareAsync).toHaveBeenCalled();
+    expect(consola).toHaveBeenCalled();
+    consola.mockRestore();
+  });
+
+  it("descarga URLs absolutas que no son internas sin reescribir el host", async () => {
+    prepararDescarga();
+
+    await cliente.descargarFacturaPdf("https://cdn.neodomus.com/facturas/2.pdf", "tok");
+
+    const [urlDescarga] = jest.mocked(FileSystem.downloadAsync).mock
+      .calls[0] as unknown as [string];
+    expect(urlDescarga).toBe("https://cdn.neodomus.com/facturas/2.pdf");
+    expect(urlDescarga).not.toContain("10.0.2.2");
+  });
+
+  it("sobrevive a una URL absoluta malformada (el intento de normalización falla en silencio)", async () => {
+    prepararDescarga();
+    const cruda = "http://%zz/pedidos/7/factura";
+    const consola = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    // new URL() lanza con '%' inválido: el catch de normalización lo absorbe
+    // y la descarga usa la URL cruda.
+    await cliente.descargarFacturaPdf(cruda, "tok");
+
+    const [urlDescarga] = jest.mocked(FileSystem.downloadAsync).mock
+      .calls[0] as unknown as [string];
+    expect(urlDescarga).toBe(cruda);
+    consola.mockRestore();
+  });
+});
+
+describe("endpoints del cliente restantes", () => {
+  it("solicita cambio de correo con POST y body", async () => {
+    await cliente.solicitarCambioCorreo("nuevo@neodomus.com");
+
+    expect(url()).toBe(`${BASE}/auth/request-email-change`);
+    expect(init().method).toBe("POST");
+    expect(JSON.parse(String(init().body))).toEqual({ nuevo_email: "nuevo@neodomus.com" });
+  });
+
+  it("verifica cambio de correo con código y body", async () => {
+    await cliente.verificarCambioCorreo("123456", "nuevo@neodomus.com");
+
+    expect(url()).toBe(`${BASE}/auth/verify-email-change`);
+    expect(init().method).toBe("POST");
+    expect(JSON.parse(String(init().body))).toEqual({
+      code: "123456",
+      nuevo_email: "nuevo@neodomus.com",
+    });
+  });
+
+  it("consulta el estado de la solicitud de cuenta", async () => {
+    await cliente.obtenerSolicitudCuenta();
+
+    expect(url()).toBe(`${BASE}/clients/me/cuenta-solicitud`);
+    expect(init().method).toBeUndefined();
+  });
+
+  it("lista los pedidos del cliente", async () => {
+    await cliente.listarMisPedidos();
+
+    expect(url()).toBe(`${BASE}/pedidos/mis-pedidos`);
+  });
+
+  it("confirma el pago del pedido con POST", async () => {
+    await cliente.confirmarPagoPedido(77);
+
+    expect(url()).toBe(`${BASE}/pedidos/77/confirmar-pago`);
+    expect(init().method).toBe("POST");
+  });
+
+  it("obtiene el seguimiento del pedido", async () => {
+    await cliente.obtenerSeguimiento(77);
+
+    expect(url()).toBe(`${BASE}/pedidos/77/seguimiento`);
+  });
+
+  it("lista las ofertas de horario pendientes", async () => {
+    await cliente.listarOfertasHorarioPendientes();
+
+    expect(url()).toBe(`${BASE}/citas/ofertas-pendientes`);
+  });
+
+  it("acepta una oferta de horario con POST", async () => {
+    await cliente.aceptarOfertaHorario(31);
+
+    expect(url()).toBe(`${BASE}/citas/ofertas/31/aceptar`);
+    expect(init().method).toBe("POST");
+  });
+
+  it("crea la cita con POST y el body completo", async () => {
+    const datos = {
+      tipo_servicio: "instalacion",
+      fecha: "2026-03-05",
+      hora: "10:00",
+      direccion: "Cra 1 #2-3",
+      descripcion: "Montaje",
+      id_tecnico: 4,
+      nombre_tecnico: "Luis",
+      metodo_pago: "efectivo",
+      datos_pago: { metodo: "efectivo" },
+    };
+
+    await cliente.crearCita(datos);
+
+    expect(url()).toBe(`${BASE}/citas`);
+    expect(init().method).toBe("POST");
+    expect(JSON.parse(String(init().body))).toEqual(datos);
+  });
+
+  it("actualiza la cita con PUT", async () => {
+    const datos = {
+      tipo_servicio: "reparacion",
+      fecha: "2026-03-06",
+      hora: "11:00",
+      direccion: "Cra 1 #2-3",
+      descripcion: "Cambio de repuesto",
+      id_tecnico: 5,
+      nombre_tecnico: null,
+    };
+
+    await cliente.actualizarCita(9, datos);
+
+    expect(url()).toBe(`${BASE}/citas/9`);
+    expect(init().method).toBe("PUT");
+    expect(JSON.parse(String(init().body))).toEqual(datos);
+  });
+
+  it("lista, agrega y elimina técnicos favoritos", async () => {
+    await cliente.listarTecnicosFavoritos();
+    expect(url()).toBe(`${BASE}/tecnicos/favoritos`);
+
+    await cliente.agregarTecnicoFavorito(3);
+    expect(url(1)).toBe(`${BASE}/tecnicos/favoritos/3`);
+    expect(init(1).method).toBe("POST");
+
+    await cliente.eliminarTecnicoFavorito(3);
+    expect(url(2)).toBe(`${BASE}/tecnicos/favoritos/3`);
+    expect(init(2).method).toBe("DELETE");
+  });
+
+  it("obtiene los métodos de pago", async () => {
+    await cliente.obtenerMetodosPago();
+
+    expect(url()).toBe(`${BASE}/pedidos/metodos-pago`);
+  });
+
+  it("lista y marca como leídas las notificaciones", async () => {
+    await cliente.listarNotificaciones();
+    expect(url()).toBe(`${BASE}/notificaciones/mias`);
+
+    await cliente.marcarNotificacionesLeidas();
+    expect(url(1)).toBe(`${BASE}/notificaciones/leer-todas`);
+    expect(init(1).method).toBe("PATCH");
+  });
+
+  it("lista reembolsos y reseñas del cliente", async () => {
+    await cliente.listarMisReembolsos();
+    expect(url()).toBe(`${BASE}/reembolsos/mis`);
+
+    await cliente.listarMisResenas();
+    expect(url(1)).toBe(`${BASE}/calificaciones/mis-dadas`);
+  });
+
+  it("califica al técnico con POST y body", async () => {
+    const datos = { id_cita: 5, calificacion: 5, comentario: "Excelente" };
+
+    await cliente.calificarTecnico(datos);
+
+    expect(url()).toBe(`${BASE}/calificaciones`);
+    expect(init().method).toBe("POST");
+    expect(JSON.parse(String(init().body))).toEqual(datos);
+  });
 });

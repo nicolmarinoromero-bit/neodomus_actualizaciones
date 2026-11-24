@@ -21,3 +21,18 @@ tests
 movil
 scripts
 be
+# Exclusiones locales conservadas para Railway.
+**/dist
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.log
+deploy/security
+*.png
+*.sql
+*.sql.gz
+docker-compose*.yml
+Caddyfile
+sonar-project.properties
+CHANGELOG.md
+README.md
