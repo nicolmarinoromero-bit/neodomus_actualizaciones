@@ -12,9 +12,10 @@ server {
     index index.html;
 
     # Salud del propio contenedor web para el healthcheck de Railway:
-    # 200 estático, sin depender del backend.
+    # 200 estático, sin depender del backend. El access_log NO se apaga:
+    # durante el despliegue inicial es la evidencia de si el probe del
+    # healthcheck llega a este server y con qué código.
     location = /healthz {
-        access_log off;
         default_type text/plain;
         return 200 'ok\n';
     }
