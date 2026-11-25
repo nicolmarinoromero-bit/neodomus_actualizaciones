@@ -60,7 +60,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload FE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-frontend-log
           path: ci_fe_output.log
@@ -110,7 +110,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.pnpm-store
           key: pnpm-movil-${{ runner.os }}-${{ hashFiles('movil/pnpm-lock.yaml') }}
@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload movil log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-movil-log
           path: ci_movil_output.log
@@ -182,7 +182,7 @@ jobs:
             mysql:8.0
 
       - name: "Setup Python 3.12 (spec: be/Dockerfile)"
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
           cache: pip
@@ -283,7 +283,7 @@ jobs:
 
       - name: Upload BE log (solo en fallo)
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-backend-log
           path: ci_be_output.log
@@ -347,7 +347,7 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
 
       - name: Cache pnpm store
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ runner.os }}-${{ hashFiles('fe/pnpm-lock.yaml') }}
@@ -359,7 +359,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
           cache: pip
@@ -510,7 +510,7 @@ jobs:
 
       - name: "Upload E2E artifacts (siempre: result + logs por flujo)"
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-results
           path: |
