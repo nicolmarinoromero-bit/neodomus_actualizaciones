@@ -119,6 +119,7 @@ class ServicioCheckout(BaseModel):
     precio: Optional[float] = None
     id_tecnico: Optional[int] = None
     id_tecnico_2: Optional[int] = None
+    id_tecnico_3: Optional[int] = None
 
 
 # Agrupa los campos de DatosPago: metodo, numero, titular, expiracion, cvv y los demás declarados abajo.

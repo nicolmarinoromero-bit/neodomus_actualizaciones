@@ -232,6 +232,14 @@ const CheckoutPage = () => {
   const maxTecnicos = Math.max(1, ...items.map((i) => Number(i.tecnicos_requeridos) || 1));
   const tecnicosNecesarios = recomendacion?.tecnicos_necesarios ?? maxTecnicos;
 
+  // Misma regla que el backend: CADA técnico del equipo debe cubrir TODAS
+  // las especializaciones requeridas por los productos del carrito.
+  const hayInstalacion = servicios.some((s) => s.tipo === 'Instalación');
+  const equipoPosible = !recomendacion
+    || !recomendacion.especializaciones_requeridas.length
+    || recomendacion.tecnicos_sugeridos.some((ts) => ts.cubre_todo);
+  const sinEquipoPosible = hayInstalacion && !equipoPosible;
+
   useEffect(() => {
     api.get('/pedidos/metodos-pago').then((res) => {
       if (res.data?.bancos) setBancos(res.data.bancos);
@@ -1022,20 +1030,33 @@ const CheckoutPage = () => {
                             const totalTecnicos = esInstalacion ? Math.max(1, Math.min(tecnicosNecesarios, 3)) : 1;
                             const campos = ['id_tecnico', 'id_tecnico_2', 'id_tecnico_3'] as const;
                             const elegidos: (number | null | undefined)[] = campos.map((c) => s[c]);
-                            // Solo técnicos relacionados con los productos del carrito
-                            // (comparten al menos una especialización requerida).
+                            // Misma regla que el backend: CADA técnico del equipo
+                            // debe cubrir TODAS las especializaciones requeridas
+                            // por los productos (no basta cubrir una).
+                            const requeridasEsp = esInstalacion
+                              ? recomendacion?.especializaciones_requeridas.length ?? 0
+                              : 0;
                             const relacionados = new Set(
-                              (esInstalacion && recomendacion?.especializaciones_requeridas.length
-                                ? recomendacion.tecnicos_sugeridos.filter((ts) => ts.cubiertas > 0)
+                              (requeridasEsp
+                                ? recomendacion!.tecnicos_sugeridos.filter((ts) => ts.cubre_todo)
                                 : []
                               ).map((ts) => ts.id_tecnico),
                             );
+                            // Sin equipo posible para este carrito: se avisa y
+                            // el pago global queda deshabilitado.
                             const opciones = (tecnicosMap[s.id] || []).filter(
                               (tec) =>
-                                !relacionados.size ||
+                                !requeridasEsp ||
                                 relacionados.has(tec.id_tecnico) ||
                                 elegidos.includes(tec.id_tecnico),
                             );
+                            if (esInstalacion && sinEquipoPosible) {
+                              return (
+                                <p className="checkout-tecnicos-aviso" role="alert">
+                                  {t('checkout.errores.sinTecnicosEspecializados')}
+                                </p>
+                              );
+                            }
                             return (
                               <>
                                 <select
@@ -1369,7 +1390,7 @@ const CheckoutPage = () => {
               type="button"
               className="checkout-pagar-btn"
               onClick={handlePagar}
-              disabled={procesando || (items.length === 0 && !reintentoPedidoId)}
+              disabled={procesando || sinEquipoPosible || (items.length === 0 && !reintentoPedidoId)}
             >
               {procesando ? <FaSpinner className="spin" /> : <FaCreditCard />}
               {procesando ? t('checkout.pago.procesando') : t('checkout.pago.pagarConfirmar')}

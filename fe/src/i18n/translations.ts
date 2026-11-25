@@ -297,6 +297,7 @@ export const TRADUCCIONES_BASE: Record<string, Record<string, string>> = {
 
   // ─── Técnico: panel y perfil ───────────────────────────────
   'tec.tecnico': { es: 'Técnico', en: 'Technician' },
+  'tec.tecnicoN': { es: 'Técnico {n}', en: 'Technician {n}' },
   'tec.abrirMenu': { es: 'Abrir menú', en: 'Open menu' },
   'tec.panelTecnico': { es: 'Panel del técnico', en: 'Technician panel' },
   'tec.menuTecnico': { es: 'Menú del técnico', en: 'Technician menu' },

@@ -66,6 +66,25 @@ const citaCancelada = {
   id_tecnico: null,
 };
 
+// Instalación con equipo de 2 técnicos: ambos deben ser visibles y
+// contactables (WhatsApp) desde el perfil del cliente.
+const citaDosTecnicos = {
+  id_cita: 14,
+  estado: 'Confirmada',
+  tipo_servicio: 'instalacion',
+  fecha: iso(5),
+  hora: '10:00:00',
+  direccion: 'Calle 45 # 23-10',
+  id_tecnico: 4,
+  nombre_tecnico: 'Carlos Pérez',
+  tecnico_nombre: 'Carlos Pérez',
+  tecnico_telefono: 3001112233,
+  id_tecnico_2: 7,
+  nombre_tecnico_2: 'Jorge Charry',
+  tecnico_2_nombre: 'Jorge Charry',
+  tecnico_2_telefono: 3004445566,
+};
+
 const citas = [citaFinalizada, citaConfirmada, citaCancelada];
 
 const orden = (id: number) =>
@@ -172,6 +191,26 @@ describe('ServiciosTab — detalle y rastreo', () => {
     expect(document.querySelectorAll('.pf-tracker-paso.done')).toHaveLength(2);
     expect(screen.getByText('perfil.servicios.paso.tecnico')).toBeTruthy();
     expect(screen.getByText('perfil.servicios.paso.confirmada')).toBeTruthy();
+  });
+
+  it('muestra el equipo completo (técnico 2) con WhatsApp por técnico', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [citaDosTecnicos] });
+    render(<ServiciosTab />);
+    await screen.findByText('#14');
+
+    expandir(0);
+
+    expect(screen.getByText('tec.tecnico')).toBeTruthy();
+    expect(screen.getByText('tec.tecnicoN.2')).toBeTruthy();
+    expect(screen.getByText('Carlos Pérez')).toBeTruthy();
+    expect(screen.getByText('Jorge Charry')).toBeTruthy();
+    const enlaces = screen
+      .getAllByRole('link')
+      .filter((a) => (a as HTMLAnchorElement).href.startsWith('https://wa.me/'));
+    expect(enlaces.map((a) => a.getAttribute('href'))).toEqual([
+      'https://wa.me/573001112233',
+      'https://wa.me/573004445566',
+    ]);
   });
 
   it('informa la cancelación y no muestra el rastreo', async () => {
