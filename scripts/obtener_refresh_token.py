@@ -23,6 +23,7 @@ import json
 import os
 import secrets
 import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -144,7 +145,36 @@ def main() -> int:
     req = urllib.request.Request(
         "https://oauth2.googleapis.com/token", data=data, method="POST"
     )
-    d = json.load(urllib.request.urlopen(req, timeout=30))
+    try:
+        d = json.load(urllib.request.urlopen(req, timeout=30))
+    except urllib.error.HTTPError as e:
+        # Mensaje seguro de Google (no contiene secretos): error + descripción.
+        try:
+            detalle = json.loads(e.read().decode("utf-8"))
+            error = detalle.get("error", "?")
+            desc = detalle.get("error_description", "")
+        except Exception:
+            error, desc = f"HTTP {e.code}", "sin detalle"
+        print(f"CANJE_FALLIDO: {error} — {desc}")
+        if error == "redirect_uri_mismatch":
+            print(
+                "CAUSA: el Client ID pegado NO es de tipo 'App de escritorio' (o el\n"
+                "redirect difiere). En Google Cloud Console → Credentials crea un\n"
+                "OAuth client ID tipo **Desktop app** y vuelve a ejecutar este script.\n"
+                "(Las apps de escritorio aceptan http://localhost:<puerto>/callback\n"
+                "sin registrar URI; las apps Web exigen URI exacto registrado.)"
+            )
+        elif error == "invalid_client":
+            print(
+                "CAUSA: Client ID o Client Secret mal pegados. Vuelve a copiarlos\n"
+                "desde Google Cloud Console → Credentials (oculto al teclear)."
+            )
+        elif error == "invalid_grant":
+            print(
+                "CAUSA: el código expiró o ya se usó. Vuelve a ejecutar el script\n"
+                "(genera una autorización nueva) y espera el callback automáticamente."
+            )
+        return 1
     rtk = d.get("refresh_token")
     if not rtk:
         print(
