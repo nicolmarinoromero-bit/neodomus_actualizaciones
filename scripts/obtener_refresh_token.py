@@ -132,7 +132,9 @@ def main() -> int:
         print("ERROR: no llegó el código de autorización")
         return 1
 
-    data = json.dumps(
+    # El endpoint de token de Google exige FORMULARIO urlencoded (no JSON);
+    # el envío como JSON era la causa del 400 del canje.
+    data = urllib.parse.urlencode(
         {
             "client_id": cid,
             "client_secret": csec,
@@ -141,9 +143,12 @@ def main() -> int:
             "grant_type": "authorization_code",
             "redirect_uri": REDIRECCION,
         }
-    ).encode()
+    ).encode("utf-8")
     req = urllib.request.Request(
-        "https://oauth2.googleapis.com/token", data=data, method="POST"
+        "https://oauth2.googleapis.com/token",
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
     )
     try:
         d = json.load(urllib.request.urlopen(req, timeout=30))
@@ -155,7 +160,7 @@ def main() -> int:
             desc = detalle.get("error_description", "")
         except Exception:
             error, desc = f"HTTP {e.code}", "sin detalle"
-        print(f"CANJE_FALLIDO: {error} — {desc}")
+        print(f"CANJE_FALLIDO: {error} - {desc}")
         if error == "redirect_uri_mismatch":
             print(
                 "CAUSA: el Client ID pegado NO es de tipo 'App de escritorio' (o el\n"
@@ -193,13 +198,13 @@ def main() -> int:
     )
     perfil = json.load(urllib.request.urlopen(req2, timeout=30))
     correo = perfil.get("email")
-    print("CREDENCIALES_GUARDADAS en .env ✓")
+    print("CREDENCIALES_GUARDADAS en .env [OK]")
     print("CUENTA_REMITENTE_GMAIL:", correo)
     print("SCOPE:", d.get("scope", SCOPE))
     print(
         "AVISO: si la app OAuth está en modo Testing, el refresh token CADUCA en "
         "7 días (Google lo revierte); publica la app (In production) o renueva "
-        "semanalmente. Copia al dashboard de Railway (API → Variables): "
+        "semanalmente. Copia al dashboard de Railway (API - Variables): "
         "EMAIL_PROVIDER=gmail_api, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "
         f"GOOGLE_REFRESH_TOKEN y SMTP_USERNAME={correo} (remitente From)."
     )
