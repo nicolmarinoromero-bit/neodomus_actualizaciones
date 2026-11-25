@@ -214,6 +214,7 @@ async def send_email_with_attachment(
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 print(f"Resend response: {result}")
+            return True
 
         # gmail_api: delega en el cliente REST de Gmail (puerto 443; el SMTP
         # clásico no puede salir de Railway). Con BytesIO manda bytes; con
