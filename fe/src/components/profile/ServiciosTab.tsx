@@ -8,6 +8,7 @@ import {
   FaPhone,
   FaScrewdriverWrench,
   FaStar,
+  FaWhatsapp,
   FaXmark,
 } from 'react-icons/fa6';
 import api from '@services/api';
@@ -38,6 +39,10 @@ interface CitaCliente {
   tecnico_email?: string | null;
   tecnico_foto_url?: string | null;
   tecnico_certificacion?: string | null;
+  id_tecnico_2?: number | null;
+  nombre_tecnico_2?: string | null;
+  tecnico_2_nombre?: string | null;
+  tecnico_2_telefono?: number | null;
 }
 
 const hoyISO = () => {
@@ -190,8 +195,6 @@ const ServiciosTab = () => {
           {citas.map((cita) => {
             const abierta = expandida === cita.id_cita;
             const pasos = pasosDe(cita);
-            const nombreTecnico =
-              cita.tecnico_nombre || cita.nombre_tecnico || t('perfil.servicios.porAsignar');
             return (
               <div className="pf-order" key={cita.id_cita}>
                 <div className="pf-order-top">
@@ -245,40 +248,69 @@ const ServiciosTab = () => {
 
                     <div className="pf-detail-block">
                       <h4 className="pf-detail-title">{t('citas.tecnicoAsignado')}</h4>
-                      {cita.id_tecnico || cita.nombre_tecnico || cita.tecnico_nombre ? (
-                        <div className="pf-detail-grid">
-                          <div className="pf-detail-row">
-                            <span className="pf-detail-label">{t('tec.tecnico')}</span>
-                            <span className="pf-order-tecnico-entrega">
-                              {cita.tecnico_foto_url && (
-                                <img
-                                  src={cita.tecnico_foto_url}
-                                  alt={nombreTecnico}
-                                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                                />
-                              )}
-                              {nombreTecnico}
-                            </span>
+                      {/* Equipo completo de la cita: técnico 1 y técnico 2
+                          (instalaciones de 2 técnicos). Cada uno con su nombre
+                          distinguible, teléfono y enlace de WhatsApp. */}
+                      {[
+                        {
+                          nombre: cita.tecnico_nombre || cita.nombre_tecnico || '',
+                          telefono: cita.tecnico_telefono,
+                          foto: cita.tecnico_foto_url,
+                          cert: cita.tecnico_certificacion,
+                        },
+                        {
+                          nombre: cita.tecnico_2_nombre || cita.nombre_tecnico_2 || '',
+                          telefono: cita.tecnico_2_telefono,
+                          foto: null,
+                          cert: null,
+                        },
+                      ]
+                        .filter((x) => Boolean(x.nombre || x.telefono))
+                        .map((x, i) => (
+                          <div className="pf-detail-grid" key={x.nombre || `tel-${x.telefono}`}>
+                            <div className="pf-detail-row">
+                              <span className="pf-detail-label">
+                                {i === 0 ? t('tec.tecnico') : t('tec.tecnicoN', { n: i + 1 })}
+                              </span>
+                              <span className="pf-order-tecnico-entrega">
+                                {x.foto && (
+                                  <img
+                                    src={x.foto}
+                                    alt={x.nombre}
+                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                  />
+                                )}
+                                {x.nombre || t('perfil.servicios.sinTecnico')}
+                              </span>
+                            </div>
+                            {x.cert && (
+                              <div className="pf-detail-row">
+                                <span className="pf-detail-label">{t('perfil.servicios.especialidad')}</span>
+                                <span className="pf-detail-value">{x.cert}</span>
+                              </div>
+                            )}
+                            {x.telefono ? (
+                              <div className="pf-detail-row">
+                                <span className="pf-detail-label">{t('perfil.telefono')}</span>
+                                <span className="pf-detail-value">
+                                  <a href={`tel:+57${String(x.telefono).replace(/\D/g, '')}`} style={{ marginRight: 10 }}>
+                                    <FaPhone style={{ marginRight: 4 }} />
+                                    {x.telefono}
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/57${String(x.telefono).replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <FaWhatsapp style={{ marginRight: 4 }} />
+                                    {t('perfil.tecnicosAsignados.mensaje')}
+                                  </a>
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
-                          {cita.tecnico_certificacion && (
-                            <div className="pf-detail-row">
-                              <span className="pf-detail-label">{t('perfil.servicios.especialidad')}</span>
-                              <span className="pf-detail-value">
-                                {cita.tecnico_certificacion}
-                              </span>
-                            </div>
-                          )}
-                          {cita.tecnico_telefono ? (
-                            <div className="pf-detail-row">
-                              <span className="pf-detail-label">{t('perfil.telefono')}</span>
-                              <span className="pf-detail-value">
-                                <FaPhone style={{ marginRight: 6 }} />
-                                {cita.tecnico_telefono}
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
+                        ))}
+                      {!(cita.id_tecnico || cita.nombre_tecnico || cita.tecnico_nombre) && !cita.tecnico_2_nombre && !cita.nombre_tecnico_2 && (
                         <p className="pf-tracker-actualizado">
                           {t('perfil.servicios.sinTecnico')}
                         </p>
