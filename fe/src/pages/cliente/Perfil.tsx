@@ -529,7 +529,7 @@ const Perfil = () => {
                 <button
                   type="button"
                   className="pf-btn pf-btn-primary pf-favorito-comprar"
-                  onClick={() => navigate('/productos')}
+                  onClick={() => navigate(`/producto/${producto.id_producto}`)}
                 >
                   {t('perfil.verProducto')}
                 </button>
