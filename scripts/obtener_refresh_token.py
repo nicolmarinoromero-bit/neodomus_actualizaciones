@@ -23,6 +23,7 @@ import json
 import os
 import secrets
 import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -131,7 +132,9 @@ def main() -> int:
         print("ERROR: no llegó el código de autorización")
         return 1
 
-    data = json.dumps(
+    # El endpoint de token de Google exige FORMULARIO urlencoded (no JSON);
+    # el envío como JSON era la causa del 400 del canje.
+    data = urllib.parse.urlencode(
         {
             "client_id": cid,
             "client_secret": csec,
@@ -140,11 +143,43 @@ def main() -> int:
             "grant_type": "authorization_code",
             "redirect_uri": REDIRECCION,
         }
-    ).encode()
+    ).encode("utf-8")
     req = urllib.request.Request(
-        "https://oauth2.googleapis.com/token", data=data, method="POST"
+        "https://oauth2.googleapis.com/token",
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
     )
-    d = json.load(urllib.request.urlopen(req, timeout=30))
+    try:
+        d = json.load(urllib.request.urlopen(req, timeout=30))
+    except urllib.error.HTTPError as e:
+        # Mensaje seguro de Google (no contiene secretos): error + descripción.
+        try:
+            detalle = json.loads(e.read().decode("utf-8"))
+            error = detalle.get("error", "?")
+            desc = detalle.get("error_description", "")
+        except Exception:
+            error, desc = f"HTTP {e.code}", "sin detalle"
+        print(f"CANJE_FALLIDO: {error} - {desc}")
+        if error == "redirect_uri_mismatch":
+            print(
+                "CAUSA: el Client ID pegado NO es de tipo 'App de escritorio' (o el\n"
+                "redirect difiere). En Google Cloud Console → Credentials crea un\n"
+                "OAuth client ID tipo **Desktop app** y vuelve a ejecutar este script.\n"
+                "(Las apps de escritorio aceptan http://localhost:<puerto>/callback\n"
+                "sin registrar URI; las apps Web exigen URI exacto registrado.)"
+            )
+        elif error == "invalid_client":
+            print(
+                "CAUSA: Client ID o Client Secret mal pegados. Vuelve a copiarlos\n"
+                "desde Google Cloud Console → Credentials (oculto al teclear)."
+            )
+        elif error == "invalid_grant":
+            print(
+                "CAUSA: el código expiró o ya se usó. Vuelve a ejecutar el script\n"
+                "(genera una autorización nueva) y espera el callback automáticamente."
+            )
+        return 1
     rtk = d.get("refresh_token")
     if not rtk:
         print(
@@ -163,13 +198,13 @@ def main() -> int:
     )
     perfil = json.load(urllib.request.urlopen(req2, timeout=30))
     correo = perfil.get("email")
-    print("CREDENCIALES_GUARDADAS en .env ✓")
+    print("CREDENCIALES_GUARDADAS en .env [OK]")
     print("CUENTA_REMITENTE_GMAIL:", correo)
     print("SCOPE:", d.get("scope", SCOPE))
     print(
         "AVISO: si la app OAuth está en modo Testing, el refresh token CADUCA en "
         "7 días (Google lo revierte); publica la app (In production) o renueva "
-        "semanalmente. Copia al dashboard de Railway (API → Variables): "
+        "semanalmente. Copia al dashboard de Railway (API - Variables): "
         "EMAIL_PROVIDER=gmail_api, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "
         f"GOOGLE_REFRESH_TOKEN y SMTP_USERNAME={correo} (remitente From)."
     )
