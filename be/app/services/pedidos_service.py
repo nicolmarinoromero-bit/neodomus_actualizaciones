@@ -313,6 +313,8 @@ def _preparar_servicios(
         hora = (serv.get("hora") or "").strip() or "08:00"
         direccion = (serv.get("direccion") or "").strip()
         id_tecnico = serv.get("id_tecnico")
+        id_tecnico_2 = serv.get("id_tecnico_2")
+        id_tecnico_3 = serv.get("id_tecnico_3")
         tipo_servicio = (serv.get("tipo_servicio") or "").strip().lower() or "servicio"
 
         # Todo servicio agendado en el carrito genera una cita: se valida el
@@ -366,6 +368,8 @@ def _preparar_servicios(
             "direccion": direccion,
             "precio": float(precio or 0),
             "id_tecnico": id_tecnico,
+            "id_tecnico_2": id_tecnico_2,
+            "id_tecnico_3": id_tecnico_3,
         })
     return preparados
 
@@ -481,18 +485,30 @@ def _nombre_tecnico(tecnico: Tecnico | None) -> str | None:
     return f"{tecnico.usuario.first_name} {tecnico.usuario.last_name}".strip()
 
 
-def _max_tecnicos_pedido(db: Session, pedido_id: int) -> int:
-    """Máximo de técnicos que requieren los productos del pedido (mínimo 1)."""
-    maximo = (
-        db.query(func.max(Producto.tecnicos_requeridos))
-        .join(DetallePedido, DetallePedido.id_producto_d == Producto.id_producto)
+def _tecnicos_necesarios_pedido(db: Session, pedido_id: int) -> int:
+    """Técnicos que necesita la cita del pedido (mínimo 1).
+
+    Misma regla que la recomendación del checkout (``analizar_items``): carga
+    del producto más exigente + jornada + desplazamiento. Así el número de
+    técnicos que ve el cliente en el resumen coincide con el equipo que el
+    servidor exige y completa al asignar."""
+    detalles = (
+        db.query(DetallePedido)
         .filter(
             DetallePedido.id_pedido_d == pedido_id,
             DetallePedido.id_producto_d.isnot(None),
         )
-        .scalar()
+        .all()
     )
-    return int(maximo or 1)
+    if not detalles:
+        return 1
+    items = [
+        {"id_producto": d.id_producto_d, "cantidad": d.cantidad_detalle or 1}
+        for d in detalles
+    ]
+    from app.services.recomendacion_service import analizar_items
+
+    return max(1, int(analizar_items(db, items)["tecnicos_necesarios"]))
 
 
 def _duracion_para_pedido(db: Session, pedido_id: int, tipo_servicio: str) -> float:
@@ -741,7 +757,7 @@ def _crear_orden_instalacion(
         if unicodedata.category(c) != "Mn"
     )
     if tipo_norm == "instalacion":
-        tecnicos_necesarios = _max_tecnicos_pedido(db, pedido.id_pedido)
+        tecnicos_necesarios = _tecnicos_necesarios_pedido(db, pedido.id_pedido)
 
     # Especializaciones requeridas por los productos del pedido: el equipo
     # asignado debe cubrirlas (un técnico libre sin la especialización no basta).
@@ -784,10 +800,17 @@ def _crear_orden_instalacion(
             )
 
     # Técnicos adicionales (2..N): el cliente pudo elegirlos todos de una vez
-    # (id_tecnico_2, id_tecnico_3) o se asignan automáticamente.
+    # (id_tecnico_2, id_tecnico_3) o se asignan automáticamente. Los slots que
+    # el cliente eligió explícitamente SIEMPRE se procesan, aunque el cálculo
+    # interno pida menos técnicos (la web muestra el selector según otra
+    # estimación; ignorar la elección silently perdía al técnico 2).
     tecnicos_extra = []
     elegidos_previos = {tecnico.id_tecnico if tecnico else None}
-    for slot in range(2, max(tecnicos_necesarios, 1) + 1):
+    slots_elegidos = [
+        slot for slot in (2, 3) if serv.get(f"id_tecnico_{slot}") is not None
+    ]
+    ultimo_slot = min(max(tecnicos_necesarios, max(slots_elegidos, default=1)), 3)
+    for slot in range(2, ultimo_slot + 1):
         extra = None
         id_sel = serv.get(f"id_tecnico_{slot}")
         if id_sel is not None:
