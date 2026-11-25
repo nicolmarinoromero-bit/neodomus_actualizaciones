@@ -29,7 +29,11 @@ import webbrowser
 from pathlib import Path
 
 REDIRECCION = "http://localhost:8765/callback"
-SCOPE = "https://mail.google.com/"
+# PERMISO MÍNIMO: gmail.send (envío con adjuntos) + openid/email (identificar
+# UNA vez la cuenta remitente). NO se pide mail.google.com/ (acceso completo
+# al buzón) porque el backend solo usa users.messages.send y el refresh de
+# token (be/app/utils/gmail_api.py).
+SCOPE = "https://www.googleapis.com/auth/gmail.send openid email"
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 
@@ -143,7 +147,8 @@ def main() -> int:
 
     guardar_env("GOOGLE_REFRESH_TOKEN", rtk)
 
-    # Verificación de cuenta remitente (solo email + scopes, sin secretos).
+    # Verificación de cuenta remitente (solo identidad con scope openid/email;
+    # se pide el correo, no acceso al buzón).
     req2 = urllib.request.Request(
         "https://www.googleapis.com/oauth2/v2/userinfo",
         headers={"Authorization": "Bearer " + d["access_token"]},
@@ -152,11 +157,13 @@ def main() -> int:
     correo = perfil.get("email")
     print("CREDENCIALES_GUARDADAS en .env ✓")
     print("CUENTA_REMITENTE_GMAIL:", correo)
-    print("SCOPE:", SCOPE)
+    print("SCOPE:", d.get("scope", SCOPE))
     print(
-        f"Copia al dashboard de Railway (API → Variables): EMAIL_PROVIDER=gmail_api, "
-        f"GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN y "
-        f"SMTP_USERNAME={correo} (remitente From)."
+        "AVISO: si la app OAuth está en modo Testing, el refresh token CADUCA en "
+        "7 días (Google lo revierte); publica la app (In production) o renueva "
+        "semanalmente. Copia al dashboard de Railway (API → Variables): "
+        "EMAIL_PROVIDER=gmail_api, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "
+        f"GOOGLE_REFRESH_TOKEN y SMTP_USERNAME={correo} (remitente From)."
     )
     return 0
 

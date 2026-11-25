@@ -214,6 +214,13 @@ async def send_email_with_attachment(
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 print(f"Resend response: {result}")
+
+        # gmail_api: delega en el cliente REST de Gmail (puerto 443; el SMTP
+        # clásico no puede salir de Railway y adjunta el PDF por bytes).
+        if settings.EMAIL_PROVIDER == "gmail_api":
+            from app.utils.gmail_api import send_gmail_api
+
+            return send_gmail_api(to_email, subject, body, attachment_bytes=pdf_bytes)
             return True
 
         if settings.EMAIL_PROVIDER == "gmail_api":

@@ -1,33 +1,33 @@
-# ╔══════════════════════════════════════════════════════════════════════╗
+﻿# â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 #  NEODOMUS - Workflows de pruebas (CI).  Archivo INDEPENDIENTE del
 #  workflow de SonarCloud (no tocar .github/workflows/sonarcloud.yml).
 #
-#  - Backend: unittest sobre una base MySQL efímera del runner + MinIO de
-#    pruebas efímero (credenciales CI dummy, NUNCA las del desarrollo).
+#  - Backend: unittest sobre una base MySQL efÃ­mera del runner + MinIO de
+#    pruebas efÃ­mero (credenciales CI dummy, NUNCA las del desarrollo).
 #  - Frontend: Vitest con pnpm.
-#  - Móvil: Jest (jest-expo + React Native Testing Library), sin BD ni red
+#  - MÃ³vil: Jest (jest-expo + React Native Testing Library), sin BD ni red
 #    (red/mock de AsyncStorage en memoria; no llama al backend real).
 #  - E2E: job SEPARADO que ejecuta directamente los orquestadores
 #    `scripts/e2e_*.py` (el runner `tests/run_e2e_tests.ps1` es Windows-
-#    only: valida Chromium vía %LOCALAPPDATA%; NO se modifica para Linux).
+#    only: valida Chromium vÃ­a %LOCALAPPDATA%; NO se modifica para Linux).
 #
-#  Versión & docs: ver tests/README.md (sección “GitHub Actions”).
+#  VersiÃ³n & docs: ver tests/README.md (secciÃ³n â€œGitHub Actionsâ€).
 #
-#  Credenciales: SOLO cuentas dummy efímeras definidas aquí (p. ej.
+#  Credenciales: SOLO cuentas dummy efÃ­meras definidas aquÃ­ (p. ej.
 #  neodomus_ci_user), creadas y destruidas con el job. Nunca secretos del
 #  desarrollo; nada se imprime en consola.
-# ╚══════════════════════════════════════════════════════════════════════╝
+# â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 name: Neodomus Tests
 
 on:
-  # CI también corre en ramas de integración; los tags se validan en release.yml.
+  # CI tambiÃ©n corre en ramas de integraciÃ³n; los tags se validan en release.yml.
   push:
     branches: ["**"]
-  # PR hacia las ramas de integración principales
+  # PR hacia las ramas de integraciÃ³n principales
   pull_request:
     branches: [development, master, main]
-  # Ejecución manual
+  # EjecuciÃ³n manual
   workflow_dispatch:
 
 # Evita corridas duplicadas del mismo ref (no ejecuta E2E dos veces)
@@ -39,7 +39,7 @@ permissions:
   contents: read
 
 jobs:
-  # ─────────────────────────────── FRONTEND ──────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ FRONTEND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   frontend:
     name: Frontend (Vitest)
     runs-on: ubuntu-24.04
@@ -74,7 +74,7 @@ jobs:
       - name: Run frontend tests (runner existente via pwsh)
         shell: pwsh
         run: |
-          Write-Host "Node: $(& node --version) · Pnpm: $(& pnpm --version)"
+          Write-Host "Node: $(& node --version) Â· Pnpm: $(& pnpm --version)"
           pwsh -NoProfile -File ./tests/run_frontend_tests.ps1 2>&1 | Tee-Object -FilePath ci_fe_output.log
           exit $LASTEXITCODE
 
@@ -86,9 +86,9 @@ jobs:
           path: ci_fe_output.log
           if-no-files-found: ignore
 
-  # ───────────────────────────────── MÓVIL ──────────────────────────────
-  # Mismo patrón que frontend: runner existente via pwsh, sin BD ni red.
-  # pnpm 12.3.4 = versión con la que sonarcloud.yml/coverage.yml instalan
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ MÃ“VIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Mismo patrÃ³n que frontend: runner existente via pwsh, sin BD ni red.
+  # pnpm 12.3.4 = versiÃ³n con la que sonarcloud.yml/coverage.yml instalan
   # movil (fe usa 11.4.0 por su campo packageManager; movil no lo declara).
   movil:
     name: Movil (Jest + jest-expo)
@@ -102,7 +102,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Enable pnpm (corepack, versión pinnada de los workflows de movil)
+      - name: Enable pnpm (corepack, versiÃ³n pinnada de los workflows de movil)
         shell: bash
         run: |
           corepack enable
@@ -124,7 +124,7 @@ jobs:
       - name: Run movil tests (runner existente via pwsh)
         shell: pwsh
         run: |
-          Write-Host "Node: $(& node --version) · Pnpm: $(& pnpm --version)"
+          Write-Host "Node: $(& node --version) Â· Pnpm: $(& pnpm --version)"
           pwsh -NoProfile -File ./tests/run_movil_tests.ps1 2>&1 | Tee-Object -FilePath ci_movil_output.log
           exit $LASTEXITCODE
 
@@ -136,9 +136,9 @@ jobs:
           path: ci_movil_output.log
           if-no-files-found: ignore
 
-  # ──────────────────────────────── BACKEND ─────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ BACKEND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   backend:
-    name: Backend (unittest + MySQL/MinIO efímeros)
+    name: Backend (unittest + MySQL/MinIO efÃ­meros)
     runs-on: ubuntu-24.04
 
     steps:
@@ -206,8 +206,8 @@ jobs:
       # MinIO de pruebas: los service containers de GitHub Actions no admiten
       # campo 'command' y la imagen arrancada sin 'server /data' imprime su
       # ayuda y muere (run 43106631303). Se lanza como paso controlado con el
-      # comando explícito que usa docker-compose.test.yml; misma release fija.
-      - name: Start MinIO (comando explícito server /data)
+      # comando explÃ­cito que usa docker-compose.test.yml; misma release fija.
+      - name: Start MinIO (comando explÃ­cito server /data)
         shell: bash
         run: |
           docker run -d --name minio-test \
@@ -216,7 +216,7 @@ jobs:
             -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             -e MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root \
             --health-cmd 'mc alias set ci http://localhost:9000 "$MINIO_ROOT_USER" "$(cat /run/secrets/minio_root)" >/dev/null 2>&1 && (mc ready ci || mc ls ci >/dev/null)' \
-            --health-interval 5s --health-timeout 5s --health-retries 12 --health-start-period 5s \
+            --health-interval 5s --health-timeout 5s --health-retries 30 --health-start-period 30s \
             coollabsio/minio:RELEASE.2025-10-15T17-29-55Z \
             server /data --console-address ":9101"
 
@@ -251,7 +251,7 @@ jobs:
             fi
             sleep 2
           done
-          echo "::error::MinIO no alcanzó estado healthy"
+          echo "::error::MinIO no alcanzÃ³ estado healthy"
           docker logs minio-test | tail -n 40
           docker ps -a --filter name=minio-test
           exit 1
@@ -289,7 +289,7 @@ jobs:
           path: ci_be_output.log
           if-no-files-found: ignore
 
-  # ─────────────────────────────────── E2E ──────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ E2E â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   e2e:
     name: E2E (Playwright sobre 6 flujos)
     runs-on: ubuntu-24.04
@@ -380,9 +380,9 @@ jobs:
           echo "::add-mask::$secret"
           echo "SECRET_KEY=$secret" >> "$GITHUB_ENV"
 
-      # Misma solución que el job backend: paso controlado con 'server /data'
-      # explícito (los service containers no admiten campo 'command').
-      - name: Start MinIO (comando explícito server /data)
+      # Misma soluciÃ³n que el job backend: paso controlado con 'server /data'
+      # explÃ­cito (los service containers no admiten campo 'command').
+      - name: Start MinIO (comando explÃ­cito server /data)
         shell: bash
         run: |
           docker run -d --name minio-test \
@@ -391,7 +391,7 @@ jobs:
             -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             -e MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root \
             --health-cmd 'mc alias set ci http://localhost:9000 "$MINIO_ROOT_USER" "$(cat /run/secrets/minio_root)" >/dev/null 2>&1 && (mc ready ci || mc ls ci >/dev/null)' \
-            --health-interval 5s --health-timeout 5s --health-retries 12 --health-start-period 5s \
+            --health-interval 5s --health-timeout 5s --health-retries 30 --health-start-period 30s \
             coollabsio/minio:RELEASE.2025-10-15T17-29-55Z \
             server /data --console-address ":9101"
 
@@ -426,7 +426,7 @@ jobs:
             fi
             sleep 2
           done
-          echo "::error::MinIO no alcanzó estado healthy"
+          echo "::error::MinIO no alcanzÃ³ estado healthy"
           docker logs minio-test | tail -n 40
           docker ps -a --filter name=minio-test
           exit 1
@@ -458,14 +458,14 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       # Los 6 flujos con orquestador, SEGUIDOS (sin detenerse al primer fallo)
-      # para reportar TODOS los resultados exit/códigos. E2E job corre una sola
+      # para reportar TODOS los resultados exit/cÃ³digos. E2E job corre una sola
       # vez por ref (concurrency) y NO reutiliza run_e2e_tests.ps1 (Windows-only).
       - name: Run the 6 E2E flows (resultados por flujo)
         shell: bash
         id: e2e
         env:
           # DATABASE_URL y TEST_DATABASE_URL vienen de GITHUB_ENV: se generan
-          # con la contraseña aleatoria del MySQL de este job.
+          # con la contraseÃ±a aleatoria del MySQL de este job.
           DISABLE_SCHEDULER: '1'
           CI: 'true'
         run: |
@@ -495,11 +495,11 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.e2e.outputs.E2E_FAILED }}" != "0" ]; then
-            echo "E2E falló en ${{ steps.e2e.outputs.E2E_FAILED_COUNT }} flujo(s)"; exit 1
+            echo "E2E fallÃ³ en ${{ steps.e2e.outputs.E2E_FAILED_COUNT }} flujo(s)"; exit 1
           fi
           echo "E2E OK"
 
-      - name: Failure summary (listar flujos con su código)
+      - name: Failure summary (listar flujos con su cÃ³digo)
         if: always()
         shell: bash
         run: |
