@@ -1,0 +1,79 @@
+# Configuración COMPLETA de nginx (main) para la web de NeoDomus en Railway.
+# Se renderiza con envsubst en el ARRANQUE a /tmp (Railway no permite
+# escribir /etc/nginx/conf.d) y se arranca con `nginx -c`.
+# Variables sustituidas: solo BACKEND_PROXY_URL; las variables propias de
+# nginx ($uri, $host…) quedan intactas porque envsubst solo procesa las
+# variables de entorno definidas.
+
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log /dev/stdout;
+    sendfile on;
+    tcp_nopush on;
+    keepalive_timeout 65;
+
+    # Directorios temporales en /tmp: escribibles por el usuario nginx.
+    client_body_temp_path /tmp/client_body;
+    proxy_temp_path /tmp/proxy;
+    fastcgi_temp_path /tmp/fastcgi;
+    uwsgi_temp_path /tmp/uwsgi;
+    scgi_temp_path /tmp/scgi;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+
+    server {
+        # default_server explícito: atiende cualquier Host
+        # (incl. healthcheck.railway.app).
+        listen 80 default_server;
+        server_name localhost _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Salud del propio contenedor web para el healthcheck de Railway:
+        # 200 estático, sin depender del backend. El access_log NO se apaga
+        # durante el despliegue inicial: es la evidencia del probe.
+        location = /healthz {
+            default_type text/plain;
+            return 200 'ok\n';
+        }
+
+        # SPA: cualquier ruta desconocida cae en index.html (react-router).
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Assets con hash de contenido: cache larga en el navegador/CDN.
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+            try_files $uri =404;
+        }
+
+        # API por el mismo origen (VITE_API_URL=/api/v1 se hornea en el build).
+        # BACKEND_PROXY_URL es la URL INTERNA del servicio API en Railway
+        # (proxy_pass estático: se resuelve al arrancar, sin resolver runtime).
+        location /api/v1/ {
+            proxy_pass ${BACKEND_PROXY_URL};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            # Subida de imágenes/evidencias (límite por encima de los 5 MB y
+            # 10 MB que valida el backend).
+            client_max_body_size 12m;
+            proxy_request_buffering off;
+            proxy_read_timeout 60s;
+        }
+    }
+}
