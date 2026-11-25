@@ -5,9 +5,12 @@
 # El TLS lo termina el proxy de Railway; dentro de la red todo es HTTP.
 
 server {
-    listen 80;
-    # localhost cubre el nombre del block stock (por si reviviera) y `_` el
-    # resto: CUALQUIER Host (incl. healthcheck.railway.app) cae aquí.
+    # default_server explícito: este block atiende TODO lo que llegue al
+    # puerto 80 sin matchear otro server_name (p. ej. healthcheck.railway.app).
+    listen 80 default_server;
+    # server_name: `localhost` cubre el nombre del block stock (por si
+    # reviviera) y `_` es un nombre INVÁLIDO que nunca matchea un Host real:
+    # NO es wildcard. El catch-all real es el default_server de arriba.
     server_name localhost _;
 
     root /usr/share/nginx/html;
