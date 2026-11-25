@@ -48,7 +48,15 @@ def leer_env() -> dict:
 
 
 def guardar_env(clave: str, valor: str) -> None:
-    """Reemplaza/crea la línea `clave=valor` en .env (sin imprimir el valor)."""
+    """Reemplaza/crea la línea `clave=valor` en .env (sin imprimir el valor).
+
+    Endurecido: la clave debe estar en la lista blanca y el valor no puede
+    contener saltos de línea (evita inyección de líneas al .env).
+    """
+    if clave not in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"):
+        raise ValueError(f"Clave no permitida: {clave!r}")
+    if "\n" in valor or "\r" in valor:
+        raise ValueError("El valor contiene saltos de línea")
     lineas = (
         ENV_PATH.read_text(encoding="utf-8").splitlines()
         if ENV_PATH.exists()
