@@ -93,6 +93,10 @@ export const CHECKOUT_TRADUCCIONES: Record<string, { es: string; en: string }> =
   'checkout.errores.cuponVacio': tr('Escribe o selecciona un cupón.', 'Enter or select a coupon.'),
   'checkout.errores.cuponMinimo': tr('Este cupón requiere una compra mínima de {monto}.', 'This coupon requires a minimum purchase of {monto}.'),
   'checkout.errores.cuponValidar': tr('No se pudo validar el cupón.', 'The coupon could not be validated.'),
+  'checkout.errores.sinTecnicosEspecializados': tr(
+    'Ningún técnico disponible cumple las especializaciones que requieren los productos de tu carrito. Ajusta tu selección de productos o contáctanos para coordinar un equipo especial.',
+    'No available technician meets the specializations required by the products in your cart. Adjust your product selection or contact us to coordinate a specialized team.',
+  ),
 
   // Éxito y confirmación
   'checkout.exito.confirmacionAria': tr('Confirmación de compra', 'Purchase confirmation'),
