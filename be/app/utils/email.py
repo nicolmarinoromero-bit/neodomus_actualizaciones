@@ -216,6 +216,9 @@ async def send_email_with_attachment(
                 print(f"Resend response: {result}")
             return True
 
+        # gmail_api: delega en el cliente REST de Gmail (puerto 443; el SMTP
+        # clásico no puede salir de Railway). Con BytesIO manda bytes; con
+        # ruta de archivo conserva attachment_path (contrato del doble s5).
         if settings.EMAIL_PROVIDER == "gmail_api":
             from app.utils.gmail_api import send_gmail_api
 
