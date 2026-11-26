@@ -97,6 +97,11 @@ export const CHECKOUT_TRADUCCIONES: Record<string, { es: string; en: string }> =
     'Ningún técnico disponible cumple las especializaciones que requieren los productos de tu carrito. Ajusta tu selección de productos o contáctanos para coordinar un equipo especial.',
     'No available technician meets the specializations required by the products in your cart. Adjust your product selection or contact us to coordinate a specialized team.',
   ),
+  'checkout.errores.consultaRecomendacion': tr(
+    'No pudimos consultar los técnicos disponibles. Puedes reintentar; el servidor volverá a comprobar el cupo al confirmar.',
+    'We could not check available technicians. You can retry; the server will verify availability again when you confirm.',
+  ),
+  'checkout.errores.reintentar': tr('Reintentar', 'Retry'),
 
   // Éxito y confirmación
   'checkout.exito.confirmacionAria': tr('Confirmación de compra', 'Purchase confirmation'),
