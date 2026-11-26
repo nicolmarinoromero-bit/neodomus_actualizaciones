@@ -57,18 +57,6 @@ const respuestaAprobado = {
   },
 };
 
-const respuestaRecomendacion = () => ({
-  data: {
-    tecnicos_necesarios: 1,
-    horas_por_tecnico: 1.5,
-    tiempo_total_horas: 1.5,
-    especializaciones_requeridas: [
-      { id_especializacion: 1, nombre: 'Instalación de cámaras de seguridad' },
-    ],
-    tecnicos_sugeridos: [],
-  },
-});
-
 beforeEach(() => {
   recomendaciones.bodies = [];
   horasPedidos.urls = [];
