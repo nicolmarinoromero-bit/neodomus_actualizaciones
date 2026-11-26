@@ -25,6 +25,14 @@ from app.tests.test_t2_pago_pendiente import BaseT2, _run
 from app.utils.security import create_access_token
 
 
+def _siguiente_laborable(dias: int) -> date:
+    """Fecha futura en día hábil (las citas no se agendan en domingo)."""
+    d = date.today() + timedelta(days=dias)
+    while d.weekday() == 6:
+        d += timedelta(days=1)
+    return d
+
+
 class CheckoutTecnicosTest(BaseT2):
     def setUp(self):
         super().setUp()
@@ -69,7 +77,7 @@ class CheckoutTecnicosTest(BaseT2):
             user_id=self.cliente.id_cliente,
         )
         self.headers = {'Authorization': f'Bearer {token}'}
-        self.fecha = (date.today() + timedelta(days=3)).isoformat()
+        self.fecha = _siguiente_laborable(3).isoformat()
 
     def tearDown(self):
         # Limpieza con sesión fresca: el pedido y la cita los creó la app en

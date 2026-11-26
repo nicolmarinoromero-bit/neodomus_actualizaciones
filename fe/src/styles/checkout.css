@@ -173,6 +173,22 @@
   font-weight: 600;
 }
 
+.checkout-reintentar-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 165, 75, 0.45);
+  background: transparent;
+  color: #ffd98a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.checkout-reintentar-btn:hover {
+  background: rgba(212, 165, 75, 0.15);
+}
+
 .checkout-servicio-detalles input {
   padding: 8px 10px;
   border-radius: 10px;

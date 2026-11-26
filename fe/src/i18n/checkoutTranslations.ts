@@ -97,6 +97,11 @@ export const CHECKOUT_TRADUCCIONES: Record<string, { es: string; en: string }> =
     'Ningún técnico disponible cumple las especializaciones que requieren los productos de tu carrito. Ajusta tu selección de productos o contáctanos para coordinar un equipo especial.',
     'No available technician meets the specializations required by the products in your cart. Adjust your product selection or contact us to coordinate a specialized team.',
   ),
+  'checkout.errores.consultaRecomendacion': tr(
+    'No pudimos consultar los técnicos disponibles. Puedes reintentar; el servidor volverá a comprobar el cupo al confirmar.',
+    'We could not check available technicians. You can retry; the server will verify availability again when you confirm.',
+  ),
+  'checkout.errores.reintentar': tr('Reintentar', 'Retry'),
 
   // Éxito y confirmación
   'checkout.exito.confirmacionAria': tr('Confirmación de compra', 'Purchase confirmation'),
@@ -105,7 +110,8 @@ export const CHECKOUT_TRADUCCIONES: Record<string, { es: string; en: string }> =
   'checkout.exito.cerrarConfirmacionAria': tr('Cerrar confirmación de compra', 'Close purchase confirmation'),
   'checkout.exito.facturaEnviada': tr('La factura fue enviada correctamente a tu correo electrónico.', 'The invoice was successfully sent to your email.'),
   'checkout.exito.facturaGenerada': tr('Pago exitoso. Tu factura fue generada correctamente.', 'Payment successful. Your invoice was generated successfully.'),
-  'checkout.exito.instalacionAgendada': tr('Instalación agendada', 'Installation scheduled'),
+  'checkout.exito.tipoAgendado': tr('{tipo} agendado', '{tipo} scheduled'),
+  'checkout.exito.servicioAgendado': tr('Servicio agendado', 'Service scheduled'),
   'checkout.exito.porAsignar': tr('Por asignar', 'To be assigned'),
   'checkout.exito.yTecnico': tr(' y {nombre}', ' and {nombre}'),
   'checkout.exito.porDefinir': tr('Por definir', 'To be defined'),

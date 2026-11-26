@@ -53,6 +53,16 @@ const TIPOS_SERVICIO: { tipo: string; precio: number; clave: string }[] = [
 const claveServicio = (tipo: string) =>
   TIPOS_SERVICIO.find((servicio) => servicio.tipo === tipo)?.clave ?? tipo;
 
+// Título de la pantalla de éxito por tipo de servicio agendado
+// («Mantenimiento agendado», «Servicio agendado» si es desconocido).
+const CLAVES_TIPO_AGENDADO: Record<string, string> = {
+  instalacion: 'citas.instalacion',
+  mantenimiento: 'citas.mantenimiento',
+  reparacion: 'citas.reparacion',
+  revision: 'checkout.entrega.tipoRevision',
+  soporte: 'citas.soporte',
+};
+
 interface LineaServicio {
   id: number;
   tipo: string;
@@ -186,6 +196,12 @@ const CheckoutPage = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { isAuthenticated, rol, loading: authLoading } = useAuth();
 
+  const tituloServicioAgendado = (tipo?: string) => {
+    const norm = (tipo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const clave = CLAVES_TIPO_AGENDADO[norm];
+    return clave ? t('checkout.exito.tipoAgendado', { tipo: t(clave) }) : t('checkout.exito.servicioAgendado');
+  };
+
   const [metodo, setMetodo] = useState<Metodo>('tarjeta_debito');
   const [pago, setPago] = useState({
     numero: '',
@@ -215,6 +231,8 @@ const CheckoutPage = () => {
   const [horasPorServicio, setHorasPorServicio] = useState<Record<number, string[]>>({});
   const [cargandoHorasServicio, setCargandoHorasServicio] = useState<Record<number, boolean>>({});
   const [recomendacion, setRecomendacion] = useState<Recomendacion | null>(null);
+  const [recomendacionError, setRecomendacionError] = useState(false);
+  const [reintentoRecomendacion, setReintentoRecomendacion] = useState(0);
   const [cuponesDisponibles, setCuponesDisponibles] = useState<CuponDisponible[]>([]);
   const [codigoCupon, setCodigoCupon] = useState('');
   const [cuponAplicado, setCuponAplicado] = useState<CuponDisponible | null>(null);
@@ -233,12 +251,15 @@ const CheckoutPage = () => {
   const tecnicosNecesarios = recomendacion?.tecnicos_necesarios ?? maxTecnicos;
 
   // Misma regla que el backend: CADA técnico del equipo debe cubrir TODAS
-  // las especializaciones requeridas por los productos del carrito.
-  const hayInstalacion = servicios.some((s) => s.tipo === 'Instalación');
+  // las especializaciones requeridas por los productos del carrito, y el
+  // servidor exige esa aptitud para CUALQUIER servicio técnico (no solo
+  // instalación), así que el aviso y el bloqueo aplican siempre que haya
+  // servicio en el carrito. Sin recomendación (cargando o error de
+  // consulta) no se bloquea: no se presenta como agenda vacía.
   const equipoPosible = !recomendacion
     || !recomendacion.especializaciones_requeridas.length
     || recomendacion.tecnicos_sugeridos.some((ts) => ts.cubre_todo);
-  const sinEquipoPosible = hayInstalacion && !equipoPosible;
+  const sinEquipoPosible = servicios.length > 0 && !equipoPosible;
 
   useEffect(() => {
     api.get('/pedidos/metodos-pago').then((res) => {
@@ -309,6 +330,10 @@ const CheckoutPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmaServicios, servicios.length]);
 
+  const firmaItems = items
+    .map((i) => `${i.id_producto}-${i.venta_por_metros ? `${i.metros}x${i.cantidad}` : i.cantidad}`)
+    .join('|');
+
   useEffect(() => {
     const cancelar: AbortController[] = [];
     servicios.forEach((s) => {
@@ -326,7 +351,15 @@ const CheckoutPage = () => {
       cancelar.push(ac);
       setCargandoHorasServicio((prev) => ({ ...prev, [s.id]: true }));
       const tipoNorm = s.tipo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      // Con items el backend calcula la duración real de la carga (máx 2.5 h
+      // por técnico) para la instalación; los demás servicios usan su base.
       const params = new URLSearchParams({ fecha: s.fecha, tipo_servicio: tipoNorm });
+      if (s.tipo === 'Instalación' && items.length > 0) {
+        params.set('items', JSON.stringify(items.map((i) => ({
+          id_producto: i.id_producto,
+          cantidad: i.venta_por_metros ? 1 : i.cantidad,
+        }))));
+      }
       api.get<string[]>('/citas/horas-disponibles', { params, signal: ac.signal })
         .then((res) => {
           const libres = Array.isArray(res.data) ? res.data : [];
@@ -346,12 +379,12 @@ const CheckoutPage = () => {
         });
     });
     return () => cancelar.forEach((c) => c.abort());
-  }, [servicios.map((s) => `${s.id}-${s.fecha}-${s.tipo}`).join('|')]);
+  }, [servicios.map((s) => `${s.id}-${s.fecha}-${s.tipo}`).join('|'), firmaItems]);
 
-  const firmaItems = items
-    .map((i) => `${i.id_producto}-${i.venta_por_metros ? `${i.metros}x${i.cantidad}` : i.cantidad}`)
-    .join('|');
   const servicioInstalacion = servicios.find((s) => s.tipo === 'Instalación');
+  // Regla del servidor: la carga escala el equipo solo para instalación;
+  // si hay cualquier instalación el análisis aplica esa regla completa.
+  const firmaTipos = servicios.map((s) => s.tipo).join('|');
   useEffect(() => {
     if (items.length === 0) {
       setRecomendacion(null);
@@ -367,16 +400,26 @@ const CheckoutPage = () => {
         })),
         fecha: servicioInstalacion?.fecha || undefined,
         hora: servicioInstalacion?.hora || undefined,
+        tipo_servicio: servicios.some((s) => s.tipo === 'Instalación')
+          ? 'instalacion'
+          : servicios[0]?.tipo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') || undefined,
       })
       .then((res) => {
-        if (!cancelado) setRecomendacion(res.data);
+        if (!cancelado) {
+          setRecomendacion(res.data);
+          setRecomendacionError(false);
+        }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // Error de consulta ≠ agenda vacía: se permite reintentar y el
+        // servidor vuelve a comprobar el cupo al confirmar.
+        if (!cancelado) setRecomendacionError(true);
+      });
     return () => {
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firmaItems, servicioInstalacion?.fecha, servicioInstalacion?.hora]);
+  }, [firmaItems, firmaTipos, servicioInstalacion?.fecha, servicioInstalacion?.hora, reintentoRecomendacion]);
 
   const agregarServicio = () => {
     const primero = TIPOS_SERVICIO[0];
@@ -399,6 +442,7 @@ const CheckoutPage = () => {
 
   const cambiarTipoServicio = (id: number, tipo: string) => {
     const info = TIPOS_SERVICIO.find((servicio) => servicio.tipo === tipo) || TIPOS_SERVICIO[0];
+    setError('');
     setServicios((prev) =>
       prev.map((s) =>
         s.id === id ? { ...s, tipo, nombre: tipo, precio: info.precio, fecha: '', hora: '08:00', id_tecnico: null, id_tecnico_2: null, id_tecnico_3: null, modo_tecnico: 'auto' } : s
@@ -407,6 +451,8 @@ const CheckoutPage = () => {
   };
 
   const actualizarServicio = (id: number, campo: keyof LineaServicio, valor: string) => {
+    // Cambiar datos del servicio invalida errores anteriores (fecha/hora/…).
+    if (campo === 'fecha' || campo === 'hora' || campo === 'tipo') setError('');
     setServicios((prev) =>
       prev.map((s) => (s.id === id ? { ...s, [campo]: valor } : s))
     );
@@ -769,9 +815,11 @@ const CheckoutPage = () => {
 
             {resultado.ordenes_instalacion && resultado.ordenes_instalacion.length > 0 && (
               <div className="checkout-ordenes-instalacion">
-                <h2>{t('checkout.exito.instalacionAgendada')}</h2>
                 {resultado.ordenes_instalacion.map((o, idx) => (
                   <div className="checkout-orden-instalacion" key={idx}>
+                    {/* El título nombra el servicio real agendado, no siempre
+                        «Instalación» (mantenimiento, reparación, …). */}
+                    <h2>{tituloServicioAgendado(o.tipo_servicio)}</h2>
                     <div><span>{t('checkout.resumen.estado')}</span><strong>{o.estado}</strong></div>
                     <div><span>{t('checkout.resumen.tecnico')}</span><strong>{o.nombre_tecnico || t('checkout.exito.porAsignar')}{o.nombre_tecnico_2 ? t('checkout.exito.yTecnico', { nombre: o.nombre_tecnico_2 }) : ''}</strong></div>
                     <div><span>{t('checkout.resumen.fecha')}</span><strong>{o.fecha ? (() => { const [a, m, d] = o.fecha.split('-').map(Number); return a ? new Date(a, m - 1, d).toLocaleDateString('es-CO') : o.fecha; })() : ''} {o.hora ? ` · ${o.hora}` : ''}</strong></div>
@@ -955,6 +1003,15 @@ const CheckoutPage = () => {
                   {t('checkout.entrega.serviciosVacio')}
                 </p>
               ) : (
+                <>
+                {recomendacionError && (
+                  <div className="checkout-tecnicos-aviso" role="status">
+                    {t('checkout.errores.consultaRecomendacion')}
+                    <button type="button" className="checkout-reintentar-btn" onClick={() => setReintentoRecomendacion((n) => n + 1)}>
+                      {t('checkout.errores.reintentar')}
+                    </button>
+                  </div>
+                )}
                 <div className="checkout-servicios-lista">
                   {servicios.map((s) => (
                     <div className="checkout-servicio" key={s.id}>
@@ -973,25 +1030,30 @@ const CheckoutPage = () => {
                         </button>
                       </div>
                       <div className="checkout-servicio-detalles">
-                          {s.tipo === 'Instalación' && (
-                            <>
-                              <span className="checkout-tecnicos-aviso">
-                                <FaUsers /> {tecnicosNecesarios === 1
-                                  ? t('checkout.entrega.requiereUnTecnico')
-                                  : t('checkout.entrega.requiereTecnicos', { n: tecnicosNecesarios })}
-                                {recomendacion && recomendacion.horas_por_tecnico
-                                  ? t('checkout.entrega.horasPorTecnico', { n: recomendacion.horas_por_tecnico })
-                                  : ''}
-                                .
-                              </span>
-                              {recomendacion && recomendacion.especializaciones_requeridas.length > 0 && (
+                          {(() => {
+                            // El servidor exige 1 técnico para los servicios
+                            // que no son instalación (misma regla al anunciar).
+                            const tecnicosDeLinea = s.tipo === 'Instalación' ? tecnicosNecesarios : 1;
+                            return (
+                              <>
                                 <span className="checkout-tecnicos-aviso">
-                                  {t('checkout.entrega.especializacionesRequeridas')}{' '}
-                                  {recomendacion.especializaciones_requeridas.map((e) => e.nombre).join(', ')}.
+                                  <FaUsers /> {tecnicosDeLinea === 1
+                                    ? t('checkout.entrega.requiereUnTecnico')
+                                    : t('checkout.entrega.requiereTecnicos', { n: tecnicosDeLinea })}
+                                  {recomendacion && recomendacion.horas_por_tecnico
+                                    ? t('checkout.entrega.horasPorTecnico', { n: recomendacion.horas_por_tecnico })
+                                    : ''}
+                                  .
                                 </span>
-                              )}
-                            </>
-                          )}
+                                {recomendacion && recomendacion.especializaciones_requeridas.length > 0 && (
+                                  <span className="checkout-tecnicos-aviso">
+                                    {t('checkout.entrega.especializacionesRequeridas')}{' '}
+                                    {recomendacion.especializaciones_requeridas.map((e) => e.nombre).join(', ')}.
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                           <input
                             type="date"
                             value={s.fecha || ''}
@@ -1032,10 +1094,9 @@ const CheckoutPage = () => {
                             const elegidos: (number | null | undefined)[] = campos.map((c) => s[c]);
                             // Misma regla que el backend: CADA técnico del equipo
                             // debe cubrir TODAS las especializaciones requeridas
-                            // por los productos (no basta cubrir una).
-                            const requeridasEsp = esInstalacion
-                              ? recomendacion?.especializaciones_requeridas.length ?? 0
-                              : 0;
+                            // por los productos (no basta cubrir una). El servidor
+                            // lo exige para cualquier servicio técnico.
+                            const requeridasEsp = recomendacion?.especializaciones_requeridas.length ?? 0;
                             const relacionados = new Set(
                               (requeridasEsp
                                 ? recomendacion!.tecnicos_sugeridos.filter((ts) => ts.cubre_todo)
@@ -1050,7 +1111,7 @@ const CheckoutPage = () => {
                                 relacionados.has(tec.id_tecnico) ||
                                 elegidos.includes(tec.id_tecnico),
                             );
-                            if (esInstalacion && sinEquipoPosible) {
+                            if (sinEquipoPosible) {
                               return (
                                 <p className="checkout-tecnicos-aviso" role="alert">
                                   {t('checkout.errores.sinTecnicosEspecializados')}
@@ -1129,6 +1190,7 @@ const CheckoutPage = () => {
                     </div>
                   ))}
                 </div>
+                </>
               )}
             </section>
 

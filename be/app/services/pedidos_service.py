@@ -686,6 +686,30 @@ def _plantilla_correo_instalacion(destinatario: str, **datos) -> tuple[str, str]
     return subject, body
 
 
+def _detalle_sin_tecnicos(db: Session, ids_esp: list[int] | None) -> str:
+    """Razón de no poder armar equipo, para que el mensaje no culpe a la
+    agenda cuando la causa real es la especialización."""
+    from app.services.especialidades import _tecnicos_activos
+
+    if ids_esp:
+        aptos = [t for t in _tecnicos_activos(db) if tecnico_cubre(t, ids_esp)]
+        if not aptos:
+            from app.models.especializacion import Especializacion
+
+            filas = (
+                db.query(Especializacion.nombre)
+                .filter(Especializacion.id_especializacion.in_(list(ids_esp)))
+                .all()
+            )
+            nombres = ", ".join(n for (n,) in filas)
+            return (
+                "No hay técnicos con la especialización requerida"
+                + (f" ({nombres})" if nombres else "")
+                + ". Contáctanos para coordinar un equipo especial."
+            )
+    return "No hay técnicos disponibles para esa fecha. Elige otra fecha."
+
+
 def _crear_orden_instalacion(
     db: Session,
     pedido: Pedido,
@@ -796,7 +820,7 @@ def _crear_orden_instalacion(
         if tecnico is None:
             raise HTTPException(
                 status_code=400,
-                detail="No hay técnicos disponibles para esa fecha. Elige otra fecha.",
+                detail=_detalle_sin_tecnicos(db, ids_esp),
             )
 
     # Técnicos adicionales (2..N): el cliente pudo elegirlos todos de una vez
@@ -853,10 +877,7 @@ def _crear_orden_instalacion(
             if extra is None:
                 raise HTTPException(
                     status_code=400,
-                    detail=(
-                        f"No hay {slot} técnicos disponibles para esa fecha y hora. "
-                        "Elige otra fecha u horario."
-                    ),
+                    detail=_detalle_sin_tecnicos(db, ids_esp),
                 )
         if extra is None:
             break
