@@ -317,7 +317,8 @@ def _filas_citas_pdf(citas):
     """Filas de la sección «SERVICIOS AGENDADOS» a partir de la cita guardada.
 
     Cada fila: tipo de servicio, fecha, hora programada en Bogotá y los
-    técnicos asignados (o «Asignación pendiente»)."""
+    técnicos asignados como LISTA (un nombre por renglón en el PDF) o
+    «Asignación pendiente»."""
     filas = []
     for cita in citas:
         tipo = texto_tipo_servicio(getattr(cita, "tipo_servicio", None))
@@ -329,7 +330,7 @@ def _filas_citas_pdf(citas):
             getattr(cita, "nombre_tecnico_3", None),
         ]
         tecnicos = [t for t in tecnicos if t]
-        tecnicos_texto = " y ".join(tecnicos) if tecnicos else "Asignación pendiente"
+        tecnicos_texto = tecnicos if tecnicos else ["Asignación pendiente"]
         filas.append([tipo, fecha, hora, tecnicos_texto])
     return filas
 
@@ -384,7 +385,20 @@ def generar_factura_pdf(factura, pedido, cliente, detalles, citas=None) -> io.By
             [_celda("SERVICIO", s["th"]), _celda("FECHA", s["th"]),
              _celda("HORA (BOGOTÁ)", s["th"]), _celda("TÉCNICOS", s["th"])],
         ]
-        filas_s.extend(filas_citas)
+        filas_s.extend(
+            [
+                _celda(fila[0], s["td"]),
+                _celda(fila[1], s["tdc"]),
+                _celda(fila[2], s["tdc"]),
+                # Un Paragraph por técnico: cada nombre en su renglón y
+                # completo (la celda con un solo Paragraph cortaba
+                # nombres largos).
+                [Paragraph(t, s["td"]) for t in fila[3]]
+                if isinstance(fila[3], list)
+                else _celda(fila[3], s["td"])
+            ]
+            for fila in filas_citas
+        )
         tabla_serv = Table(filas_s, colWidths=[45 * mm, 30 * mm, 28 * mm, 77 * mm], repeatRows=1)
         tabla_serv.setStyle(TableStyle(estilos_detalle))
         historia.append(tabla_serv)

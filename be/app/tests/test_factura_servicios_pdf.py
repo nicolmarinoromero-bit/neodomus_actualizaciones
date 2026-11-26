@@ -52,22 +52,22 @@ class FilasCitasPdfTest(unittest.TestCase):
                        t1="JORGE DANIEL CHARRY PÉREZ"),
         ])
         self.assertEqual(filas, [[
-            "Mantenimiento", "27/11/2026", "14:00", "JORGE DANIEL CHARRY PÉREZ",
+            "Mantenimiento", "27/11/2026", "14:00", ["JORGE DANIEL CHARRY PÉREZ"],
         ]])
 
-    def test_dos_tecnicos_unidos_por_y(self):
+    def test_dos_tecnicos_uno_por_linea(self):
         filas = _filas_citas_pdf([
             _CitaFalsa("instalacion", date(2026, 11, 27), "08:00",
                        t1="CARLOS ANDRÉS GÓMEZ RÍOS", t2="JORGE DANIEL CHARRY PÉREZ"),
         ])
         self.assertEqual(filas[0][0], "Instalación")
-        self.assertEqual(filas[0][3], "CARLOS ANDRÉS GÓMEZ RÍOS y JORGE DANIEL CHARRY PÉREZ")
+        self.assertEqual(filas[0][3], ["CARLOS ANDRÉS GÓMEZ RÍOS", "JORGE DANIEL CHARRY PÉREZ"])
 
     def test_asignacion_pendiente(self):
         filas = _filas_citas_pdf([
             _CitaFalsa("mantenimiento", date(2026, 11, 27), "14:00"),
         ])
-        self.assertEqual(filas[0][3], "Asignación pendiente")
+        self.assertEqual(filas[0][3], ["Asignación pendiente"])
 
     def test_tipo_desconocido_y_vacio(self):
         self.assertEqual(texto_tipo_servicio(None), "Servicio")
@@ -80,7 +80,9 @@ class PdfConServiciosTest(unittest.TestCase):
         import pymupdf
 
         with pymupdf.open(stream=pdf_bytes.getvalue(), filetype="pdf") as doc:
-            return "\n".join(p.get_text() for p in doc)
+            # El texto se normaliza: el wrap de celda puede partir nombres
+            # largos en varias líneas físicas del PDF.
+            return " ".join("\n".join(p.get_text() for p in doc).split())
 
     def test_pdf_sin_citas_no_incluye_seccion(self):
         pdf = generar_factura_pdf(_FacturaFalsa(), _PedidoFalso(), _ClienteFalso(), [])
@@ -99,6 +101,18 @@ class PdfConServiciosTest(unittest.TestCase):
         self.assertIn("27/11/2026", texto)
         self.assertIn("14:00", texto)
         self.assertIn("JORGE DANIEL CHARRY PÉREZ", texto)
+
+    def test_pdf_con_dos_tecnicos_ambos_completos(self):
+        citas = [
+            _CitaFalsa("instalacion", date(2026, 11, 30), "08:00",
+                       t1="JORGE DANIEL CHARRY PÉREZ",
+                       t2="CARLOS ANDRÉS GÓMEZ RÍOS"),
+        ]
+        pdf = generar_factura_pdf(_FacturaFalsa(), _PedidoFalso(), _ClienteFalso(), [], citas=citas)
+        texto = self._texto_pdf(pdf)
+        self.assertIn("Instalación", texto)
+        self.assertIn("JORGE DANIEL CHARRY PÉREZ", texto)
+        self.assertIn("CARLOS ANDRÉS GÓMEZ RÍOS", texto)
 
 
 if __name__ == "__main__":
