@@ -1130,6 +1130,9 @@ def _crear_ordenes_instalacion_desde_detalles(
     return creadas
 
 
+from app.services.cita_service import citas_del_pedido
+
+
 def _crear_factura(db: Session, pedido: Pedido, pago: Pago, commit: bool = True) -> Factura:
     """Crea la factura del pedido (sin enviarla). Con ``commit=False`` la deja
     pendiente para confirmarla en la misma transacción que el resto del flujo."""
@@ -1159,7 +1162,7 @@ async def _enviar_factura(db: Session, factura: Factura, pedido: Pedido, cliente
         .all()
     )
     try:
-        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles)
+        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles, citas=citas_del_pedido(db, pedido.id_pedido))
     except Exception as e:
         print(f"Error generando PDF de factura {factura.numero_factura}: {e}")
         return

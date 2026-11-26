@@ -974,10 +974,11 @@ def descargar_factura(
         .all()
     )
 
+    from app.services.cita_service import citas_del_pedido
     from app.services.factura_service import generar_factura_pdf
 
     try:
-        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles)
+        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles, citas=citas_del_pedido(db, pedido.id_pedido))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generando la factura: {e}")
 
@@ -1019,10 +1020,11 @@ def descargar_factura_admin(
         .all()
     )
 
+    from app.services.cita_service import citas_del_pedido
     from app.services.factura_service import generar_factura_pdf
 
     try:
-        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles)
+        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles, citas=citas_del_pedido(db, pedido.id_pedido))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generando la factura: {e}")
 

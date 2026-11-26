@@ -297,7 +297,44 @@ def _agregar_total_y_pie(historia: list, monto, estilos) -> None:
     ))
 
 
-def generar_factura_pdf(factura, pedido, cliente, detalles) -> io.BytesIO:
+# ── Servicios agendados en el PDF ────────────────────────────────────
+TIPO_SERVICIO_TEXTO = {
+    "instalacion": "Instalación",
+    "mantenimiento": "Mantenimiento",
+    "reparacion": "Reparación",
+    "revision": "Revisión técnica",
+    "soporte": "Soporte técnico",
+    "servicio": "Servicio técnico",
+}
+
+
+def texto_tipo_servicio(tipo) -> str:
+    norm = str(tipo or "").strip().lower()
+    return TIPO_SERVICIO_TEXTO.get(norm, (norm or "Servicio").capitalize())
+
+
+def _filas_citas_pdf(citas):
+    """Filas de la sección «SERVICIOS AGENDADOS» a partir de la cita guardada.
+
+    Cada fila: tipo de servicio, fecha, hora programada en Bogotá y los
+    técnicos asignados (o «Asignación pendiente»)."""
+    filas = []
+    for cita in citas:
+        tipo = texto_tipo_servicio(getattr(cita, "tipo_servicio", None))
+        fecha = cita.fecha.strftime("%d/%m/%Y") if getattr(cita, "fecha", None) else "-"
+        hora = str(getattr(cita, "hora", "") or "-")
+        tecnicos = [
+            getattr(cita, "nombre_tecnico", None),
+            getattr(cita, "nombre_tecnico_2", None),
+            getattr(cita, "nombre_tecnico_3", None),
+        ]
+        tecnicos = [t for t in tecnicos if t]
+        tecnicos_texto = " y ".join(tecnicos) if tecnicos else "Asignación pendiente"
+        filas.append([tipo, fecha, hora, tecnicos_texto])
+    return filas
+
+
+def generar_factura_pdf(factura, pedido, cliente, detalles, citas=None) -> io.BytesIO:
     """Genera el PDF de la factura en memoria y retorna un BytesIO."""
     s = _styles()
     buffer, doc = _crear_documento(factura.numero_factura)
@@ -336,29 +373,19 @@ def generar_factura_pdf(factura, pedido, cliente, detalles) -> io.BytesIO:
     historia.append(tabla_detalle)
     historia.append(Spacer(1, 6 * mm))
 
-    # ── Servicios incluidos (si los hay) ───────────────────────────────
-    servicios = [d for d in detalles if d.id_producto_d is None]
-    if servicios:
-        historia.append(Paragraph("SERVICIOS INCLUIDOS", s["label"]))
+    # ── Servicios agendados (desde la CITA guardada del pedido) ─────────
+    # Fecha y hora son las programadas en Bogotá; los técnicos salen de la
+    # asignación guardada (no de datos temporales). Sin citas, no hay sección.
+    filas_citas = _filas_citas_pdf(citas or [])
+    if filas_citas:
+        historia.append(Paragraph("SERVICIOS AGENDADOS", s["label"]))
         historia.append(Spacer(1, 2 * mm))
         filas_s = [
-            [_celda("SERVICIO", s["th"]), _celda("DESCRIPCIÓN", s["th"]),
-             _celda("FECHA", s["th"]), _celda("VALOR", s["th"])],
+            [_celda("SERVICIO", s["th"]), _celda("FECHA", s["th"]),
+             _celda("HORA (BOGOTÁ)", s["th"]), _celda("TÉCNICOS", s["th"])],
         ]
-        for det in servicios:
-            descripcion = (det.descripcion_detalle or "Servicio técnico")
-            nombre = descripcion.split("\n")[0] if "\n" in descripcion else "Servicio técnico"
-            resto = (det.descripcion_detalle or "")
-            if "\n" in resto:
-                resto = resto.split("\n", 1)[1]
-            fecha = det.fecha_servicio.strftime("%d/%m/%Y") if det.fecha_servicio else "-"
-            filas_s.append([
-                _celda(nombre, s["td"]),
-                _celda(resto or "-", s["td"]),
-                _celda(fecha, s["tdc"]),
-                _celda(formatear_cop(det.subtotal_detalle), s["tdr"]),
-            ])
-        tabla_serv = Table(filas_s, colWidths=[45 * mm, 75 * mm, 25 * mm, 35 * mm], repeatRows=1)
+        filas_s.extend(filas_citas)
+        tabla_serv = Table(filas_s, colWidths=[45 * mm, 30 * mm, 28 * mm, 77 * mm], repeatRows=1)
         tabla_serv.setStyle(TableStyle(estilos_detalle))
         historia.append(tabla_serv)
         historia.append(Spacer(1, 6 * mm))
