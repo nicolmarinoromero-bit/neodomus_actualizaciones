@@ -9,7 +9,7 @@
 # ─────────────────────────────────────────────────────────────
 import time
 import unittest
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import patch
 
 import app.tests.testdb  # noqa: F401
@@ -20,6 +20,15 @@ from app.models.especializacion import producto_especializacion
 from app.models.producto import Producto
 from app.services.recomendacion_service import analizar_items
 from app.tests.test_t2_pago_pendiente import BaseT2, _run
+
+
+def _siguiente_laborable(dias: int):
+    from datetime import date as _d, timedelta as _t
+
+    f = _d.today() + _t(days=dias)
+    while f.weekday() == 6:
+        f += _t(days=1)
+    return f
 
 
 def _crear_producto_camara(db, esp, marca):
@@ -120,7 +129,7 @@ class MensajeAptitudVsAgendaTest(BaseT2):
         from app.utils.security import create_access_token
 
         self.headers = {'Authorization': f'Bearer {create_access_token(token_payload, user_type="client", rol="cliente")}'}
-        self.fecha = (date.today() + timedelta(days=5)).isoformat()
+        self.fecha = _siguiente_laborable(5).isoformat()
 
     def _post(self):
         payload = {
