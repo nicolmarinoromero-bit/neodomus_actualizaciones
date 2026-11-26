@@ -57,7 +57,7 @@ def horas_estimadas_producto(producto: Producto, cantidad: float = 1.0) -> float
     return round(por_unidad * max(float(cantidad or 1), 0.0), 2)
 
 
-def analizar_items(db: Session, items: list[dict]) -> dict:
+def analizar_items(db: Session, items: list[dict], tipo_servicio: Optional[str] = None) -> dict:
     """Analiza las líneas de producto del carrito.
 
     Devuelve:
@@ -65,6 +65,10 @@ def analizar_items(db: Session, items: list[dict]) -> dict:
       especializaciones_requeridas: lista única de especializaciones
       tiempo_total_horas: suma de tiempos estimados
       tecnicos_necesarios: entero >= 1 según CONFIG
+
+    La carga (horas) escala el equipo SOLO para ``instalacion`` (misma regla
+    que ``cantidad_tecnicos_requerida`` y ``_crear_orden_instalacion``): los
+    demás servicios técnicos requieren 1 técnico.
     """
     detalle_items = []
     ids_especializaciones: set[int] = set()
@@ -138,6 +142,19 @@ def analizar_items(db: Session, items: list[dict]) -> dict:
             tecnicos_necesarios = max(tecnicos_necesarios, por_desplazamiento)
         tecnicos_necesarios = min(max(tecnicos_necesarios, 1), CONFIG["max_tecnicos"])
 
+    # Regla vigente del servidor: solo la instalación escala el equipo con la
+    # carga; los demás servicios técnicos requieren un solo técnico. Si no se
+    # declara el tipo (consumidores históricos como la cita) se conserva el
+    # cálculo por carga para no cambiar la regla de la instalación.
+    import unicodedata
+
+    tipo_norm = "".join(
+        c for c in unicodedata.normalize("NFD", str(tipo_servicio or "").lower())
+        if unicodedata.category(c) != "Mn"
+    )
+    if tipo_servicio is not None and tipo_norm != "instalacion":
+        tecnicos_necesarios = 1
+
     # Horas que TRABAJA cada técnico dentro de la cita: siempre entre 1 y
     # DURACION_MAX_TECNICO (2.5 h) — nunca más, por los desplazamientos.
     horas_por_tecnico = (
@@ -163,10 +180,11 @@ def recomendar_tecnicos(
     items: list[dict],
     fecha=None,
     hora: Optional[str] = None,
+    tipo_servicio: Optional[str] = None,
 ) -> dict:
     """Analiza el carrito y devuelve los técnicos sugeridos ordenados por
     cobertura de especializaciones (primero los que cubren TODO)."""
-    analisis = analizar_items(db, items)
+    analisis = analizar_items(db, items, tipo_servicio=tipo_servicio)
     requeridas = [e["id_especializacion"] for e in analisis["especializaciones_requeridas"]]
     total_req = len(requeridas)
 

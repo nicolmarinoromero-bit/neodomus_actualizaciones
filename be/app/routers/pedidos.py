@@ -219,11 +219,13 @@ def _serializar_pedido(pedido, con_detalles=False, db: Session | None = None):
 
 # ── Endpoints ───────────────────────────────────────────────────
 
-# Agrupa los campos de RecomendacionRequest: items, fecha, hora.
+# Agrupa los campos de RecomendacionRequest: items, fecha, hora y el tipo de
+# servicio (la regla de equipo escala solo para instalación).
 class RecomendacionRequest(BaseModel):
     items: List[ItemCarrito]
     fecha: Optional[str] = None
     hora: Optional[str] = None
+    tipo_servicio: Optional[str] = None
 
 
 @router.post("/recomendacion-tecnicos")
@@ -250,6 +252,7 @@ def recomendacion_tecnicos(
         [item.dict() for item in data.items],
         fecha=fecha,
         hora=data.hora,
+        tipo_servicio=data.tipo_servicio,
     )
 
 
