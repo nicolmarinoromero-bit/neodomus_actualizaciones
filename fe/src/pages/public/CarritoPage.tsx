@@ -235,7 +235,7 @@ const CarritoPage = () => {
                          <span className="carrito-item-color">Medida: {(item as any).medida || (item as any).tamaño}</span>
                        )}
                       <span className="carrito-item-precio-unit">
-                        ${item.precio_venta_producto.toLocaleString()} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
+                        ${item.precio_venta_producto.toLocaleString('es-CO')} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
                       </span>
                       {item.venta_por_metros && item.metros != null && (
                         <span className="carrito-item-metros">
