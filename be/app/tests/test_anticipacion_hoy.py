@@ -3,6 +3,11 @@
 # 26/11/2026 07:14): 10:13 se rechaza (2 h 59 min), 10:14 cumple
 # justo el mínimo, 14:00 lo supera. La hora es LOCAL (Bogotá),
 # no la zona del servidor.
+#
+# El reloj fijo se aplica parcheando ahora_bogota (el reloj que
+# consumen las validaciones), sin congelar datetime global:
+# freezegun global rompe los schemas de FastAPI (date → FakeDate
+# en las anotaciones de las rutas).
 # ─────────────────────────────────────────────────────────────
 import time
 import unittest
@@ -12,12 +17,12 @@ from unittest.mock import patch
 import app.tests.testdb  # noqa: F401
 from app.main import app
 from app.models.especializacion import Especializacion
-from app.models.especializacion import producto_especializacion
+from app.models.especializacion import producto_especializacion, tecnico_especializacion
 from app.models.producto import Producto
-from app.services.pedidos_service import _crear_orden_instalacion
+from app.models.tecnico import Tecnico
+from app.models.user import User
 from app.tests.test_t2_pago_pendiente import BaseT2, _run
 from app.utils.security import create_access_token
-from freezegun import freeze_time
 
 
 def _siguiente_laborable(dias: int) -> date:
@@ -25,6 +30,10 @@ def _siguiente_laborable(dias: int) -> date:
     while d.weekday() == 6:
         d += timedelta(days=1)
     return d
+
+
+RELOJ_0714 = datetime(2026, 11, 26, 7, 14, 0)
+RELOJ_0830 = datetime(2026, 11, 26, 8, 30, 0)
 
 
 class ReglaAnticipacionHoyTest(BaseT2):
@@ -60,18 +69,14 @@ class ReglaAnticipacionHoyTest(BaseT2):
             id_producto=self.producto.id_producto,
             id_especializacion=self.esp.id_especializacion,
         ))
-        # Técnico apto (activo, no-demo) para la cita de hoy
-        from app.models.user import User
         u = User(first_name="JORGE", last_name="QA",
                  email=f"jorge.3h.{marca}@pruebas-qa.com", password_hash="x",
                  id_rol_u=2, is_active=True)
         db.add(u)
         db.flush()
-        from app.models.tecnico import Tecnico
         self.tecnico = Tecnico(id_usuario_t=u.id_usuario, certificacion_t="")
         db.add(self.tecnico)
         db.flush()
-        from app.models.especializacion import tecnico_especializacion
         db.execute(tecnico_especializacion.insert().values(
             id_tecnico=self.tecnico.id_tecnico,
             id_especializacion=self.esp.id_especializacion,
@@ -110,66 +115,54 @@ class ReglaAnticipacionHoyTest(BaseT2):
             db.close()
         super().tearDown()
 
-    def _post_hoy(self, hora, congelado=None):
-        # La petición corre con el reloj congelado indicado (incluido el JWT:
-        # así el token no expira cuando el test salta de reloj).
-        from freezegun import freeze_time as _ft
-
-        cuerpo = {
+    def _post_hoy(self, hora, reloj):
+        """POST de un pedido con cita HOY a `hora`, con el reloj de Bogotá
+        de las validaciones fijado a `reloj` (parche de ahora_bogota)."""
+        payload = {
             'items': [{'id_producto': self.producto.id_producto, 'cantidad': 1}],
             'servicios': [{
                 'nombre': 'Mantenimiento hoy', 'tipo_servicio': 'mantenimiento',
-                'fecha': date.today().isoformat(), 'hora': hora,
+                'fecha': '2026-11-26', 'hora': hora,
                 'direccion': 'Calle regla', 'precio': 80000,
                 'id_tecnico': self.tecnico.id_tecnico,
             }],
             'pago': {'metodo': 'tarjeta_credito', 'numero': '4242424242424242',
                      'cvv': '123', 'titular': 'Regla', 'expiracion': '12/30'},
         }
+        token = create_access_token(
+            {'sub': self.cliente.email}, user_type='client', rol='cliente',
+            user_id=self.cliente.id_cliente,
+        )
+        headers = {'Authorization': f'Bearer {token}'}
 
-        async def req(token):
+        async def req():
             from httpx import ASGITransport, AsyncClient
             async with AsyncClient(transport=ASGITransport(app=app), base_url='http://t') as c:
-                return await c.post('/api/v1/pedidos', json=cuerpo, headers={'Authorization': f'Bearer {token}'})
+                return await c.post('/api/v1/pedidos', json=payload, headers=headers)
+        with patch('app.services.pedidos_service.ahora_bogota', return_value=reloj):
+            return _run(req())
 
-        def correr():
-            token = create_access_token(
-                {'sub': self.cliente.email}, user_type='client', rol='cliente',
-                user_id=self.cliente.id_cliente,
-            )
-            return _run(req(token))
-
-        if congelado:
-            with _ft(congelado):
-                return correr()
-        return correr()
-
-    @freeze_time("2026-11-26 07:14:00-05:00")
     def test_1013_rechazada_1014_cumple_1400_supera(self):
         # ── Regla de anticipación POR SEPARADO (reloj fijo 07:14 Bogotá) ──
-        from app.utils.tiempo import ahora_bogota
-
-        ahora = ahora_bogota()  # 07:14 congelado
-
-        def cumple_minimo(hora: str) -> bool:
+        def cumple_minimo(hora: str, ahora: datetime) -> bool:
             hh, mm = hora.split(":")
-            fecha_hora = datetime.combine(date.today(), datetime.min.time()).replace(
+            fecha_hora = datetime.combine(date(2026, 11, 26), datetime.min.time()).replace(
                 hour=int(hh), minute=int(mm)
             )
             return fecha_hora >= ahora + timedelta(hours=3)
 
-        self.assertFalse(cumple_minimo("10:13"), "10:13 tiene 2 h 59 min: no cumple")
-        self.assertTrue(cumple_minimo("10:14"), "10:14 cumple justo el mínimo (3 h 00)")
-        self.assertTrue(cumple_minimo("14:00"), "14:00 supera (6 h 46)")
+        self.assertFalse(cumple_minimo("10:13", RELOJ_0714), "10:13 tiene 2 h 59 min: no cumple")
+        self.assertTrue(cumple_minimo("10:14", RELOJ_0714), "10:14 cumple justo el mínimo (3 h 00)")
+        self.assertTrue(cumple_minimo("14:00", RELOJ_0714), "14:00 supera (6 h 46)")
 
         # ── Endpoint (cuadrícula de franjas): 14:00 hoy se agenda completa ──
-        r3 = self._post_hoy("14:00", congelado="2026-11-26 07:14:00-05:00")
+        r3 = self._post_hoy("14:00", RELOJ_0714)
         self.assertEqual(r3.status_code, 200, r3.json())
         self.assertEqual(r3.json()['pago']['estado'], 'aprobado')
 
         # Franja válida de la cuadrícula (11:00) sin margen: reloj 08:30 →
         # 2 h 30 min → rechazo por ANTICIPACIÓN con el motivo visible.
-        r4 = self._post_hoy("11:00", congelado="2026-11-26 08:30:00-05:00")
+        r4 = self._post_hoy("11:00", RELOJ_0830)
         self.assertEqual(r4.status_code, 400)
         self.assertIn('3 horas', r4.json()['detail'])
         self.assertIn('Bogotá', r4.json()['detail'])
