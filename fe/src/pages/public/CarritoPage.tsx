@@ -389,7 +389,7 @@ const CarritoPage = () => {
               <h2>{t('carrito.resumen')}</h2>
               <div className="carrito-resumen-row">
                 <span>{t('carrito.productos')} ({totalItems})</span>
-                <span>${totalPrice.toLocaleString()} COP</span>
+                <span>${totalPrice.toLocaleString('es-CO')} COP</span>
               </div>
               <div className="carrito-resumen-row">
                 <span>{t('carrito.envio')}</span>
@@ -403,7 +403,7 @@ const CarritoPage = () => {
               )}
               <div className="carrito-resumen-total">
                 <span>{t('carrito.total')}</span>
-                <span>${totalPrice.toLocaleString()} COP</span>
+                <span>${totalPrice.toLocaleString('es-CO')} COP</span>
               </div>
               <button type="button" className={`carrito-finalizar-btn ${tieneStockInsuficiente ? 'disabled' : ''}`} onClick={handleFinalizar} disabled={tieneStockInsuficiente}>
                 {t('carrito.finalizarCompra')}
