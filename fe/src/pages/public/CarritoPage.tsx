@@ -345,7 +345,7 @@ const CarritoPage = () => {
                           item.precio_venta_producto,
                           item.cantidad,
                           item.venta_por_metros ? item.metros || 0 : null,
-                        ).toLocaleString()} COP</strong>
+                        ).toLocaleString('es-CO')} COP</strong>
                       </span>
 
                       <button
