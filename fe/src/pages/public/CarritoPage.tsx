@@ -235,7 +235,7 @@ const CarritoPage = () => {
                          <span className="carrito-item-color">Medida: {(item as any).medida || (item as any).tamaño}</span>
                        )}
                       <span className="carrito-item-precio-unit">
-                        ${item.precio_venta_producto.toLocaleString()} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
+                        ${item.precio_venta_producto.toLocaleString('es-CO')} COP{item.venta_por_metros ? ' / metro' : ` ${t('carrito.unidad')}`}
                       </span>
                       {item.venta_por_metros && item.metros != null && (
                         <span className="carrito-item-metros">
@@ -341,11 +341,11 @@ const CarritoPage = () => {
                       )}
 
                       <span className="carrito-item-subtotal">
-                        ${subtotalLinea(
+                        {t('carrito.subtotal')}: <strong>${subtotalLinea(
                           item.precio_venta_producto,
                           item.cantidad,
                           item.venta_por_metros ? item.metros || 0 : null,
-                        ).toLocaleString()} COP
+                        ).toLocaleString('es-CO')} COP</strong>
                       </span>
 
                       <button
@@ -389,7 +389,7 @@ const CarritoPage = () => {
               <h2>{t('carrito.resumen')}</h2>
               <div className="carrito-resumen-row">
                 <span>{t('carrito.productos')} ({totalItems})</span>
-                <span>${totalPrice.toLocaleString()} COP</span>
+                <span>${totalPrice.toLocaleString('es-CO')} COP</span>
               </div>
               <div className="carrito-resumen-row">
                 <span>{t('carrito.envio')}</span>
@@ -403,7 +403,7 @@ const CarritoPage = () => {
               )}
               <div className="carrito-resumen-total">
                 <span>{t('carrito.total')}</span>
-                <span>${totalPrice.toLocaleString()} COP</span>
+                <span>${totalPrice.toLocaleString('es-CO')} COP</span>
               </div>
               <button type="button" className={`carrito-finalizar-btn ${tieneStockInsuficiente ? 'disabled' : ''}`} onClick={handleFinalizar} disabled={tieneStockInsuficiente}>
                 {t('carrito.finalizarCompra')}

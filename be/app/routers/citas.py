@@ -9,21 +9,8 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import json
 from pydantic import BaseModel
-try:
-    from zoneinfo import ZoneInfo
-    _BOGOTA_TZ = ZoneInfo("America/Bogota")
-except Exception:
-    _BOGOTA_TZ = None
 
-
-def _ahora_bogota() -> datetime:
-    """Hora actual en America/Bogota, sin depender de la zona del servidor.
-
-    Devuelve un datetime NAIVE (sin tzinfo) con la hora de Bogotá, para poder
-    compararlo con ``datetime.combine(fecha, hora)``."""
-    if _BOGOTA_TZ is not None:
-        return datetime.now(_BOGOTA_TZ).replace(tzinfo=None)
-    return datetime.now() - timedelta(hours=5)
+from app.utils.tiempo import ahora_bogota as _ahora_bogota
 
 from app.database import get_db
 from app.models.cliente import Cliente

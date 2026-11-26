@@ -30,6 +30,7 @@ from app.models.tecnico import Tecnico
 from app.services import pagos_service
 from app.services.disponibilidad_service import producto_disponible
 from app.services.inventario_service import descontar_stock
+from app.utils.tiempo import ahora_bogota
 from app.services.precio_service import precio_unitario as calcular_precio_unitario
 
 
@@ -325,8 +326,8 @@ def _preparar_servicios(
         except (TypeError, ValueError):
             f = None
         if f is None:
-            f = (datetime.now() + timedelta(days=1)).date()
-        if f < date.today():
+            f = (ahora_bogota() + timedelta(days=1)).date()
+        if f < ahora_bogota().date():
             raise HTTPException(
                 status_code=400,
                 detail="La fecha del servicio no puede ser anterior a hoy.",
@@ -346,17 +347,18 @@ def _preparar_servicios(
                 status_code=400,
                 detail="La hora debe ser una franja entre 08:00 y 18:00 con tiempo suficiente para el servicio (por ejemplo 09:00).",
             )
-        if f == date.today():
+        if f == ahora_bogota().date():
             try:
                 hh, mm = hora.split(":")[:2]
                 seleccion = (int(hh), int(mm))
-                actual = (_dt.now().hour, _dt.now().minute)
+                ahora_hm = ahora_bogota()
+                actual = (ahora_hm.hour, ahora_hm.minute)
             except (TypeError, ValueError):
                 seleccion, actual = None, None
             if seleccion is not None and seleccion <= actual:
                 raise HTTPException(
                     status_code=400,
-                    detail="La hora del servicio debe ser posterior a la hora actual.",
+                    detail="La hora del servicio debe ser posterior a la hora actual (hora de Bogotá).",
                 )
 
         preparados.append({
@@ -376,8 +378,8 @@ def _preparar_servicios(
 
 def _validar_fecha_instalacion(fecha: str | None, hora: str) -> None:
     """Rechaza instalaciones agendadas en una fecha pasada o, si es hoy,
-    en una hora que ya pasó."""
-    hoy = date.today()
+    en una hora que ya pasó (reloj de Bogotá, no la zona del servidor)."""
+    hoy = ahora_bogota().date()
     if not fecha:
         return
     try:
@@ -393,7 +395,8 @@ def _validar_fecha_instalacion(fecha: str | None, hora: str) -> None:
         try:
             hh, mm = (hora or "").split(":")[:2]
             seleccion = (int(hh), int(mm))
-            actual = (datetime.now().hour, datetime.now().minute)
+            actual_hm = ahora_bogota()
+            actual = (actual_hm.hour, actual_hm.minute)
         except (TypeError, ValueError):
             return
         if seleccion <= actual:
@@ -732,11 +735,12 @@ def _crear_orden_instalacion(
     except (TypeError, ValueError):
         fecha = None
     if fecha is None:
-        fecha = (datetime.now() + timedelta(days=1)).date()
+        fecha = (ahora_bogota() + timedelta(days=1)).date()
     else:
         # Regla de negocio: mínimo 3 horas de anticipación. HOY es posible si
         # la franja elegida queda fuera de esas 3 horas y hay agenda libre
-        # (la disponibilidad por técnico se valida más abajo).
+        # (la disponibilidad por técnico se valida más abajo). El reloj es el
+        # de Bogotá: la hora elegida es local, no la zona del servidor.
         try:
             partes_hora = str(serv.get("hora") or "08:00").split(":")
             fecha_hora_servicio = datetime.combine(
@@ -745,12 +749,14 @@ def _crear_orden_instalacion(
             ).replace(hour=int(partes_hora[0]), minute=int(partes_hora[1]))
         except (TypeError, ValueError, IndexError):
             fecha_hora_servicio = datetime.combine(fecha, datetime.min.time())
-        if fecha_hora_servicio < datetime.now() + timedelta(hours=3):
+        ahora = ahora_bogota()
+        if fecha_hora_servicio < ahora + timedelta(hours=3):
             raise HTTPException(
                 status_code=400,
                 detail=(
                     "Los servicios se agendan con al menos 3 horas de "
-                    "anticipación. Si es para hoy, elige una hora posterior."
+                    f"anticipación (ahora son {ahora:%H:%M} en Bogotá). "
+                    "Si es para hoy, elige una hora posterior."
                 ),
             )
     hora = serv.get("hora") or "08:00"
@@ -1124,6 +1130,9 @@ def _crear_ordenes_instalacion_desde_detalles(
     return creadas
 
 
+from app.services.cita_service import citas_del_pedido
+
+
 def _crear_factura(db: Session, pedido: Pedido, pago: Pago, commit: bool = True) -> Factura:
     """Crea la factura del pedido (sin enviarla). Con ``commit=False`` la deja
     pendiente para confirmarla en la misma transacción que el resto del flujo."""
@@ -1153,7 +1162,7 @@ async def _enviar_factura(db: Session, factura: Factura, pedido: Pedido, cliente
         .all()
     )
     try:
-        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles)
+        pdf_buffer = generar_factura_pdf(factura, pedido, cliente, detalles, citas=citas_del_pedido(db, pedido.id_pedido))
     except Exception as e:
         print(f"Error generando PDF de factura {factura.numero_factura}: {e}")
         return

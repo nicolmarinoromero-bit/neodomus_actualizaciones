@@ -62,9 +62,9 @@ test('checkout real por variante y metros con refresco de precio y sin solicitud
   });
 
   await cart.reloadCart(2);
-  await expect(cart.subtotals.nth(0)).toContainText('$1,500');
-  await expect(cart.subtotals.nth(1)).toContainText('$1,500');
-  await expect(cart.total).toContainText('$3,000');
+  await expect(cart.subtotals.nth(0)).toContainText('$1.500');
+  await expect(cart.subtotals.nth(1)).toContainText('$1.500');
+  await expect(cart.total).toContainText('$3.000');
 
   // El refresco de precios ocurre una sola vez: tras la ventana de espera no
   // deben aparecer nuevas peticiones de detalle (no hay bucle de efectos).
