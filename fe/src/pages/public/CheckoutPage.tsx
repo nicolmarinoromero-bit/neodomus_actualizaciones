@@ -26,7 +26,7 @@ import { useCart } from '@contexts/CartContext';
 import { useAuth } from '@contexts/AuthContext';
 import { useIdioma } from '@i18n/IdiomaContext';
 import { PF_REDIRECT_AFTER_LOGIN_KEY } from '@utils/profileStorage';
-import { subtotalLinea } from '@utils/productoPrecio';
+import { precioUnitarioProducto, subtotalLinea } from '@utils/productoPrecio';
 import { esDomingo } from '@utils/fechas';
 import SelectorBanco from '@components/common/SelectorBanco';
 import '@styles/checkout.css';
@@ -1365,20 +1365,23 @@ const CheckoutPage = () => {
                   item.venta_por_metros ? item.metros || 0 : null,
                 );
                 const tecnicosReq = Number(item.tecnicos_requeridos) || 0;
+                const precioUnit = precioUnitarioProducto(item as never);
                 return (
                   <div className="checkout-resumen-item" key={`${item.id_producto}-${item.metros || 0}-${item.cantidad}`}>
                     <span className="checkout-resumen-nombre">
                       {item.nombre_producto}
                       {item.venta_por_metros
-                        ? ` · ${item.metros} m × ${item.cantidad} = ${totalM} m`
+                        ? ` · ${item.metros} m × ${item.cantidad} = ${totalM} m ($${precioUnit.toLocaleString()}/m)`
                         : item.cantidad > 1
-                          ? ` × ${item.cantidad}`
+                          ? ` × ${item.cantidad} ($${precioUnit.toLocaleString()}/u)`
                           : ''}
                       {tecnicosReq > 0
                         ? (tecnicosReq === 1 ? t('checkout.resumen.unTecnico') : t('checkout.resumen.tecnicos', { n: tecnicosReq }))
                         : t('checkout.resumen.sinInstalacion')}
                     </span>
-                    <span className="checkout-resumen-precio">{formatoPeso(importe)}</span>
+                    <span className="checkout-resumen-precio">
+                      {t('carrito.subtotal')}: <strong>{formatoPeso(importe)}</strong>
+                    </span>
                   </div>
                 );
               })}

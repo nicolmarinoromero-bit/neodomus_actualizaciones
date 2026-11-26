@@ -341,11 +341,11 @@ const CarritoPage = () => {
                       )}
 
                       <span className="carrito-item-subtotal">
-                        ${subtotalLinea(
+                        {t('carrito.subtotal')}: <strong>${subtotalLinea(
                           item.precio_venta_producto,
                           item.cantidad,
                           item.venta_por_metros ? item.metros || 0 : null,
-                        ).toLocaleString()} COP
+                        ).toLocaleString()} COP</strong>
                       </span>
 
                       <button

@@ -460,6 +460,17 @@
   white-space: nowrap;
 }
 
+/* Subtotal de línea: etiqueta + importe destacados, distintos del total. */
+.checkout-resumen-precio strong {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.carrito-item-subtotal,
+.checkout-resumen-precio {
+  letter-spacing: 0.2px;
+}
+
 .checkout-resumen-row {
   display: flex;
   justify-content: space-between;

@@ -611,12 +611,18 @@ const ProductoDetalle = () => {
                     </span>
                   )}
                   <span className="detalle-precio-monto">
-                    ${subtotalLinea(precioUnitario, cantidad).toLocaleString()}
+                    ${precioUnitario.toLocaleString()}
                   </span>
                   <span className="detalle-precio-sufijo">COP</span>
                   {tieneDescuento && (
                     <span className="detalle-badge-descuento">-{producto.descuento_activo}%</span>
                   )}
+                  {/* El monto grande es el PRECIO UNITARIO (fijo al cambiar
+                      la cantidad); el subtotal va etiquetado y en negrita. */}
+                  <span className="detalle-precio-unitario">
+                    {t('carrito.subtotal')}: <strong>${subtotalLinea(precioUnitario, cantidad).toLocaleString()} COP</strong>
+                    {' '}({cantidad} × ${precioUnitario.toLocaleString()})
+                  </span>
                 </>
               )}
             </div>
