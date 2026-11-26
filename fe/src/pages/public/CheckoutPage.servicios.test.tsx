@@ -57,6 +57,18 @@ const respuestaAprobado = {
   },
 };
 
+const respuestaRecomendacion = () => ({
+  data: {
+    tecnicos_necesarios: 1,
+    horas_por_tecnico: 1.5,
+    tiempo_total_horas: 1.5,
+    especializaciones_requeridas: [
+      { id_especializacion: 1, nombre: 'Instalación de cámaras de seguridad' },
+    ],
+    tecnicos_sugeridos: [],
+  },
+});
+
 beforeEach(() => {
   recomendaciones.bodies = [];
   horasPedidos.urls = [];
@@ -189,5 +201,65 @@ describe('CheckoutPage · servicios técnicos por tipo', () => {
     await waitFor(() => {
       expect(screen.getByText(/Ningún técnico disponible cumple/)).toBeTruthy();
     });
+  });
+
+  it('la confirmación de compra nombra el servicio real agendado', async () => {
+    // El backend responde con la cita de mantenimiento agendada.
+    vi.mocked(api.post).mockImplementation(async (url: string) => {
+      if (url === '/pedidos') {
+        return {
+          data: {
+            pedido: { id_pedido: 89, total: 125000 },
+            pago: { estado: 'aprobado', numero_transaccion: 'TD-9' },
+            factura: { numero_factura: 'FAC-89', enviada_por_correo: true },
+            ordenes_instalacion: [{
+              id_cita: 4, tipo_servicio: 'mantenimiento', estado: 'Confirmada',
+              nombre_tecnico: 'JORGE DANIEL CHARRY PÉREZ', fecha: '2026-11-27', hora: '17:00',
+            }],
+          },
+        } as never;
+      }
+      if (url === '/pedidos/recomendacion-tecnicos') {
+        return {
+          data: {
+            tecnicos_necesarios: 1,
+            horas_por_tecnico: 1.5,
+            tiempo_total_horas: 1.5,
+            especializaciones_requeridas: [
+              { id_especializacion: 1, nombre: 'Instalación de cámaras de seguridad' },
+            ],
+            tecnicos_sugeridos: [
+              { id_tecnico: 12, nombre: 'JORGE DANIEL CHARRY PÉREZ', cubre_todo: true },
+            ],
+          },
+        } as never;
+      }
+      throw new Error(`Ruta inesperada: ${url}`);
+    });
+    checkout();
+    await screen.findByText('Resumen del pedido');
+    await agregarServicio('Mantenimiento');
+    // La recomendación recalculada con tipo (1 técnico) ya cargó.
+    await screen.findByText(/requerirá 1 técnico/);
+    fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
+      target: { value: '2026-11-27' },
+    });
+    await screen.findByRole('button', { name: '08:00' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Tarjeta débito/ }));
+    fireEvent.change(screen.getByLabelText('Número de tarjeta'), { target: { value: '4242424242424242' } });
+    fireEvent.change(screen.getByLabelText('Expiración'), { target: { value: '12/30' } });
+    fireEvent.change(screen.getByLabelText('CVV'), { target: { value: '123' } });
+    fireEvent.change(screen.getByPlaceholderText('Como aparece en la tarjeta'), { target: { value: 'Cliente Test' } });
+    const sim = screen
+      .getAllByRole('combobox')
+      .find((el) => Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'aprobado')) as HTMLSelectElement;
+    fireEvent.change(sim, { target: { value: 'aprobado' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pagar y confirmar' }));
+    await waitFor(() => {
+      expect(screen.getByText('Mantenimiento agendado')).toBeTruthy();
+    });
+    expect(screen.queryByText('Instalación agendada')).toBeNull();
   });
 });

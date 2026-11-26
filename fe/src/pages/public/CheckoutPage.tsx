@@ -53,6 +53,16 @@ const TIPOS_SERVICIO: { tipo: string; precio: number; clave: string }[] = [
 const claveServicio = (tipo: string) =>
   TIPOS_SERVICIO.find((servicio) => servicio.tipo === tipo)?.clave ?? tipo;
 
+// Título de la pantalla de éxito por tipo de servicio agendado
+// («Mantenimiento agendado», «Servicio agendado» si es desconocido).
+const CLAVES_TIPO_AGENDADO: Record<string, string> = {
+  instalacion: 'citas.instalacion',
+  mantenimiento: 'citas.mantenimiento',
+  reparacion: 'citas.reparacion',
+  revision: 'checkout.entrega.tipoRevision',
+  soporte: 'citas.soporte',
+};
+
 interface LineaServicio {
   id: number;
   tipo: string;
@@ -185,6 +195,12 @@ const CheckoutPage = () => {
   const { t } = useIdioma();
   const { items, totalPrice, clearCart } = useCart();
   const { isAuthenticated, rol, loading: authLoading } = useAuth();
+
+  const tituloServicioAgendado = (tipo?: string) => {
+    const norm = (tipo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const clave = CLAVES_TIPO_AGENDADO[norm];
+    return clave ? t('checkout.exito.tipoAgendado', { tipo: t(clave) }) : t('checkout.exito.servicioAgendado');
+  };
 
   const [metodo, setMetodo] = useState<Metodo>('tarjeta_debito');
   const [pago, setPago] = useState({
@@ -799,9 +815,11 @@ const CheckoutPage = () => {
 
             {resultado.ordenes_instalacion && resultado.ordenes_instalacion.length > 0 && (
               <div className="checkout-ordenes-instalacion">
-                <h2>{t('checkout.exito.instalacionAgendada')}</h2>
                 {resultado.ordenes_instalacion.map((o, idx) => (
                   <div className="checkout-orden-instalacion" key={idx}>
+                    {/* El título nombra el servicio real agendado, no siempre
+                        «Instalación» (mantenimiento, reparación, …). */}
+                    <h2>{tituloServicioAgendado(o.tipo_servicio)}</h2>
                     <div><span>{t('checkout.resumen.estado')}</span><strong>{o.estado}</strong></div>
                     <div><span>{t('checkout.resumen.tecnico')}</span><strong>{o.nombre_tecnico || t('checkout.exito.porAsignar')}{o.nombre_tecnico_2 ? t('checkout.exito.yTecnico', { nombre: o.nombre_tecnico_2 }) : ''}</strong></div>
                     <div><span>{t('checkout.resumen.fecha')}</span><strong>{o.fecha ? (() => { const [a, m, d] = o.fecha.split('-').map(Number); return a ? new Date(a, m - 1, d).toLocaleDateString('es-CO') : o.fecha; })() : ''} {o.hora ? ` · ${o.hora}` : ''}</strong></div>
